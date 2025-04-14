@@ -1,0 +1,467 @@
+// Copyright 2024 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include <inttypes.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "scion/common/as_entry.h"
+#include "scion/common/hop_field.h"
+#include "scion/common/info_field.h"
+#include "scion/common/isd_as.h"
+#include "scion/control_plane/fetch.h"
+#include "scion/data_plane/path.h"
+#include "scion/error.h"
+#include "scion/util/linked_list.h"
+
+#include <assert.h>
+#include <string.h>
+
+int scion_path_meta_hdr_init(struct scion_path_meta_hdr *hdr)
+{
+	assert(hdr);
+
+	hdr->curr_inf = 0;
+	hdr->curr_hf = 0;
+	hdr->seg_len[0] = 0;
+	hdr->seg_len[1] = 0;
+	hdr->seg_len[2] = 0;
+	return 0;
+}
+
+int scion_path_raw_init(struct scion_path_raw *raw_path, struct scion_path_meta_hdr *hdr,
+	struct scion_linked_list *info_fields, struct scion_linked_list *hop_fields)
+{
+	assert(raw_path);
+	assert(hdr);
+	assert(info_fields);
+	assert(hop_fields);
+	int ret;
+
+	raw_path->length = (uint16_t)(SCION_META_LEN + info_fields->size * SCION_INFO_LEN
+								  + hop_fields->size * SCION_HOP_LEN);
+	raw_path->raw = malloc(raw_path->length);
+	ret = scion_path_serialize(hdr, info_fields, hop_fields, raw_path->raw);
+	if (ret != 0) {
+		free(raw_path->raw);
+		raw_path->raw = NULL;
+		return ret;
+	}
+	return 0;
+}
+
+void scion_path_raw_free(struct scion_path_raw *raw_path)
+{
+	if (raw_path == NULL) {
+		return;
+	}
+	if (raw_path->raw != NULL) {
+		free(raw_path->raw);
+		raw_path->raw = NULL;
+	}
+	raw_path->length = 0;
+	free(raw_path);
+}
+
+void scion_path_metadata_free(struct scion_path_metadata *path_meta)
+{
+	if (path_meta == NULL) {
+		return;
+	}
+	if (path_meta->interfaces != NULL) {
+		scion_list_free(path_meta->interfaces, free);
+		path_meta->interfaces = NULL;
+	}
+	free(path_meta);
+}
+
+void scion_path_free(struct scion_path *path)
+{
+	if (path == NULL) {
+		return;
+	}
+
+	if (path->raw_path != NULL) {
+		scion_path_raw_free(path->raw_path);
+		path->raw_path = NULL;
+	}
+
+	if (path->metadata != NULL) {
+		scion_path_metadata_free(path->metadata);
+		path->metadata = NULL;
+	}
+
+	free(path);
+}
+
+int scion_path_raw_reverse(struct scion_path_raw *path)
+{
+	assert(path);
+	int ret;
+
+	if (path->length == 0) {
+		// Empty path
+		return 0;
+	}
+
+	assert(path->raw);
+
+	struct scion_path_meta_hdr hdr;
+	struct scion_linked_list *info_fields = scion_list_create();
+	struct scion_linked_list *hop_fields = scion_list_create();
+
+	ret = scion_path_deserialize(path->raw, &hdr, info_fields, hop_fields);
+	if (ret != 0) {
+		goto cleanup_info_and_hop_fields;
+	}
+
+	// reverse info fields
+	scion_list_reverse(info_fields);
+	if (info_fields->size == 3) {
+		uint8_t first_seg_len = hdr.seg_len[0];
+		hdr.seg_len[0] = hdr.seg_len[2];
+		hdr.seg_len[2] = first_seg_len;
+	} else if (info_fields->size == 2) {
+		uint8_t first_seg_len = hdr.seg_len[0];
+		hdr.seg_len[0] = hdr.seg_len[1];
+		hdr.seg_len[1] = first_seg_len;
+	}
+
+	// reverse cons dir flag
+	struct scion_info_field *info;
+	struct scion_linked_list_node *curr = info_fields->first;
+	while (curr) {
+		info = curr->value;
+		info->cons_dir = !(info->cons_dir);
+		curr = curr->next;
+	}
+
+	// reverse hop fields
+	scion_list_reverse(hop_fields);
+
+	// Update curr_inf and curr_hf
+	// We don't simply reset to 0, as it might not be 0 if we are not the last hop in the path.
+	hdr.curr_inf = (uint8_t)(info_fields->size - hdr.curr_inf - 1);
+	hdr.curr_hf = (uint8_t)(hop_fields->size - hdr.curr_hf - 1);
+
+	ret = scion_path_serialize(&hdr, info_fields, hop_fields, path->raw);
+
+cleanup_info_and_hop_fields:
+	scion_list_free(info_fields, free);
+	scion_list_free(hop_fields, free);
+
+	return ret;
+}
+
+int scion_path_reverse(struct scion_path *path)
+{
+	assert(path);
+
+	scion_ia src = path->src;
+	path->src = path->dst;
+	path->dst = src;
+
+	if (path->path_type == SCION_PATH_TYPE_EMPTY) {
+		// Nothing to change
+		return 0;
+	}
+
+	if (path->path_type == SCION_PATH_TYPE_SCION) {
+		int ret = scion_path_raw_reverse(path->raw_path);
+		if (ret != 0) {
+			return ret;
+		}
+
+		if (path->metadata != NULL) {
+			scion_list_reverse(path->metadata->interfaces);
+		}
+		return 0;
+	}
+
+	return SCION_INVALID_PATH_TYPE;
+}
+
+/*
+ * ##################################################################
+ * ######################## Print Functions #########################
+ * ##################################################################
+ */
+void scion_path_print_interfaces(struct scion_linked_list *interfaces)
+{
+	if (!interfaces || interfaces->size == 0) {
+		return;
+	}
+
+	struct scion_linked_list_node *curr = interfaces->first;
+
+	// Print first AS
+	struct scion_path_interface *intf = (struct scion_path_interface *)curr->value;
+	scion_ia_print(intf->ia);
+	(void)printf(" %" PRIu16 ">", intf->id);
+
+	// Print Intermediate ASes
+	curr = curr->next;
+
+	while (curr != interfaces->last && curr != NULL) {
+		struct scion_path_interface *in_intf = (struct scion_path_interface *)curr->value;
+		struct scion_path_interface *out_intf = (struct scion_path_interface *)curr->next->value;
+		(void)printf("%" PRIu16 " ", in_intf->id);
+		scion_ia_print(in_intf->ia);
+		(void)printf(" %" PRIu16 ">", out_intf->id);
+		curr = curr->next->next;
+	}
+
+	// Print last AS
+	intf = (struct scion_path_interface *)interfaces->last->value;
+	(void)printf("%" PRIu16 " ", intf->id);
+	scion_ia_print(intf->ia);
+}
+
+void scion_path_print(const struct scion_path *path)
+{
+	if (!path) {
+		return;
+	}
+
+	if (path->path_type == SCION_PATH_TYPE_EMPTY) {
+		(void)printf("Hops: Empty Path\n");
+	} else if (path->path_type == SCION_PATH_TYPE_SCION) {
+		(void)printf("Hops: [");
+		scion_path_print_interfaces(path->metadata->interfaces);
+		(void)printf("] MTU: %" PRIu16 "\n", path->metadata->mtu);
+	}
+}
+
+uint32_t scion_path_byte_size(struct scion_path *path, bool print_details)
+{
+	if (path == NULL) {
+		return 0;
+	}
+
+	uint32_t size = sizeof(struct scion_path);
+	if (print_details) {
+		(void)printf("		-- scion_path struct itself takes: %" PRIu32 " bytes\n", size);
+	}
+
+	if (path->raw_path != NULL) {
+		uint32_t raw_path_size = sizeof(struct scion_path_raw);
+		raw_path_size += path->raw_path->length;
+		if (print_details) {
+			(void)printf("		-- raw path size (struct + path buffer): %" PRIu32 " bytes\n", raw_path_size);
+			(void)printf("			          path->raw_path->length: %" PRIu16 " bytes\n", path->raw_path->length);
+			(void)printf(
+				"			          sizeof(struct scion_path_raw): %zu bytes\n", sizeof(struct scion_path_raw));
+		}
+		size += raw_path_size;
+	}
+	if (path->metadata != NULL) {
+		uint32_t meta_size = sizeof(struct scion_path_metadata);
+
+		uint32_t intf_size = 0;
+		if (path->metadata->interfaces != NULL) {
+			intf_size += sizeof(struct scion_linked_list);
+			struct scion_linked_list_node *curr = path->metadata->interfaces->first;
+			while (curr) {
+				intf_size += sizeof(struct scion_linked_list_node);
+				if (curr->value != NULL) {
+					intf_size += sizeof(struct scion_path_interface);
+				}
+				curr = curr->next;
+			}
+			meta_size += intf_size;
+		}
+		if (print_details) {
+			(void)printf("		-- total metadata size: %" PRIu32 " bytes\n", meta_size);
+			if (path->metadata->interfaces != NULL) {
+				(void)printf("			of which: %" PRIu32 " interfaces size: %" PRIu32 " bytes\n",
+					path->metadata->interfaces->size, intf_size);
+			} else {
+				(void)printf("			of which: interfaces size: %" PRIu32 " bytes\n", intf_size);
+			}
+
+			(void)printf(
+				"			          sizeof(struct scion_linked_list): %zu bytes\n", sizeof(struct scion_linked_list));
+			(void)printf("			          sizeof(struct scion_linked_list_node): %zu bytes\n",
+				sizeof(struct scion_linked_list_node));
+			(void)printf("			          sizeof(struct scion_path_interface): %zu bytes\n",
+				sizeof(struct scion_path_interface));
+		}
+		size += meta_size;
+	}
+	if (print_details) {
+		(void)printf("	-- Total size: %" PRIu32 " bytes\n", size);
+	}
+	return size;
+}
+
+uint32_t scion_path_get_weight(const struct scion_path *path)
+{
+	assert(path != NULL);
+
+	return path->weight;
+}
+
+uint32_t scion_path_get_mtu(const struct scion_path *path)
+{
+	assert(path != NULL);
+
+	return path->metadata->mtu;
+}
+
+/*
+ * ##################################################################
+ * ######################## Serialize Path ##########################
+ * ##################################################################
+ */
+
+// scion_path_meta_hdr will be serialized to the following format:
+//
+//  0                   1                   2                   3
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// | C |  CurrHF   |    RSV    |  Seg0Len  |  Seg1Len  |  Seg2Len  |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+int scion_path_meta_hdr_serialize(struct scion_path_meta_hdr *hdr, uint8_t *buf)
+{
+	assert(buf);
+	assert(hdr);
+
+	uint32_t line = ((uint32_t)hdr->curr_inf) << 30 | ((uint32_t)(hdr->curr_hf & 0x3f)) << 24;
+	line |= ((uint32_t)(hdr->seg_len[0] & 0x3f)) << 12;
+	line |= ((uint32_t)(hdr->seg_len[1] & 0x3f)) << 6;
+	line |= ((uint32_t)(hdr->seg_len[2] & 0x3f));
+	*(uint32_t *)buf = htobe32(line);
+	return 0;
+}
+
+int scion_path_serialize(struct scion_path_meta_hdr *hdr, struct scion_linked_list *info_fields,
+	struct scion_linked_list *hop_fields, uint8_t *buf)
+{
+	assert(buf);
+	assert(hdr);
+	assert(info_fields);
+	assert(hop_fields);
+	int ret;
+
+	struct scion_linked_list_node *curr;
+	uint16_t offset = (uint16_t)SCION_META_LEN;
+
+	ret = scion_path_meta_hdr_serialize(hdr, buf);
+	if (ret != 0) {
+		return ret;
+	}
+
+	curr = info_fields->first;
+	while (curr) {
+		struct scion_info_field *curr_info_field = curr->value;
+		ret = scion_info_field_serialize(buf + offset, curr_info_field);
+		if (ret != 0) {
+			return ret;
+		}
+		curr = curr->next;
+		offset += (uint16_t)SCION_INFO_LEN;
+	}
+
+	curr = hop_fields->first;
+	while (curr) {
+		struct scion_hop_field *curr_hop_field = curr->value;
+		ret = scion_hop_field_serialize(buf + offset, curr_hop_field);
+		if (ret != 0) {
+			return ret;
+		}
+		curr = curr->next;
+		offset += (uint16_t)SCION_HOP_LEN;
+	}
+	return 0;
+}
+
+/*
+ * ##################################################################
+ * ####################### Deserialize Path #########################
+ * ##################################################################
+ */
+
+int scion_path_meta_hdr_deserialize(const uint8_t *buf, struct scion_path_meta_hdr *hdr)
+{
+	assert(buf);
+	assert(hdr);
+
+	uint32_t line = be32toh(*(uint32_t *)buf);
+	hdr->curr_inf = (uint8_t)(line >> 30);
+	hdr->curr_hf = (uint8_t)((line >> 24) & 0x3f);
+	hdr->seg_len[0] = (uint8_t)((line >> 12) & 0x3f);
+	hdr->seg_len[1] = (uint8_t)((line >> 6) & 0x3f);
+	hdr->seg_len[2] = (uint8_t)(line & 0x3f);
+	return 0;
+}
+
+int scion_path_deserialize(uint8_t *buf, struct scion_path_meta_hdr *hdr, struct scion_linked_list *info_fields,
+	struct scion_linked_list *hop_fields)
+{
+	assert(buf);
+	assert(hdr);
+	assert(info_fields);
+	assert(hop_fields);
+	int ret;
+
+	ret = scion_path_meta_hdr_deserialize(buf, hdr);
+	if (ret != 0) {
+		return ret;
+	}
+	uint16_t offset = (uint16_t)SCION_META_LEN;
+
+	uint8_t num_inf = 0;
+	uint8_t num_hf = 0;
+	// Calculate num_inf and num_hf
+	for (int8_t i = 2; i >= 0; i--) {
+		if ((hdr->seg_len[i] == 0) && (num_inf > 0)) {
+			return SCION_INVALID_META_HDR;
+		}
+		if (hdr->seg_len[i] > 0 && num_inf == 0) {
+			num_inf = (uint8_t)i + 1;
+		}
+		num_hf += hdr->seg_len[i];
+	}
+
+	for (uint8_t i = 0; i < num_inf; i++) {
+		struct scion_info_field *info = malloc(sizeof(*info));
+		if (info == NULL) {
+			return SCION_MALLOC_FAIL;
+		}
+		ret = scion_info_field_deserialize(buf + offset, info);
+		if (ret != 0) {
+			free(info);
+			return ret;
+		}
+		scion_list_append(info_fields, info);
+		offset += (uint16_t)SCION_INFO_LEN;
+	}
+
+	for (uint8_t i = 0; i < num_hf; i++) {
+		struct scion_hop_field *hop = malloc(sizeof(*hop));
+		if (hop == NULL) {
+			return SCION_MALLOC_FAIL;
+		}
+		ret = scion_hop_field_deserialize(buf + offset, hop);
+		if (ret != 0) {
+			free(hop);
+			return ret;
+		}
+		scion_list_append(hop_fields, hop);
+		offset += (uint16_t)SCION_HOP_LEN;
+	}
+	return 0;
+}

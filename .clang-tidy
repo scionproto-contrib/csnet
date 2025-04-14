@@ -1,0 +1,5 @@
+Checks: "bugprone-unused-return-value"
+
+CheckOptions:
+  bugprone-unused-return-value.CheckedFunctions: '.*'
+  bugprone-unused-return-value.AllowCastToVoid: true

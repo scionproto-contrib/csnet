@@ -1,0 +1,13 @@
+/.vscode
+/.idea
+/cmake-build-*
+/examples/topology.json
+/dist
+/docs/html
+
+/esp32/spiffs_partition/*
+!/esp32/spiffs_partition/.gitkeep
+/esp32/sdkconfig
+/esp32/sdkconfig.old
+/esp32/managed_components
+/esp32/build

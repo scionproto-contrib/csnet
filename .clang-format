@@ -1,0 +1,87 @@
+# Copyright 2024 ETH Zurich
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# tabs and spaces
+TabWidth: 4
+IndentWidth: 4
+ContinuationIndentWidth: 4
+UseTab: ForContinuationAndIndentation
+ColumnLimit: 120
+
+# align
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignConsecutiveMacros: false
+AlignEscapedNewlines: Left
+AlignOperands: Align
+AlignTrailingComments: false
+PointerAlignment: Right
+AlignAfterOpenBracket: DontAlign
+
+# allow
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+
+# allow short ... on a single line
+AllowShortBlocksOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+
+# line breaks
+AlwaysBreakAfterReturnType: None
+BinPackArguments: true
+BinPackParameters: true
+BreakBeforeBraces: Linux
+BreakBeforeBinaryOperators: All
+BreakBeforeTernaryOperators: false
+
+PenaltyBreakAssignment: 100
+PenaltyBreakBeforeFirstCallParameter: 0
+
+# indent
+IndentCaseLabels: false
+IndentGotoLabels: false
+
+# empty lines
+MaxEmptyLinesToKeep: 1
+InsertNewlineAtEOF: true
+KeepEmptyLinesAtEOF: false
+KeepEmptyLinesAtTheStartOfBlocks: false
+
+# spaces
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCaseColon: false
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesBeforeTrailingComments: 1
+SpacesInAngles: false
+SpacesInCStyleCastParentheses: false
+SpacesInConditionalStatement: false
+SpacesInContainerLiterals: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+BitFieldColonSpacing: After
+
+# sort includes (block-wise)
+SortIncludes: CaseInsensitive
+
+# avoid ContinuationIndentWidth for nested struct/union initialization
+Cpp11BracedListStyle: false
+
+ReflowComments: true
