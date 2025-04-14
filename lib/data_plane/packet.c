@@ -179,7 +179,7 @@ int scion_packet_serialize(struct scion_packet *packet, uint8_t *buf, size_t *bu
 // layer, otherwise the results of this method are undefined.
 // Comment taken from:
 // https://github.com/scionproto/scion/blob/a1ed6246ecd6beae9c82544032de4f9fecab1058/pkg/slayers/scion.go#L199
-static int scion_deserialize_addr_hdr(uint8_t *buf, size_t buf_len, struct scion_packet *packet)
+static int scion_deserialize_addr_hdr(const uint8_t *buf, size_t buf_len, struct scion_packet *packet)
 {
 	assert(packet);
 	assert(buf);
@@ -208,7 +208,7 @@ static int scion_deserialize_addr_hdr(uint8_t *buf, size_t buf_len, struct scion
 	return 0;
 }
 
-int scion_packet_deserialize(uint8_t *buf, size_t buf_len, struct scion_packet *packet)
+int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_packet *packet)
 {
 	assert(packet);
 	assert(buf);

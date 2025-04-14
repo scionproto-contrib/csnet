@@ -72,11 +72,11 @@ int scion_udp_serialize(struct scion_udp *udp, uint8_t *buf, uint16_t *len);
  * IMPORTANT: the scion_udp struct need to be allocated before calling this function.
  *
  * Arguments:
- *      - struct scion_udp *udp: scion_udp struct into which the UDP packet will be deserialized.
- *      - uint8_t *buf: Pointer to the buffer.
+ *      - const uint8_t *buf: Pointer to the buffer.
  *      - int buf_len: length of the provided buffer.
+ *      - struct scion_udp *udp: scion_udp struct into which the UDP packet will be deserialized.
  *
  * Returns:
  *      - An integer status code, 0 for success or an error code as defined in error.h.
  */
-int scion_udp_deserialize(uint8_t *buf, uint16_t len, struct scion_udp *udp);
+int scion_udp_deserialize(const uint8_t *buf, uint16_t len, struct scion_udp *udp);

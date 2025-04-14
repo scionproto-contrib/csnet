@@ -8,9 +8,11 @@ option(BUILD_DOCS "build docs" OFF)
 set(CMAKE_C_STANDARD 11)
 set(ALLOW_DUPLICATE_CUSTOM_TARGETS TRUE)
 set(CMAKE_MAKEFILE true)
+set(BUILD_TESTING ${BUILD_TESTS})
 
 include(FetchContent)
 include(ExternalProject)
+include(CTest)
 
 # Add subdirectories
 add_subdirectory(lib)
@@ -19,7 +21,7 @@ if (BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif ()
 
-if (BUILD_TESTS)
+if (BUILD_TESTING)
     add_subdirectory(tests)
 endif ()
 

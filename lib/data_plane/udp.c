@@ -73,7 +73,7 @@ int scion_udp_serialize(struct scion_udp *udp, uint8_t *buf, uint16_t *len)
 	return 0;
 }
 
-int scion_udp_deserialize(uint8_t *buf, uint16_t len, struct scion_udp *udp)
+int scion_udp_deserialize(const uint8_t *buf, uint16_t len, struct scion_udp *udp)
 {
 	assert(udp);
 	assert(buf);
