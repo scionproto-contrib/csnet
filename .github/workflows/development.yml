@@ -29,6 +29,12 @@ jobs:
       run: |
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
+    - name: Cache CMake build folder
+      uses: actions/cache@v4
+      with:
+        path: build
+        key: ${{ matrix.os }}-${{ matrix.build_type }}-${{ matrix.c_compiler }}-${{ hashFiles('**/CMakeLists.txt') }}
+        
     - name: Configure CMake
       run: >
         cmake -B ${{ steps.strings.outputs.build-output-dir }}
