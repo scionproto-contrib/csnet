@@ -515,7 +515,7 @@ int scion_test_list_free_value_custom(void)
 
 	scion_list_append(list, custom);
 
-	scion_list_free(list, custom_free);
+	scion_list_free(list, (scion_list_value_free)custom_free);
 
 	// Check that heap_memory is freed with custom freeing function
 	pid_t pid = fork();

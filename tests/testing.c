@@ -21,110 +21,56 @@
 #include "testing.h"
 #include "util/test_linked_list.h"
 
-static void run_test(int (*f)(void), const char *s, int *total, int *success, int *fail)
-{
-	int ret = (*f)();
-	*total += 1;
+#include <assert.h>
+#include <string.h>
 
-	if (ret == 0) {
-		printf("[%s]: SUCCESS\n", s);
-		*success += 1;
-	} else {
-		printf("[%s]: FAIL with return value: %i\n", s, ret);
-		*fail += 1;
-	}
-	return;
-}
+struct test {
+	const char *name;
+	int (*func)(void);
+};
 
-static void new_category(
-	const char *name, int *tests, int *success, int *fail, int *total, int *success_total, int *fail_total)
-{
-	if (*tests > 0) {
-		printf("Completed %i tests, %i were successful, %i failed.\n", *tests, *success, *fail);
-		*total += *tests;
-		*success_total += *success;
-		*fail_total += *fail;
-	}
-	*tests = 0;
-	*success = 0;
-	*fail = 0;
-	printf("\nTests for %s\n", name);
-	return;
-}
-
-static void finish_tests(int *tests, int *success, int *fail, int *total, int *success_total, int *fail_total)
-{
-	if (*tests > 0) {
-		printf("Completed %i tests, %i were successful, %i failed.\n", *tests, *success, *fail);
-		*total += *tests;
-		*success_total += *success;
-		*fail_total += *fail;
-	}
-	printf("\nTotal results:\n");
-	printf("Completed %i tests, %i were successful, %i failed.\n", *total, *success_total, *fail_total);
-	return;
-}
-
-void scion_run_tests(void)
-{
-	int tests = 0;
-	int success = 0;
-	int fail = 0;
-	int total = 0;
-	int success_total = 0;
-	int fail_total = 0;
-
-	printf("\nRunning tests...\n");
-
-	// LinkedList tests
-	new_category("ScionLinkedList", &tests, &success, &fail, &total, &success_total, &fail_total);
-	run_test(&scion_test_list_create, "scion_test_list_create", &tests, &success, &fail);
-	run_test(&scion_test_list_append, "scion_test_list_append", &tests, &success, &fail);
-	run_test(&scion_test_list_append_all, "scion_test_list_append_all", &tests, &success, &fail);
-	run_test(&scion_test_list_append_all_null, "scion_test_list_append_all_null", &tests, &success, &fail);
-	run_test(&scion_test_list_pop, "scion_test_list_pop", &tests, &success, &fail);
-	run_test(&scion_test_list_reverse, "scion_test_list_reverse", &tests, &success, &fail);
-	run_test(&scion_test_list_free, "scion_test_list_free", &tests, &success, &fail);
-	run_test(&scion_test_list_free_value, "scion_test_list_free_value", &tests, &success, &fail);
-	run_test(&scion_test_list_free_value_custom, "scion_test_list_free_value_custom", &tests, &success, &fail);
-
-	// ISD-AS tests
-	new_category("ISD-AS", &tests, &success, &fail, &total, &success_total, &fail_total);
-	run_test(&scion_test_ia_from_isd_as, "scion_test_ia_from_isd_as", &tests, &success, &fail);
-	run_test(
-		&scion_test_ia_from_isd_as_too_large_as, "scion_test_ia_from_isd_as_too_large_as", &tests, &success, &fail);
-	run_test(&scion_test_get_isd, "scion_test_get_isd", &tests, &success, &fail);
-	run_test(&scion_test_get_as, "scion_test_get_as", &tests, &success, &fail);
-	run_test(&scion_test_to_wildcard, "scion_test_to_wildcard", &tests, &success, &fail);
-	run_test(&scion_test_is_wildcard, "scion_test_is_wildcard", &tests, &success, &fail);
-	run_test(&scion_test_parse_ia, "scion_test_parse_ia", &tests, &success, &fail);
-
-	new_category("Serialization", &tests, &success, &fail, &total, &success_total, &fail_total);
-	run_test(&scion_test_serialize_udp, "scion_test_serialize_udp", &tests, &success, &fail);
-	run_test(&scion_test_serialize_meta_hdr, "scion_test_serialize_meta_hdr", &tests, &success, &fail);
-	run_test(&scion_test_serialize_info_field, "scion_test_serialize_info_field", &tests, &success, &fail);
-	run_test(&scion_test_serialize_hop_field, "scion_test_serialize_hop_field", &tests, &success, &fail);
-	run_test(&scion_test_serialize_path, "scion_test_serialize_path", &tests, &success, &fail);
-	run_test(&scion_test_serialize_scion_packet, "scion_test_serialize_scion_packet", &tests, &success, &fail);
-	run_test(&scion_test_serialize_scmp_echo, "scion_test_serialize_scmp_echo", &tests, &success, &fail);
-
-	new_category("Deserialization", &tests, &success, &fail, &total, &success_total, &fail_total);
-	run_test(&scion_test_deserialize_udp, "scion_test_deserialize_udp", &tests, &success, &fail);
-	run_test(&scion_test_deserialize_meta_hdr, "scion_test_deserialize_meta_hdr", &tests, &success, &fail);
-	run_test(&scion_test_deserialize_info_field, "scion_test_deserialize_info_field", &tests, &success, &fail);
-	run_test(&scion_test_deserialize_hop_field, "scion_test_deserialize_hop_field", &tests, &success, &fail);
-	run_test(&scion_test_deserialize_path, "scion_test_deserialize_path", &tests, &success, &fail);
-	run_test(&scion_test_deserialize_scion_packet, "scion_test_deserialize_scion_packet", &tests, &success, &fail);
-
-	new_category("Path", &tests, &success, &fail, &total, &success_total, &fail_total);
-	run_test(&scion_test_init_raw_path, "scion_test_init_raw_path", &tests, &success, &fail);
-	run_test(&scion_test_reverse_path, "scion_test_reverse_path", &tests, &success, &fail);
-
-	finish_tests(&tests, &success, &fail, &total, &success_total, &fail_total);
-	return;
-}
+static struct test tests[] = {
+	{ .name = "scion_test_list_create", .func = scion_test_list_create },
+	{ .name = "scion_test_list_append", .func = scion_test_list_append },
+	{ .name = "scion_test_list_append_all", .func = scion_test_list_append_all },
+	{ .name = "scion_test_list_append_all_null", .func = scion_test_list_append_all_null },
+	{ .name = "scion_test_list_pop", .func = scion_test_list_pop },
+	{ .name = "scion_test_list_reverse", .func = scion_test_list_reverse },
+	{ .name = "scion_test_list_free", .func = scion_test_list_free },
+	{ .name = "scion_test_list_free_value", .func = scion_test_list_free_value },
+	{ .name = "scion_test_list_free_value_custom", .func = scion_test_list_free_value_custom },
+	{ .name = "scion_test_ia_from_isd_as", .func = scion_test_ia_from_isd_as },
+	{ .name = "scion_test_ia_from_isd_as_too_large_as", .func = scion_test_ia_from_isd_as_too_large_as },
+	{ .name = "scion_test_get_isd", .func = scion_test_get_isd },
+	{ .name = "scion_test_get_as", .func = scion_test_get_as },
+	{ .name = "scion_test_to_wildcard", .func = scion_test_to_wildcard },
+	{ .name = "scion_test_is_wildcard", .func = scion_test_is_wildcard },
+	{ .name = "scion_test_parse_ia", .func = scion_test_parse_ia },
+	{ .name = "scion_test_serialize_udp", .func = scion_test_serialize_udp },
+	{ .name = "scion_test_serialize_meta_hdr", .func = scion_test_serialize_meta_hdr },
+	{ .name = "scion_test_serialize_info_field", .func = scion_test_serialize_info_field },
+	{ .name = "scion_test_serialize_hop_field", .func = scion_test_serialize_hop_field },
+	{ .name = "scion_test_serialize_path", .func = scion_test_serialize_path },
+	{ .name = "scion_test_serialize_scion_packet", .func = scion_test_serialize_scion_packet },
+	{ .name = "scion_test_serialize_scmp_echo", .func = scion_test_serialize_scmp_echo },
+	{ .name = "scion_test_deserialize_udp", .func = scion_test_deserialize_udp },
+	{ .name = "scion_test_deserialize_meta_hdr", .func = scion_test_deserialize_meta_hdr },
+	{ .name = "scion_test_deserialize_info_field", .func = scion_test_deserialize_info_field },
+	{ .name = "scion_test_deserialize_hop_field", .func = scion_test_deserialize_hop_field },
+	{ .name = "scion_test_deserialize_path", .func = scion_test_deserialize_path },
+	{ .name = "scion_test_deserialize_scion_packet", .func = scion_test_deserialize_scion_packet },
+	{ .name = "scion_test_init_raw_path", .func = scion_test_init_raw_path },
+	{ .name = "scion_test_reverse_path", .func = scion_test_reverse_path },
+};
 
 int main(int argc, char *argv[])
 {
-	scion_run_tests();
+	for (size_t i = 0; i < sizeof(tests); i++) {
+		if (strcmp(tests[i].name, argv[1]) == 0) {
+			return tests[i].func();
+		}
+	}
+
+	(void)fprintf(stderr, "test not found\n");
+	return 1;
 }

@@ -166,11 +166,11 @@ int scion_packet_serialize(struct scion_packet *packet, uint8_t *buf, size_t *bu
  * IMPORTANT: the scion_packet struct need to be allocated before calling this function.
  *
  * Arguments:
- *      - uint8_t *buf: Pointer to the buffer.
+ *      - const uint8_t *buf: Pointer to the buffer.
  *      - size_t buf_len: length of the provided buffer.
  *      - struct scion_packet *packet: scion_packet struct into which the packet will be deserialized.
  *
  * Returns:
  *      - An integer status code, 0 for success or an error code as defined in error.h.
  */
-int scion_packet_deserialize(uint8_t *buf, size_t buf_len, struct scion_packet *packet);
+int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_packet *packet);
