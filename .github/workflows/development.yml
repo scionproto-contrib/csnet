@@ -37,7 +37,7 @@ jobs:
         -S ${{ github.workspace }}
 
     - name: Build
-      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }} --target scion
+      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }} --target scion -- -j $(nproc)
 
     #- name: Test
       #working-directory: ${{ steps.strings.outputs.build-output-dir }}
