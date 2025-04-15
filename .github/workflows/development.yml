@@ -8,8 +8,6 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-
     strategy:
       # Set fail-fast to false to ensure that feedback is delivered for all matrix combinations. Consider changing this to true when your workflow is stable.
       fail-fast: false
@@ -19,21 +17,30 @@ jobs:
         build_type: [ Debug ]
         c_compiler: [ gcc, clang ]
 
+    runs-on: ${{ matrix.os }}
+
+    outputs:
+      build-dir: ${{ steps.strings.outputs.build-dir }}
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Copy topology file
+        run:
+          cp examples/topology.example.json examples/topology.json
 
       - name: Set reusable strings
         # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
         id: strings
         shell: bash
         run: |
-          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+          echo "build-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
       - name: Cache CMake build folder
         uses: actions/cache@v4
         with:
           path: build
-          key: ${{ matrix.os }}-${{ matrix.build_type }}-${{ matrix.c_compiler }}-${{ hashFiles('**/CMakeLists.txt') }}
+          key: build-${{ matrix.os }}-${{ matrix.build_type }}-${{ matrix.c_compiler }}-${{ hashFiles('**/CMakeLists.txt') }}
 
       - name: Configure CMake
         run: >
@@ -41,13 +48,127 @@ jobs:
           -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           -DBUILD_TESTS=ON
-          -B ${{ steps.strings.outputs.build-output-dir }}
+          -B ${{ steps.strings.outputs.build-dir }}
           -G Ninja
           -S ${{ github.workspace }}
 
       - name: Build
-        run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }} --parallel
+        run: cmake --build ${{ steps.strings.outputs.build-dir }} --config ${{ matrix.build_type }} --parallel
 
-      - name: Test
-        working-directory: ${{ steps.strings.outputs.build-output-dir }}
-        run: ctest --build-config ${{ matrix.build_type }}
+      - name: Tar build
+        if: matrix.os == 'ubuntu-latest' && matrix.build_type == 'Debug' && matrix.c_compiler == 'gcc'
+        run: tar -cf build.tar build
+
+      - name: Store build
+        if: matrix.os == 'ubuntu-latest' && matrix.build_type == 'Debug' && matrix.c_compiler == 'gcc'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path:
+            build.tar
+
+  unit-tests:
+    needs: build
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Retrieve build
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: .
+
+      - name: Untar build
+        run: tar -xf build.tar
+
+      - name: Run Tests
+        working-directory: ${{ needs.build.outputs.build-dir }}
+        run: ctest --build-config Debug -L unit
+
+  e2e-tests:
+    needs: build
+
+    runs-on: ubuntu-latest
+
+    env:
+      SCION_PATH: ${{ github.workspace }}/scion
+      SCION_TESTNET_PATH: ${{ github.workspace }}/scion-testnet
+
+    steps:
+      - name: Retrieve SCION repo versions
+        id: scion-repos
+        run: |
+          SCION_URL=https://github.com/scionproto/scion.git
+          echo "scion-url=$SCION_URL" >> $GITHUB_OUTPUT
+          echo "scion-ref=$(git ls-remote $SCION_URL HEAD | cut -f1)" >> $GITHUB_OUTPUT
+          echo "scion-path=$SCION_PATH" >> $GITHUB_OUTPUT
+          SCION_TESTNET_URL=https://github.com/marcfrei/scion-testnet.git
+          echo "scion-testnet-url=$SCION_TESTNET_URL" >> $GITHUB_OUTPUT
+          echo "scion-testnet-ref=$(git ls-remote $SCION_TESTNET_URL HEAD | cut -f1)" >> $GITHUB_OUTPUT
+          echo "scion-testnet-path=$SCION_TESTNET_PATH" >> $GITHUB_OUTPUT
+      - name: Retrieve build
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: .
+
+      - name: Untar build
+        run: tar -xf build.tar
+
+      - name: Cache SCION
+        id: cache-scion
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.scion-repos.outputs.scion-path }}
+          key: scion-${{ steps.scion-repos.outputs.scion-ref }}
+
+      - name: Build SCION
+        if: steps.cache-scion.outputs.cache-hit != 'true'
+        run: |
+          git clone ${{ steps.scion-repos.outputs.scion-url }} ${{ steps.scion-repos.outputs.scion-path }}
+          cd ${{ steps.scion-repos.outputs.scion-path }}
+          go build -o ./bin/ ./control/cmd/control
+          go build -o ./bin/ ./daemon/cmd/daemon
+          go build -o ./bin/ ./dispatcher/cmd/dispatcher
+          go build -o ./bin/ ./router/cmd/router
+          go build -o ./bin/ ./scion/cmd/scion
+
+      - name: Cache SCION Network
+        id: cache-scion-network
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.scion-repos.outputs.scion-testnet-path }}
+          key: scion-testnet-${{ steps.scion-repos.outputs.scion-testnet-ref }}
+
+      - name: Build SCION Network and Server
+        if: steps.cache-scion-network.outputs.cache-hit != 'true'
+        run: |
+          git clone ${{ steps.scion-repos.outputs.scion-testnet-url }} ${{ steps.scion-repos.outputs.scion-testnet-path }}
+          cd ${{ steps.scion-repos.outputs.scion-testnet-path }}
+          go build scion-testnet.go
+          go build test-server.go
+
+      - name: Start SCION Network, Server and Tests
+        run: |
+          cd ${{ steps.scion-repos.outputs.scion-testnet-path }}
+          rm -rf logs gen-cache
+          mkdir logs gen-cache
+          
+          sudo ./scion-testnet ifconfig topos/default
+          
+          ./scion-testnet cryptogen topos/default
+          ./scion-testnet run topos/default &
+          echo $! > testnet.pid
+          sleep 20
+          ./test-server -local '2-ff00:0:222,[fd00:f00d:cafe::7f00:55]:31000' &
+          echo $! > testserver.pid
+          sleep 10
+          
+          cd ${{ needs.build.outputs.build-dir }}
+          ctest --build-config Debug -L e2e
+          
+          cd ${{ steps.scion-repos.outputs.scion-testnet-path }}
+          kill -SIGINT $(cat testserver.pid)
+          kill -SIGINT $(cat testnet.pid)
+          

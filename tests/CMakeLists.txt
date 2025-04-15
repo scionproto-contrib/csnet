@@ -48,4 +48,5 @@ target_link_libraries(tests PRIVATE scion)
 # Register all tests in the list
 foreach (test ${test_list})
     add_test(NAME ${test} COMMAND tests ${test})
+    set_tests_properties(${test} PROPERTIES LABELS "unit")
 endforeach ()
