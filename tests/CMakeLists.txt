@@ -1,35 +1,35 @@
 set(test_list
-        scion_test_list_create
-        scion_test_list_append
-        scion_test_list_append_all
-        scion_test_list_append_all_null
-        scion_test_list_pop
-        scion_test_list_reverse
-        scion_test_list_free
-        scion_test_list_free_value
-        scion_test_list_free_value_custom
-        scion_test_ia_from_isd_as
-        scion_test_ia_from_isd_as_too_large_as
-        scion_test_get_isd
-        scion_test_get_as
-        scion_test_to_wildcard
-        scion_test_is_wildcard
-        scion_test_parse_ia
-        scion_test_serialize_udp
-        scion_test_serialize_meta_hdr
-        scion_test_serialize_info_field
-        scion_test_serialize_hop_field
-        scion_test_serialize_path
-        scion_test_serialize_scion_packet
-        scion_test_serialize_scmp_echo
-        scion_test_deserialize_udp
-        scion_test_deserialize_meta_hdr
-        scion_test_deserialize_info_field
-        scion_test_deserialize_hop_field
-        scion_test_deserialize_path
-        scion_test_deserialize_scion_packet
-        scion_test_init_raw_path
-        scion_test_reverse_path
+        list_create
+        list_append
+        list_append_all
+        list_append_all_null
+        list_pop
+        list_reverse
+        list_free
+        list_free_value
+        list_free_value_custom
+        ia_from_isd_as
+        ia_from_isd_as_too_large_as
+        get_isd
+        get_as
+        to_wildcard
+        is_wildcard
+        parse_ia
+        serialize_udp
+        serialize_meta_hdr
+        serialize_info_field
+        serialize_hop_field
+        serialize_path
+        serialize_scion_packet
+        serialize_scmp_echo
+        deserialize_udp
+        deserialize_meta_hdr
+        deserialize_info_field
+        deserialize_hop_field
+        deserialize_path
+        deserialize_scion_packet
+        init_raw_path
+        reverse_path
 )
 
 # Declare test executable
@@ -45,6 +45,7 @@ add_executable(tests
 # Link SCION library to tests
 target_link_libraries(tests PRIVATE scion)
 
+# Register all tests in the list
 foreach (test ${test_list})
     add_test(NAME ${test} COMMAND tests ${test})
 endforeach ()
