@@ -5,17 +5,17 @@
   "dispatched_ports": "1-65535",
   "control_service": {
     "cs1-ff00_0_133-1": {
-      "addr": "<IP address of the control service>:31066"
+      "addr": "127.0.0.99:31066"
     }
   },
   "discovery_service": {
     "cs1-ff00_0_133-1": {
-      "addr": "<IP address of the discovery service>:31066"
+      "addr": "127.0.0.99:31066"
     }
   },
   "border_routers": {
     "br1-ff00_0_133-1": {
-      "internal_addr": "<IP address of the first border router>:31068",
+      "internal_addr": "127.0.0.97:31068",
       "interfaces": {
         "1": {
           "underlay": {
@@ -30,7 +30,7 @@
       }
     },
     "br1-ff00_0_133-2": {
-      "internal_addr": "<IP address of the second border router>:31070",
+      "internal_addr": "127.0.0.98:31070",
       "interfaces": {
         "2": {
           "underlay": {
