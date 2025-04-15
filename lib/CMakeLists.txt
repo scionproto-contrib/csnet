@@ -1,9 +1,12 @@
+set(DEPENDENCY_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/dependencies)
+
 # Fetch nghttp2
 ExternalProject_Add(
         nghttp2
         GIT_REPOSITORY https://github.com/nghttp2/nghttp2.git
         GIT_TAG v1.64.0
-        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/dependencies -DENABLE_LIB_ONLY=ON -DBUILD_STATIC_LIBS=ON
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DENABLE_LIB_ONLY=ON -DBUILD_STATIC_LIBS=ON
+        BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libnghttp2.so
 )
 
 # Fetch protobuf
@@ -11,7 +14,7 @@ ExternalProject_Add(
         protobuf
         GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
         GIT_TAG v29.3
-        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/dependencies -Dprotobuf_BUILD_TESTS=OFF -DABSL_PROPAGATE_CXX_STD=ON
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -Dprotobuf_BUILD_TESTS=OFF -DABSL_PROPAGATE_CXX_STD=ON
 )
 
 # Fetch protobuf-c
@@ -21,7 +24,8 @@ ExternalProject_Add(
         GIT_TAG v1.5.1
         SOURCE_SUBDIR build-cmake
         DEPENDS protobuf
-        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/dependencies -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTS=OFF -DBUILD_PROTOC=OFF
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTS=OFF -DBUILD_PROTOC=OFF
+        BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libprotobuf-c.a
 )
 
 # Declare library
@@ -58,13 +62,13 @@ add_dependencies(scion protobuf-c)
 
 # Add scion includes
 target_include_directories(scion PUBLIC ../include)
-target_include_directories(scion PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/dependencies/include)
+target_include_directories(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/include)
 
 # Link nghttp2
-target_link_libraries(scion PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/dependencies/lib/libnghttp2.so)
+target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libnghttp2.so)
 
 # Link protobuf-c
-target_link_libraries(scion PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/dependencies/lib/libprotobuf-c.a)
+target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libprotobuf-c.a)
 
 # Set compile options
 target_compile_options(scion PRIVATE

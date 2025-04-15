@@ -43,7 +43,7 @@ add_executable(tests
 )
 
 # Link SCION library to tests
-target_link_libraries(tests PUBLIC scion)
+target_link_libraries(tests PRIVATE scion)
 
 foreach (test ${test_list})
     add_test(NAME ${test} COMMAND tests ${test})
