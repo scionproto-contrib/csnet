@@ -13,5 +13,3 @@
 // limitations under the License.
 
 #pragma once
-
-void scion_run_tests(void);
