@@ -1,8 +1,12 @@
 cmake_minimum_required(VERSION 3.22)
 project(csnet C)
 
-option(BUILD_EXAMPLES "build examples" OFF)
+include(FetchContent)
+include(ExternalProject)
+include(CTest)
+
 option(BUILD_TESTS "build tests" OFF)
+option(BUILD_EXAMPLES "build examples" OFF)
 option(BUILD_DOCS "build docs" OFF)
 
 set(CMAKE_C_STANDARD 11)
@@ -10,14 +14,10 @@ set(ALLOW_DUPLICATE_CUSTOM_TARGETS TRUE)
 set(CMAKE_MAKEFILE true)
 set(BUILD_TESTING ${BUILD_TESTS})
 
-include(FetchContent)
-include(ExternalProject)
-include(CTest)
-
 # Add subdirectories
 add_subdirectory(lib)
 
-if (BUILD_EXAMPLES)
+if (BUILD_EXAMPLES OR BUILD_TESTING)
     add_subdirectory(examples)
 endif ()
 
