@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include <arpa/inet.h>
+#include <sys/socket.h>
 
 /**
  * The address families that SCION supports.

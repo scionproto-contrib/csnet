@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <endian.h>
 #include <stdint.h>
 
 #include "scion/common/isd_as.h"
