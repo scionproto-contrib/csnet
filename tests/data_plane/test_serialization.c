@@ -349,8 +349,6 @@ int scion_test_serialize_scion_packet(void)
 
 	packet.path = &path;
 
-	uint16_t path_length = packet.path->raw_path->length;
-
 	const uint8_t data[] = { 0x61, 0x62, 0x63 };
 	struct scion_udp udp_packet = { 0 };
 	udp_packet.data_length = sizeof(data);

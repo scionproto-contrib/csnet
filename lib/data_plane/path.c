@@ -240,7 +240,7 @@ void scion_path_print(const struct scion_path *path)
 	} else if (path->path_type == SCION_PATH_TYPE_SCION) {
 		(void)printf("Hops: [");
 		scion_path_print_interfaces(path->metadata->interfaces);
-		(void)printf("] MTU: %" PRIu16 "\n", path->metadata->mtu);
+		(void)printf("] MTU: %" PRIu32 "\n", path->metadata->mtu);
 	}
 }
 

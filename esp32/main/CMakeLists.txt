@@ -22,6 +22,7 @@ set(SOURCES
         "../../lib/common/as_entry.c"
         "../../lib/common/hop_field.c"
         "../../lib/common/info_field.c"
+        "../../lib/common/path_collection.c"
         "../../lib/data_plane/ping.c"
         "../../lib/data_plane/scmp.c"
         "../../lib/data_plane/path.c"

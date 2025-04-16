@@ -62,6 +62,11 @@ static void configure_led(void)
 	led_strip_clear(led_strip);
 }
 
+static bool select_path(struct scion_path *path)
+{
+	return scion_path_get_weight(path) == 8 && scion_path_get_mtu(path) == 1400;
+}
+
 static void example_task(void *args)
 {
 	int ret;
@@ -72,8 +77,8 @@ static void example_task(void *args)
 	esp_netif_ip_info_t ip_info;
 	ESP_ERROR_CHECK(esp_netif_get_ip_info(netif, &ip_info));
 
-	ScionTopology *topology;
-	ret = scion_topology_from_path(&topology, "/spiffs/topology.json");
+	struct scion_topology *topology;
+	ret = scion_topology_from_file(&topology, "/spiffs/topology.json");
 	if (ret != 0) {
 		printf("ERROR: Topology init failed with error code: %d\n", ret);
 		goto exit;
@@ -106,7 +111,7 @@ static void example_task(void *args)
 	scion_ia dst_ia = 0x2ff0000000222;
 
 	struct scion_socket *scion_sock;
-	ret = scion_socket(&scion_sock, SCION_PROTO_UDP, network);
+	ret = scion_socket(&scion_sock, SCION_AF_IPV4, SCION_PROTO_UDP, network);
 	if (ret != 0) {
 		printf("ERROR: Socket setup failed with error code: %d\n", ret);
 		led_strip_set_pixel(led_strip, 0, 1, 0, 0);
@@ -146,19 +151,19 @@ static void example_task(void *args)
 	printf("\n\n");
 
 	// ### Showpaths ###
-	ScionLinkedList *paths = scion_list_create();
-	ret = scion_fetch_paths(network, dst_ia, paths, SCION_PATH_DEBUG);
+	struct scion_path_collection *paths;
+	ret = scion_fetch_paths(network, dst_ia, SCION_FETCH_OPT_DEBUG, &paths);
 	if (ret != 0) {
 		printf("ERROR: Failed to fetch paths with error code: %d\n", ret);
-	} else {
-		printf("\n\nPath lookup from ");
-		scion_print_ia(src_ia);
-		printf(" to ");
-		scion_print_ia(dst_ia);
-		printf("\n");
-		scion_print_scion_path_list(paths);
+		goto cleanup_socket;
 	}
-	scion_free_path_list(paths);
+
+	printf("\nPath lookup from ");
+	scion_ia_print(scion_topology_get_local_ia(topology));
+	printf(" to ");
+	scion_ia_print(dst_ia);
+	printf("\n");
+	scion_path_collection_print(paths);
 
 	// ### PING ###
 	printf("\n\n");
@@ -171,7 +176,7 @@ static void example_task(void *args)
 		printf("ERROR: Send failed with error code: %d\n", ret);
 		led_strip_set_pixel(led_strip, 0, 1, 0, 0);
 		led_strip_refresh(led_strip);
-		goto cleanup_socket;
+		goto cleanup_paths;
 	}
 	printf("[Sent %d bytes]: \"%s\"\n", ret, tx_buf);
 
@@ -184,43 +189,27 @@ static void example_task(void *args)
 		printf("ERROR: Receive failed with error code: %d\n", ret);
 		led_strip_set_pixel(led_strip, 0, 1, 0, 0);
 		led_strip_refresh(led_strip);
-		goto cleanup_socket;
+		goto cleanup_paths;
 	}
 	rx_buf[ret] = '\0';
 
 	// ### Set Path (and resent UDP) ###
-	paths = scion_list_create();
-	ret = scion_fetch_paths(network, dst_ia, paths, SCION_PATH_DEBUG);
-	if (ret != 0) {
-		printf("ERROR: Failed to fetch paths with error code: %d\n", ret);
+	struct scion_path *path = scion_path_collection_find(paths, select_path);
+	if (path == NULL) {
+		printf("ERROR: Failed to find path meeting criteria\n");
+		goto cleanup_paths;
 	}
-
-	bool found = false;
-	ScionPath *curr_path;
-	while (!found) {
-		curr_path = (ScionPath *)scion_list_pop(paths);
-		if (curr_path == NULL) {
-			printf("ERROR: Failed to find path meeting criteria\n");
-			goto cleanup_socket;
-		}
-		if (curr_path->weight == 8 && curr_path->metadata->mtu == 1400) {
-			found = true;
-		} else {
-			scion_free_scion_path(curr_path);
-		}
-	}
-	scion_free_path_list(paths);
 
 	// Send and receive
 	char tx_buf2[] = "Hello, Scion! (using sendto with a specific path)";
 	printf("\nUsing Path:\n");
-	scion_print_scion_path(curr_path);
-	ret = scion_sendto(scion_sock, tx_buf2, sizeof tx_buf2 - 1, /* flags: */ 0, (struct sockaddr *)&dst_addr, sizeof(dst_addr), dst_ia, curr_path);
+	scion_path_print(path);
+	ret = scion_sendto(scion_sock, tx_buf2, sizeof tx_buf2 - 1, /* flags: */ 0, (struct sockaddr *)&dst_addr, sizeof(dst_addr), dst_ia, path);
 	if (ret < 0) {
 		printf("ERROR: Send failed with error code: %d\n", ret);
 		led_strip_set_pixel(led_strip, 0, 1, 0, 0);
 		led_strip_refresh(led_strip);
-		goto cleanup_path;
+		goto cleanup_paths;
 	}
 	printf("[Sent %d bytes]: \"%s\"\n", ret, tx_buf2);
 
@@ -231,21 +220,17 @@ static void example_task(void *args)
 		printf("ERROR: Receive failed with error code: %d\n", ret);
 		led_strip_set_pixel(led_strip, 0, 1, 0, 0);
 		led_strip_refresh(led_strip);
-		goto cleanup_path;
+		goto cleanup_paths;
 	}
 	rx_buf[ret] = '\0';
-
-	printf("\n\n");
-
-	scion_run_tests();
 
 	printf("Done.\n");
 
 	led_strip_set_pixel(led_strip, 0, 0, 1, 0);
 	led_strip_refresh(led_strip);
 
-cleanup_path:
-	scion_free_scion_path(curr_path);
+cleanup_paths:
+	scion_path_collection_free(paths);
 
 cleanup_socket:
 	scion_close(scion_sock);
