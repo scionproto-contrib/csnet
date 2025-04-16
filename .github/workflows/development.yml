@@ -132,7 +132,6 @@ jobs:
           go build -o ./bin/ ./daemon/cmd/daemon
           go build -o ./bin/ ./dispatcher/cmd/dispatcher
           go build -o ./bin/ ./router/cmd/router
-          go build -o ./bin/ ./scion/cmd/scion
 
       - name: Cache SCION Network
         id: cache-scion-network
