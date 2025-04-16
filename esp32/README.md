@@ -6,9 +6,10 @@ Do the following steps to run the ESP32 client:
    IP and IA in `main/main.c`, depending on the AS you use to run the server (See SCION Test Setup).
 2. Run `idf.py set-target esp32s3` (make sure that the environment variables are set, see Step 4 of the ESP-IDF
    installation)
-3. **IMPORTANT:** Run `idf.py menuconfig` and under `Partition Table > Partition Table` select
-   `Custom partition table CSV` and under `Example Connection Configuration` set the SSID and password of your WiFi
-   network. Under `Serial flasher config` set the `Flash size` to `4MB`.
+3. **optional:** If you don't want to type in your WiFi password everytime you can run `idf.py menuconfig` and under
+   `Example Connection Configuration` unselect `Get ssid and password from stdin`, select
+   `Provide wifi connect commands`
+   and type in your WiFi ssid and password.
 4. Run `idf.py build`
 5. Connect the esp32-S3 board to your machine, on the dev board, connect to UART. Find the port on which the devboard is
    connected. (https://docs.espressif.com/projects/esp-idf/en/stable/esp32/get-started/establish-serial-connection.html)
