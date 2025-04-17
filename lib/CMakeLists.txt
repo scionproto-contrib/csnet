@@ -84,7 +84,6 @@ target_compile_options(scion PRIVATE
         -Werror=implicit
         -Werror=incompatible-pointer-types
         -Werror=int-conversion
-        $<$<CONFIG:Debug>:-Werror>
         -U_FORTIFY_SOURCE
         -D_FORTIFY_SOURCE=3
         -fstack-clash-protection
@@ -93,9 +92,6 @@ target_compile_options(scion PRIVATE
         -fno-delete-null-pointer-checks
         -fno-strict-overflow
         -fno-strict-aliasing
-        $<$<CONFIG:Debug>:-fsanitize=address -fno-omit-frame-pointer>
-        $<$<CONFIG:Debug>:-fsanitize=leak>
-        $<$<CONFIG:Debug>:-fsanitize=undefined>
 )
 
 target_link_options(scion PRIVATE
@@ -105,11 +101,29 @@ target_link_options(scion PRIVATE
         -Wl,-z,now
 )
 
-target_link_options(scion INTERFACE
-        $<$<CONFIG:Debug>:-fsanitize=address -fno-omit-frame-pointer>
-        $<$<CONFIG:Debug>:-fsanitize=leak>
-        $<$<CONFIG:Debug>:-fsanitize=undefined>
-)
+# enable additional flags in Debug builds
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_options(scion PRIVATE
+            -Werror
+            -fsanitize=address -fno-omit-frame-pointer
+            -fsanitize=undefined
+    )
+
+    target_link_options(scion INTERFACE
+            -fsanitize=address -fno-omit-frame-pointer
+            -fsanitize=undefined
+    )
+
+    if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+        target_compile_options(scion PRIVATE
+                -fsanitize=leak
+        )
+
+        target_link_options(scion INTERFACE
+                -fsanitize=leak
+        )
+    endif ()
+endif ()
 
 # enable GCC specific flags
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
