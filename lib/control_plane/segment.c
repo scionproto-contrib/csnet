@@ -17,13 +17,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "scion/common/isd_as.h"
-#include "scion/common/path_segment.h"
-#include "scion/control_plane/graph.h"
-#include "scion/control_plane/segment.h"
-#include "scion/error.h"
-#include "scion/proto/control_plane/v1/seg.pb-c.h"
-#include "scion/util/http2_rpc.h"
+#include "common/isd_as.h"
+#include "common/path_segment.h"
+#include "control_plane/graph.h"
+#include "control_plane/segment.h"
+#include "proto/control_plane/v1/seg.pb-c.h"
+#include "util/http2_rpc.h"
 
 #define SEGMENTS_PATH "/proto.control_plane.v1.SegmentLookupService/Segments"
 #define INITIAL_RPC_OUTPUT_BUFFER_SIZE (2 << 15)

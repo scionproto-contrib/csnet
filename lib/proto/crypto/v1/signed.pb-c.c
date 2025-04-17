@@ -6,7 +6,7 @@
 #define PROTOBUF_C__NO_DEPRECATED
 #endif
 
-#include "scion/proto/crypto/v1/signed.pb-c.h"
+#include "proto/crypto/v1/signed.pb-c.h"
 void   proto__crypto__v1__signed_message__init
                      (Proto__Crypto__V1__SignedMessage         *message)
 {

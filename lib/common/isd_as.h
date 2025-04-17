@@ -18,6 +18,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <scion/scion.h>
+
 #define SCION_IA_BYTES UINT16_C(8)
 #define SCION_ISD_BITS UINT16_C(16)
 #define SCION_AS_BITS UINT16_C(48)

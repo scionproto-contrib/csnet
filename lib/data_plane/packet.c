@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
-
-#include "scion/data_plane/packet.h"
-
-#include "scion/error.h"
-
-#include <assert.h>
 #include <string.h>
+
+#include "data_plane/packet.h"
+#include "util/endian.h"
 
 uint8_t scion_packet_addr_type_len(uint8_t addr_type)
 {

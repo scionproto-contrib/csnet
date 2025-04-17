@@ -12,22 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <assert.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "scion/common/as_entry.h"
-#include "scion/common/hop_field.h"
-#include "scion/common/info_field.h"
-#include "scion/common/isd_as.h"
-#include "scion/control_plane/fetch.h"
-#include "scion/data_plane/path.h"
-#include "scion/error.h"
-#include "scion/util/linked_list.h"
-
-#include <assert.h>
 #include <string.h>
+
+#include "common/as_entry.h"
+#include "common/hop_field.h"
+#include "common/info_field.h"
+#include "common/isd_as.h"
+#include "control_plane/fetch.h"
+#include "data_plane/path.h"
+#include "util/linked_list.h"
 
 int scion_path_meta_hdr_init(struct scion_path_meta_hdr *hdr)
 {

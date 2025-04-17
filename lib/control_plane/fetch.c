@@ -12,19 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "scion/control_plane/fetch.h"
-#include "scion/control_plane/graph.h"
-#include "scion/control_plane/network.h"
-#include "scion/control_plane/segment.h"
-#include "scion/control_plane/topology.h"
-#include "scion/data_plane/path.h"
-#include "scion/error.h"
-#include "scion/util/linked_list.h"
-
-#include <assert.h>
+#include "control_plane/fetch.h"
+#include "control_plane/graph.h"
+#include "control_plane/network.h"
+#include "control_plane/segment.h"
+#include "control_plane/topology.h"
+#include "data_plane/path.h"
+#include "util/linked_list.h"
 
 /*
  * FUNCTION: scion_fetch_paths

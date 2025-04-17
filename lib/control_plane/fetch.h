@@ -14,9 +14,10 @@
 
 #pragma once
 
-#include "scion/common/isd_as.h"
-#include "scion/common/path_collection.h"
-#include "scion/control_plane/network.h"
+#include "common/isd_as.h"
+#include "common/path_collection.h"
+#include "control_plane/network.h"
+#include "scion/scion.h"
 
 #define SCION_FETCH_OPT_DEBUG 1
 

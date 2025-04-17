@@ -15,8 +15,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "scion/common/as_entry.h"
-#include "scion/common/path_segment.h"
+#include "common/as_entry.h"
+#include "common/path_segment.h"
 
 void scion_path_segment_free(struct scion_path_segment *pathseg)
 {

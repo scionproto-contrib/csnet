@@ -17,13 +17,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "scion/common/as_entry.h"
-#include "scion/common/info_field.h"
-#include "scion/data_plane/packet.h"
-#include "scion/data_plane/ping.h"
-#include "scion/data_plane/scmp.h"
-#include "scion/data_plane/udp.h"
-#include "scion/util/linked_list.h"
+#include "common/as_entry.h"
+#include "common/info_field.h"
+#include "data_plane/packet.h"
+#include "data_plane/ping.h"
+#include "data_plane/scmp.h"
+#include "data_plane/udp.h"
+#include "util/linked_list.h"
 #include "test_serialization.h"
 
 int scion_test_serialize_udp(void)

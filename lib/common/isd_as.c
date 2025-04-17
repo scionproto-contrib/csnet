@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <assert.h>
+#include <errno.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -20,12 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "scion/common/isd_as.h"
-#include "scion/error.h"
-
-#include <assert.h>
-#include <errno.h>
-#include <limits.h>
+#include "common/isd_as.h"
 
 #define SCION_AS_MASK 0xffffffffffff
 

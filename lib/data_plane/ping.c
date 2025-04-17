@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <arpa/inet.h>
+#include <assert.h>
 #include <float.h>
 #include <inttypes.h>
 #include <stdbool.h>
@@ -24,13 +25,10 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#include "scion/control_plane/network.h"
-#include "scion/data_plane/ping.h"
-#include "scion/data_plane/scmp.h"
-#include "scion/data_plane/socket.h"
-#include "scion/error.h"
-
-#include <assert.h>
+#include "control_plane/network.h"
+#include "data_plane/ping.h"
+#include "data_plane/scmp.h"
+#include "data_plane/socket.h"
 
 static int scion_send_echo_request(
 	struct scion_socket *scion_sock, uint16_t seqno, uint8_t *payload, uint16_t length, struct timeval *tv)

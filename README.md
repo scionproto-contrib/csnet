@@ -4,7 +4,9 @@
 
 ## Requirements
 
-All the requirements for building the library (in `./lib`) are fetched automatically with CMake.
+Building and installing the csnet library requires CMake 3.22 or newer.
+
+All dependencies of the library (in `./lib`) are fetched automatically with CMake.
 
 Building and running the examples (in `./examples`) additionally requires the following:
 
@@ -29,9 +31,9 @@ Make sure to allow incoming connections with TCP on the port of the control serv
 `31066`) and allow all incoming UDP connections on the ports of the border routers (for AS `1-ff00:0:133` this is
 `31068` and `31070`).
 
-## Building
+## Building and Installation
 
-Setup the CMake build with
+Setup the CMake build directory with
 
 ```bash
 cmake -DBUILD_EXAMPLES=ON -DBUILD_TESTS=ON -DBUILD_DOCS=ON -B dist
@@ -45,7 +47,13 @@ Build everything with
 cmake --build dist
 ```
 
-The resulting binaries will be put in `./dist`.
+The resulting binaries and library will be put in `./dist`.
+
+To install the library execute:
+
+```bash
+ cmake --install dist --prefix "your installation directory"
+```
 
 ## ESP32
 

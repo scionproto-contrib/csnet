@@ -61,7 +61,8 @@ add_dependencies(scion nghttp2)
 add_dependencies(scion protobuf-c)
 
 # Add scion includes
-target_include_directories(scion PUBLIC ../include)
+target_include_directories(scion PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(scion PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/include)
 
 # Link nghttp2
@@ -138,3 +139,6 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
             -Wtrivial-auto-var-init
     )
 endif ()
+
+set_target_properties(scion PROPERTIES PUBLIC_HEADER include/scion/scion.h)
+install(TARGETS scion PUBLIC_HEADER DESTINATION include/scion)

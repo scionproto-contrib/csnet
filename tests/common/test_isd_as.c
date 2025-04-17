@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "test_isd_as.h"
-#include "scion/common/isd_as.h"
+#include "common/isd_as.h"
 
 #include <string.h>
 

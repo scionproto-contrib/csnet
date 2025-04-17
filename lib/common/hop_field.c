@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
-
-#include "scion/common/as_entry.h"
-#include "scion/common/hop_field.h"
-#include "scion/error.h"
-
-#include <assert.h>
 #include <string.h>
+
+#include "common/as_entry.h"
+#include "common/hop_field.h"
+#include "util/endian.h"
 
 // The Hop Field will be serialized to the following format:
 //

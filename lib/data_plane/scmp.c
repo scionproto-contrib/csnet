@@ -17,9 +17,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "scion/data_plane/scmp.h"
-#include "scion/error.h"
-#include "scion/util/endian.h"
+#include "data_plane/scmp.h"
+#include "util/endian.h"
 
 uint8_t scion_scmp_get_type(const uint8_t *buf, uint16_t buf_len)
 {

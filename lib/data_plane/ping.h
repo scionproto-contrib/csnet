@@ -14,7 +14,8 @@
 
 #pragma once
 
-#include "scion/data_plane/socket.h"
+#include "data_plane/socket.h"
+#include "scion/scion.h"
 
 int scion_ping(const struct sockaddr *addr, socklen_t addrlen, scion_ia ia, struct scion_network *network, uint16_t n,
 	uint16_t payload_len, struct timeval timeout);

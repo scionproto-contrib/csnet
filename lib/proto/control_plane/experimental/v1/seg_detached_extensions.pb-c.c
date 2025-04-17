@@ -6,7 +6,7 @@
 #define PROTOBUF_C__NO_DEPRECATED
 #endif
 
-#include "scion/proto/control_plane/experimental/v1/seg_detached_extensions.pb-c.h"
+#include "proto/control_plane/experimental/v1/seg_detached_extensions.pb-c.h"
 void   proto__control_plane__experimental__v1__epicdetached_extension__init
                      (Proto__ControlPlane__Experimental__V1__EPICDetachedExtension         *message)
 {

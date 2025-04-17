@@ -17,11 +17,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "scion/common/as_entry.h"
-#include "scion/common/info_field.h"
-#include "scion/common/isd_as.h"
-#include "scion/data_plane/path.h"
-#include "scion/util/linked_list.h"
+#include "common/as_entry.h"
+#include "common/info_field.h"
+#include "common/isd_as.h"
+#include "data_plane/path.h"
+#include "util/linked_list.h"
 #include "test_path.h"
 
 int scion_test_init_raw_path(void)

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <arpa/inet.h>
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -27,9 +28,7 @@
 
 #include <nghttp2/nghttp2.h>
 
-#include "scion/util/http2_rpc.h"
-
-#include <assert.h>
+#include "util/http2_rpc.h"
 
 // MAKE_NV based on nghttp2 - HTTP/2 client tutorial, by Tatsuhiro Tsujikawa
 // https://nghttp2.org/documentation/tutorial-client.html

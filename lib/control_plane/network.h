@@ -13,7 +13,9 @@
 // limitations under the License.
 
 #pragma once
-#include "topology.h"
+
+#include "control_plane/topology.h"
+#include "scion/scion.h"
 
 struct scion_network {
 	struct scion_topology *topology;
