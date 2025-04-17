@@ -182,7 +182,7 @@ int scion_ping(const struct sockaddr *addr, socklen_t addrlen, scion_ia ia, stru
 			goto cleanup_socket;
 		}
 
-#if defined(__APPLE__)
+#ifdef __APPLE__
 		arc4random_buf(payload, payload_len);
 #else
 		ssize_t generated_bytes = getrandom(payload, payload_len, 0x0001 /* GRND_NONBLOCK */);
@@ -256,7 +256,9 @@ int scion_ping(const struct sockaddr *addr, socklen_t addrlen, scion_ia ia, stru
 		packets_received, packet_loss);
 	(void)printf("round-trip min/avg/max %.3f/%.3f/%.3f ms\n\n", min, avg, max);
 
+#ifndef __APPLE__
 cleanup_payload:
+#endif
 	free(payload);
 
 cleanup_socket:

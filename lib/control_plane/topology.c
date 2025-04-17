@@ -32,19 +32,21 @@
 #include "scion/error.h"
 
 #if defined(__APPLE__)
-static char *scion_memrchr(char *s, char c, int n)
+static void *scion_memrchr(const void *s, int c, size_t n)
 {
 	if (s == NULL) {
 		return NULL;
 	}
-	for (int i = n - 1; i >= 0; i--) {
-		if (s[i] == c) {
-			return s + i;
-		}
+
+	for (size_t i = 0; i < n; i++) {
+	    int *v = &((int*)s)[n - 1 - i];
+	    if (*v == c) {
+	        return v;
+	    }
 	}
+
 	return NULL;
 };
-
 #else
 #define scion_memrchr memrchr
 #endif
