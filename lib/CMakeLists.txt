@@ -6,7 +6,7 @@ ExternalProject_Add(
         GIT_REPOSITORY https://github.com/nghttp2/nghttp2.git
         GIT_TAG v1.64.0
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DENABLE_LIB_ONLY=ON -DBUILD_STATIC_LIBS=ON
-        BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libnghttp2.so
+        BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libnghttp2.a
 )
 
 # Fetch protobuf
@@ -65,7 +65,7 @@ target_include_directories(scion PUBLIC ../include)
 target_include_directories(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/include)
 
 # Link nghttp2
-target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libnghttp2.so)
+target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libnghttp2.a)
 
 # Link protobuf-c
 target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libprotobuf-c.a)
