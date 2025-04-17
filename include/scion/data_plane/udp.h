@@ -14,8 +14,9 @@
 
 #pragma once
 
-#include <endian.h>
 #include <stdint.h>
+
+#include "scion/util/endian.h"
 
 #define SCION_UDP_HDR_LEN 8
 

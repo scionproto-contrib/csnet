@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <endian.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -27,6 +26,7 @@
 #include "scion/control_plane/graph.h"
 #include "scion/data_plane/path.h"
 #include "scion/error.h"
+#include "scion/util/endian.h"
 #include "scion/util/linked_list.h"
 
 #include <assert.h>

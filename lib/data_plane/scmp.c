@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <endian.h>
-
-#include "scion/data_plane/scmp.h"
-#include "scion/error.h"
-
 #include <assert.h>
 #include <memory.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "scion/data_plane/scmp.h"
+#include "scion/error.h"
+#include "scion/util/endian.h"
 
 uint8_t scion_scmp_get_type(const uint8_t *buf, uint16_t buf_len)
 {

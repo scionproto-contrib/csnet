@@ -14,9 +14,10 @@
 
 #pragma once
 
-#include <endian.h>
 #include <stdbool.h>
 #include <stdint.h>
+
+#include "scion/util/endian.h"
 
 /*
  * Implementation of InfoField.
