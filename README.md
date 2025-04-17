@@ -10,8 +10,6 @@ Building and running the examples (in `./examples`) additionally requires the fo
 
 - a running local SCION Network (see [SCION Test Network Setup](#scion-testnetwork-setup))
 - create a `topology.json` from the `topology.example.json` by filling in the respective IP addresses
-- an installation of the QUIC-enabled Openssl
-  fork (https://github.com/quictls/openssl/tree/OpenSSL_1_1_1w+quic)
 
 ## SCION Test Network Setup
 
@@ -36,11 +34,10 @@ Make sure to allow incoming connections with TCP on the port of the control serv
 Setup the CMake build with
 
 ```bash
-cmake -DBUILD_EXAMPLES=ON -DBUILD_TESTS=ON -DBUILD_DOCS=ON -DOPENSSL_DIR="openssl dir" -B dist
+cmake -DBUILD_EXAMPLES=ON -DBUILD_TESTS=ON -DBUILD_DOCS=ON -B dist
 ```
 
-The options `DBUILD_EXAMPLES`, `DBUILD_TESTS` and `DBUILD_DOCS` can also be turned off. Option `DOPENSSL_DIR` is only
-required when building the examples. Make sure that `DOPENSSL_DIR` contains `lib/libssl.so` and `lib/libcrypto.so`.
+The options `DBUILD_EXAMPLES`, `DBUILD_TESTS` and `DBUILD_DOCS` can also be turned off.
 
 Build everything with
 
