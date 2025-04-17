@@ -14,11 +14,11 @@
 
 #pragma once
 
-#include <endian.h>
 #include <stdint.h>
 
 #include "scion/common/isd_as.h"
 #include "scion/data_plane/path.h"
+#include "scion/util/endian.h"
 
 #define SCION_LINE_LEN UINT8_C(4)
 #define SCION_CMN_HDR_LEN UINT16_C(12)

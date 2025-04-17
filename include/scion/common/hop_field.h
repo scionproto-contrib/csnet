@@ -14,8 +14,9 @@
 
 #pragma once
 
-#include <endian.h>
 #include <stdbool.h>
+
+#include "scion/util/endian.h"
 
 #define SCION_MAC_LEN 6
 #define SCION_HOP_LEN 12
