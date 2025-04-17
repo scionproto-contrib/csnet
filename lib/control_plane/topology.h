@@ -18,10 +18,10 @@
 #include <stdint.h>
 #include <sys/socket.h>
 
-#include "scion/common/isd_as.h"
-#include "scion/common/protocol.h"
-#include "scion/data_plane/path.h"
-#include "scion/util/linked_list.h"
+#include "common/isd_as.h"
+#include "data_plane/path.h"
+#include "scion/scion.h"
+#include "util/linked_list.h"
 
 struct scion_topology {
 	scion_ia ia;

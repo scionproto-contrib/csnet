@@ -17,7 +17,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
-#include "scion/util/linked_list.h"
+#include "util/linked_list.h"
 #include "test_linked_list.h"
 
 #include <unistd.h>

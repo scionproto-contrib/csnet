@@ -15,7 +15,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "scion/util/linked_list.h"
+#include "util/linked_list.h"
 
 static void scion_list_node_free(struct scion_linked_list_node *node, scion_list_value_free free_value)
 {

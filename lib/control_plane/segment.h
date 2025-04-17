@@ -16,8 +16,9 @@
 
 #include <stdint.h>
 
-#include "scion/common/isd_as.h"
-#include "scion/common/path_segment.h"
+#include "common/isd_as.h"
+#include "common/path_segment.h"
+#include "scion/scion.h"
 
 struct scion_split_segments {
 	bool has_up;

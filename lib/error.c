@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "scion/error.h"
+#include "scion/scion.h"
 
 char *scion_strerror(int err)
 {

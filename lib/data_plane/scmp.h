@@ -17,6 +17,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "scion/scion.h"
+
 #define SCION_SCMP_HDR_LEN 4
 #define SCION_SCMP_ECHO_HDR_LEN (SCION_SCMP_HDR_LEN + 4)
 

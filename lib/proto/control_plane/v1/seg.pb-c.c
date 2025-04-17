@@ -6,7 +6,7 @@
 #define PROTOBUF_C__NO_DEPRECATED
 #endif
 
-#include "scion/proto/control_plane/v1/seg.pb-c.h"
+#include "proto/control_plane/v1/seg.pb-c.h"
 void   proto__control_plane__v1__segments_request__init
                      (Proto__ControlPlane__V1__SegmentsRequest         *message)
 {

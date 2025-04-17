@@ -36,9 +36,9 @@ if (BUILD_DOCS)
     set(DOXYGEN_GENERATE_LATEX NO)
 
     doxygen_add_docs(doxygen
-            include/scion/scion.h
-            include/scion/error.h
-            include/scion/util/linked_list.h
+            lib/include/scion/scion.h
+            lib/include/scion/error.h
+            lib/include/scion/util/linked_list.h
             README.md
     )
 endif ()

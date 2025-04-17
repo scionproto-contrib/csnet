@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -19,17 +20,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "scion/common/info_field.h"
-#include "scion/common/isd_as.h"
-#include "scion/common/path_segment.h"
-#include "scion/control_plane/fetch.h"
-#include "scion/control_plane/graph.h"
-#include "scion/data_plane/path.h"
-#include "scion/error.h"
-#include "scion/util/endian.h"
-#include "scion/util/linked_list.h"
-
-#include <assert.h>
+#include "common/info_field.h"
+#include "common/isd_as.h"
+#include "common/path_segment.h"
+#include "control_plane/fetch.h"
+#include "control_plane/graph.h"
+#include "data_plane/path.h"
+#include "util/endian.h"
+#include "util/linked_list.h"
 
 // Internally used structs
 

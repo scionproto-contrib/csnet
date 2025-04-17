@@ -16,8 +16,8 @@
 
 #include <stdint.h>
 
-#include "scion/common/hop_field.h"
-#include "scion/common/isd_as.h"
+#include "common/hop_field.h"
+#include "common/isd_as.h"
 
 struct scion_hop_entry {
 	// hop_field contains the necessary information to create a data-plane hop.

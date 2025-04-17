@@ -20,9 +20,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "scion/common/protocol.h"
-#include "scion/control_plane/network.h"
-#include "scion/error.h"
+#include "control_plane/network.h"
 
 static int determine_source_addr(struct scion_topology *topology, struct sockaddr_storage *addr, socklen_t *addrlen)
 {

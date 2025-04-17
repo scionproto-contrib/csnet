@@ -24,12 +24,11 @@
 #include <sys/socket.h>
 
 #define JSMN_STATIC
-#include "scion/jsmn.h"
+#include "util/jsmn.h"
 
-#include "scion/common/isd_as.h"
-#include "scion/control_plane/topology.h"
-#include "scion/data_plane/path.h"
-#include "scion/error.h"
+#include "common/isd_as.h"
+#include "control_plane/topology.h"
+#include "data_plane/path.h"
 
 #if defined(__APPLE__)
 static void *scion_memrchr(const void *s, int c, size_t n)

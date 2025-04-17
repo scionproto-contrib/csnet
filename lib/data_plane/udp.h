@@ -16,7 +16,7 @@
 
 #include <stdint.h>
 
-#include "scion/util/endian.h"
+#include "scion/scion.h"
 
 #define SCION_UDP_HDR_LEN 8
 

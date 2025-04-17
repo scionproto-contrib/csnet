@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "scion/data_plane/udp.h"
-#include "scion/error.h"
-
-#include <assert.h>
+#include "data_plane/udp.h"
+#include "util/endian.h"
 
 uint16_t scion_udp_len(struct scion_udp *udp)
 {

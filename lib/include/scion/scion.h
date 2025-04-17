@@ -24,14 +24,83 @@
 extern "C" {
 #endif
 
-#include "scion/common/protocol.h"
-#include "scion/error.h"
-
 #include <stdbool.h>
+#include <stdint.h>
+#include <sys/socket.h>
 
 #define SCION_SO_DEBUG 200
 
 #define SCION_FETCH_OPT_DEBUG 1
+
+enum scion_error {
+	SCION_GENERIC_ERR = -1,
+	SCION_MALLOC_FAIL = -3,
+	SCION_NO_PATHS = -4,
+	SCION_INVALID_NEXT_HOP = -5,
+	SCION_BUFFER_SIZE_ERR = -6,
+	SCION_NOT_ENOUGH_DATA = -7,
+	SCION_INVALID_FIELD = -8,
+	SCION_UNKNOWN_ADDR_TYPE = -9,
+	SCION_INVALID_SOCKET_FD = -10,
+	SCION_MAX_HDR_LEN_EXCEEDED = -11,
+	SCION_UNALIGNED_HDR = -12,
+	SCION_LEN_MISMATCH = -13,
+	SCION_GRPC_ERR = -14,
+	SCION_FILE_NOT_FOUND = -15,
+	SCION_JSON_LOAD_ERR = -16,
+	SCION_CORRUPT_TOPOLOGY = -17,
+	SCION_UNKNOWN_BR_IFID = -18,
+	SCION_SOCKET_ERR = -19,
+	SCION_IP_VERSION_MISMATCH = -20,
+	SCION_UNKNOWN_PROTO = -21,
+	SCION_NOT_CONNECTED = -22,
+	SCION_INVALID_META_HDR = -23,
+	SCION_DST_MISMATCH = -24,
+	SCION_INVALID_ISD_AS_STR = -25,
+	SCION_LOCAL_ISD_AS_MISMATCH = -26,
+	SCION_UNDEFINED_ADDR = -27,
+	SCION_INVALID_PATH_TYPE = -28,
+	SCION_WOULD_BLOCK = -29,
+	SCION_BIND_ERR = -30,
+	SCION_INVALID_ADDR = -31,
+	SCION_ALREADY_BOUND = -32,
+	SCION_FLAG_NOT_IMPLEMENTED = -33,
+	SCION_FLAG_NOT_SUPPORTED = -34,
+	SCION_SEND_ERR = -35,
+	SCION_RECV_ERR = -36,
+	SCION_ADDR_IN_USE = -37,
+	SCION_ADDR_NOT_AVAILABLE = -38,
+	SCION_NO_MEM = -39,
+	SCION_OUTPUT_QUEUE_FULL = -40,
+	SCION_INVALID_BUFFER = -41,
+	SCION_SOCK_OPT_ERR = -42,
+	SCION_INVALID_SOCK_OPT = -43,
+	SCION_INVALID_SCMP_TYPE = -44,
+	SCION_INVALID_SCMP_CODE = -45,
+	SCION_ADDR_BUF_ERR = -46,
+	SCION_PATH_EXPIRED = -47,
+	SCION_NETWORK_SOURCE_ADDR_ERR = -48,
+	SCION_NOT_BOUND = -49,
+	SCION_NETWORK_UNKNOWN = -50,
+	SCION_MSG_TOO_LARGE = -51,
+};
+
+/**
+ * Returns the string representation of an error.
+ * @param err A SCION error.
+ * @return A string representation of the error.
+ */
+char *scion_strerror(int err);
+
+/**
+ * The address families that SCION supports.
+ */
+enum scion_addr_family { SCION_AF_IPV4 = AF_INET, SCION_AF_IPV6 = AF_INET6 };
+
+/**
+ * The protocols that SCION supports.
+ */
+enum scion_proto { SCION_PROTO_UDP = 17, SCION_PROTO_SCMP = 202 };
 
 /**
  * A fully qualified AS identifier called IA.

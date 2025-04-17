@@ -16,7 +16,8 @@
 
 #include <stdbool.h>
 
-#include "scion/data_plane/path.h"
+#include "data_plane/path.h"
+#include <scion/scion.h>
 
 typedef bool scion_path_selector(struct scion_path *path);
 

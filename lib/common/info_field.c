@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "scion/common/info_field.h"
-
-#include "scion/error.h"
-
 #include <assert.h>
 #include <stdlib.h>
+
+#include "common/info_field.h"
+#include "util/endian.h"
 
 // scion_info_field will be serialized to the following format:
 //

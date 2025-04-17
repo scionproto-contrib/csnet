@@ -24,17 +24,16 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "scion/common/isd_as.h"
-#include "scion/common/path_collection.h"
-#include "scion/control_plane/fetch.h"
-#include "scion/control_plane/network.h"
-#include "scion/control_plane/topology.h"
-#include "scion/data_plane/packet.h"
-#include "scion/data_plane/path.h"
-#include "scion/data_plane/scmp.h"
-#include "scion/data_plane/socket.h"
-#include "scion/data_plane/udp.h"
-#include "scion/error.h"
+#include "common/isd_as.h"
+#include "common/path_collection.h"
+#include "control_plane/fetch.h"
+#include "control_plane/network.h"
+#include "control_plane/topology.h"
+#include "data_plane/packet.h"
+#include "data_plane/path.h"
+#include "data_plane/scmp.h"
+#include "data_plane/socket.h"
+#include "data_plane/udp.h"
 
 #ifndef MSG_CONFIRM
 #define MSG_CONFIRM 0

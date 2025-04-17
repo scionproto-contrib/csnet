@@ -18,8 +18,9 @@
 #include <stdbool.h>
 #include <sys/socket.h>
 
-#include "scion/common/isd_as.h"
-#include "scion/util/linked_list.h"
+#include "common/isd_as.h"
+#include "scion/scion.h"
+#include "util/linked_list.h"
 
 #define SCION_MAX_INFS 3
 #define SCION_MAX_HOPS 64

@@ -14,7 +14,7 @@
 
 #include <stdlib.h>
 
-#include "scion/common/as_entry.h"
+#include "common/as_entry.h"
 
 void scion_as_entry_free(struct scion_as_entry *as_entry)
 {

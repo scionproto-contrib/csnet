@@ -17,9 +17,9 @@
 #include <stdbool.h>
 #include <sys/socket.h>
 
-#include "scion/common/isd_as.h"
-#include "scion/common/protocol.h"
-#include "scion/data_plane/path.h"
+#include "common/isd_as.h"
+#include "data_plane/path.h"
+#include "scion/scion.h"
 
 #define SCION_SO_DEBUG 200
 

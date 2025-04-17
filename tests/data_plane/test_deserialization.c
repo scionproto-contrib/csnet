@@ -17,11 +17,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "scion/common/as_entry.h"
-#include "scion/common/info_field.h"
-#include "scion/data_plane/packet.h"
-#include "scion/data_plane/socket.h"
-#include "scion/data_plane/udp.h"
+#include "common/as_entry.h"
+#include "common/info_field.h"
+#include "data_plane/packet.h"
+#include "data_plane/socket.h"
+#include "data_plane/udp.h"
 #include "test_deserialization.h"
 
 int scion_test_deserialize_udp(void)

@@ -17,7 +17,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "scion/util/endian.h"
+#include "scion/scion.h"
 
 /*
  * Implementation of InfoField.

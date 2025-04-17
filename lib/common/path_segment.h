@@ -1,4 +1,4 @@
-// Copyright 2025 ETH Zurich
+// Copyright 2024 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,14 +14,28 @@
 
 #pragma once
 
-#include <sys/socket.h>
+#include <stdint.h>
 
-/**
- * The address families that SCION supports.
- */
-enum scion_addr_family { SCION_AF_IPV4 = AF_INET, SCION_AF_IPV6 = AF_INET6 };
+#include "common/as_entry.h"
 
-/**
- * The protocols that SCION supports.
- */
-enum scion_proto { SCION_PROTO_UDP = 17, SCION_PROTO_SCMP = 202 };
+enum scion_segment_type {
+	UNSPECIFIED_SEGMENT = 0,
+	UP_SEGMENT = 1,
+	DOWN_SEGMENT = 2,
+	CORE_SEGMENT = 3,
+};
+
+struct scion_segment_info {
+	int64_t timestamp;
+	uint16_t segment_id;
+};
+
+struct scion_path_segment {
+	struct scion_segment_info info;
+	struct scion_as_entry **as_entries;
+	size_t as_entries_length;
+};
+
+void scion_path_segment_free(struct scion_path_segment *pathseg);
+
+size_t scion_path_segment_byte_size(struct scion_path_segment *pathseg);

@@ -14,10 +14,11 @@
 
 #pragma once
 
-#include "scion/common/path_segment.h"
-#include "scion/control_plane/topology.h"
-#include "scion/data_plane/path.h"
-#include "scion/util/linked_list.h"
+#include "common/path_segment.h"
+#include "control_plane/topology.h"
+#include "data_plane/path.h"
+#include "scion/scion.h"
+#include "util/linked_list.h"
 
 /**
  * Builds the available paths between two ASes given the available segments.

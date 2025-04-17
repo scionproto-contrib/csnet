@@ -16,7 +16,7 @@
 
 #include <stdbool.h>
 
-#include "scion/util/endian.h"
+#include "scion/scion.h"
 
 #define SCION_MAC_LEN 6
 #define SCION_HOP_LEN 12
