@@ -12,7 +12,6 @@ Building and running the examples (in `./examples`) additionally requires the fo
 - create a `topology.json` from the `topology.example.json` by filling in the respective IP addresses
 - an installation of the QUIC-enabled Openssl
   fork (https://github.com/quictls/openssl/tree/OpenSSL_1_1_1w+quic)
-- an installation of libev (https://github.com/enki/libev)
 
 ## SCION Test Network Setup
 
@@ -37,12 +36,11 @@ Make sure to allow incoming connections with TCP on the port of the control serv
 Setup the CMake build with
 
 ```bash
-cmake -DBUILD_EXAMPLES=ON -DBUILD_TESTS=ON -DBUILD_DOCS=ON -DLIBEV_DIR="libev dir" -DOPENSSL_DIR="openssl dir" -B dist
+cmake -DBUILD_EXAMPLES=ON -DBUILD_TESTS=ON -DBUILD_DOCS=ON -DOPENSSL_DIR="openssl dir" -B dist
 ```
 
-The options `DBUILD_EXAMPLES`, `DBUILD_TESTS` and `DBUILD_DOCS` can also be turned off. Options `DLIBEV_DIR` and
-`DOPENSSL_DIR` are only required when building the examples. Make sure that `DLIBEV_DIR` contains `libev.so` and
-`DOPENSSL_DIR` contains `lib/libssl.so` and `lib/libcrypto.so`.
+The options `DBUILD_EXAMPLES`, `DBUILD_TESTS` and `DBUILD_DOCS` can also be turned off. Option `DOPENSSL_DIR` is only
+required when building the examples. Make sure that `DOPENSSL_DIR` contains `lib/libssl.so` and `lib/libcrypto.so`.
 
 Build everything with
 
