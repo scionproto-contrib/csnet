@@ -4,7 +4,7 @@ set(DEPENDENCY_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/dependencies)
 ExternalProject_Add(
         nghttp2
         GIT_REPOSITORY https://github.com/nghttp2/nghttp2.git
-        GIT_TAG v1.64.0
+        GIT_TAG v1.65.0
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DENABLE_LIB_ONLY=ON -DBUILD_STATIC_LIBS=ON
         BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libnghttp2.so
 )
