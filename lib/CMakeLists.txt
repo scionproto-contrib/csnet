@@ -86,9 +86,7 @@ target_compile_options(scion PRIVATE
         -Werror=int-conversion
         -U_FORTIFY_SOURCE
         -D_FORTIFY_SOURCE=3
-        -fstack-clash-protection
         -fstack-protector-strong
-        -fcf-protection=full
         -fno-delete-null-pointer-checks
         -fno-strict-overflow
         -fno-strict-aliasing
@@ -100,6 +98,13 @@ target_link_options(scion PRIVATE
         -Wl,-z,relro
         -Wl,-z,now
 )
+
+if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+    target_compile_options(scion PRIVATE
+            -fstack-clash-protection
+            -fcf-protection=full
+    )
+endif ()
 
 # enable additional flags in Debug builds
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
