@@ -1,7 +1,7 @@
 set(INCLUDES
         "."
-        "../../include"
-        "../../tests"
+        "../../lib"
+        "../../lib/include"
 )
 
 set(SOURCES
@@ -30,12 +30,6 @@ set(SOURCES
         "../../lib/control_plane/topology.c"
         "../../lib/data_plane/socket.c"
         "../../lib/data_plane/udp.c"
-        "../../tests/testing.c"
-        "../../tests/util/test_linked_list.c"
-        "../../tests/common/test_isd_as.c"
-        "../../tests/data_plane/test_serialization.c"
-        "../../tests/data_plane/test_deserialization.c"
-        "../../tests/data_plane/test_path.c"
 )
 
 set(REQ
