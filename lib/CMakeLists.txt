@@ -60,9 +60,11 @@ add_library(scion STATIC
 add_dependencies(scion nghttp2)
 add_dependencies(scion protobuf-c)
 
-# Add scion includes
+# public headers
 target_include_directories(scion PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+# internal headers
 target_include_directories(scion PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+# dependency headers
 target_include_directories(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/include)
 
 # Link nghttp2
@@ -140,5 +142,8 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
     )
 endif ()
 
+# declare public headers for installation
 set_target_properties(scion PROPERTIES PUBLIC_HEADER include/scion/scion.h)
+
+# install library with public headers
 install(TARGETS scion PUBLIC_HEADER DESTINATION include/scion)

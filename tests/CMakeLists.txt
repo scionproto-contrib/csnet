@@ -45,6 +45,9 @@ add_executable(tests
 # Link SCION library to tests
 target_link_libraries(tests PRIVATE scion)
 
+# Give tests access to internal headers
+target_include_directories(tests PRIVATE ${PROJECT_SOURCE_DIR}/lib)
+
 # Register all tests in the list
 foreach (test ${test_list})
     add_test(NAME ${test} COMMAND tests ${test})
