@@ -34,8 +34,6 @@
 
 #include "scion/scion.h"
 
-#include "testing.h"
-
 // HEAP DEBUGGING
 // #include "esp_heap_trace.h"
 // #define NUM_RECORDS 2000
