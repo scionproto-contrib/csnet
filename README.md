@@ -1,5 +1,7 @@
 # CSNET
 
+**Attention**: This repository is still under construction! 🛠️🚧
+
 ## Requirements
 
 All the requirements for building the library (in `./lib`) are fetched automatically with CMake.
