@@ -25,6 +25,7 @@
 #include "common/isd_as.h"
 #include "control_plane/fetch.h"
 #include "data_plane/path.h"
+#include "util/endian.h"
 #include "util/linked_list.h"
 
 int scion_path_meta_hdr_init(struct scion_path_meta_hdr *hdr)

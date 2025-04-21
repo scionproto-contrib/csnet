@@ -27,6 +27,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 
 #define SCION_SO_DEBUG 200
 
