@@ -147,3 +147,9 @@ set_target_properties(scion PROPERTIES PUBLIC_HEADER include/scion/scion.h)
 
 # install library with public headers
 install(TARGETS scion PUBLIC_HEADER DESTINATION include/scion)
+# install the dependencies
+install(FILES
+        ${DEPENDENCY_INSTALL_DIR}/lib/libnghttp2.a
+        ${DEPENDENCY_INSTALL_DIR}/lib/libprotobuf-c.a
+        DESTINATION lib
+)
