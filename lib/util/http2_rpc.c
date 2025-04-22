@@ -69,6 +69,26 @@ int http2_rpc_send_ping(http2_rpc_handle *hd)
 	return 0;
 }
 
+static int grow_output_buffer(http2_rpc_handle *hd, size_t min)
+{
+	size_t new_size = hd->output_buffer_size;
+
+	while (new_size < min) {
+		new_size *= 2;
+	}
+
+	void *new_buffer = realloc(hd->output_buffer, new_size);
+
+	if (new_buffer == NULL) {
+		return -1;
+	}
+
+	hd->output_buffer = new_buffer;
+	hd->output_buffer_size = new_size;
+
+	return 0;
+}
+
 /*
  * ##################################################################
  * ####################### CALLBACK FUNCTIONS #######################
@@ -264,7 +284,11 @@ static int on_data_chunk_recv_callback(
 		size_t maxlen = hd->output_buffer_size;
 
 		if (offset + len > maxlen) {
-			return -1;
+			int ret = grow_output_buffer(hd, offset + len);
+
+			if (ret != 0) {
+				return -1;
+			}
 		}
 		(void)memcpy((hd->output_buffer) + offset, data, len);
 		hd->bytes_written = offset + len;
@@ -302,7 +326,7 @@ static int on_header_callback(nghttp2_session *session, const nghttp2_frame *fra
  */
 
 int http2_rpc_handle_init(
-	http2_rpc_handle *hd, const char *hostname, const char *ip, uint16_t port, size_t output_buffer_size)
+	http2_rpc_handle *hd, const char *hostname, const char *ip, uint16_t port, size_t initial_output_buffer_size)
 {
 	(void)memset(hd, 0, sizeof(*hd));
 
@@ -316,8 +340,8 @@ int http2_rpc_handle_init(
 	(void)strncpy(hd->ip, ip, ip_len);
 	hd->port = port;
 
-	hd->output_buffer = malloc(output_buffer_size);
-	hd->output_buffer_size = output_buffer_size;
+	hd->output_buffer_size = initial_output_buffer_size;
+	hd->output_buffer = malloc(initial_output_buffer_size);
 	hd->bytes_written = 0;
 
 	hd->grpc_status_code = -1;

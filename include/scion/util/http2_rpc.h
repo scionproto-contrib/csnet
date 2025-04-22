@@ -32,7 +32,7 @@ typedef struct http2_rpc_handle {
 } http2_rpc_handle;
 
 int http2_rpc_handle_init(
-	http2_rpc_handle *hd, const char *hostname, const char *ip, uint16_t port, size_t output_buffer_size);
+	http2_rpc_handle *hd, const char *hostname, const char *ip, uint16_t port, size_t initial_output_buffer_size);
 
 int http2_rpc_request(http2_rpc_handle *hd, const char *path, const uint8_t *data, size_t data_length);
 
