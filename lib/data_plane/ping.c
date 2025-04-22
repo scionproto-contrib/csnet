@@ -77,7 +77,7 @@ static int scion_send_echo_request(
 	}
 
 	ssize_t send_res = scion_send(scion_sock, echo_buffer, echo_length, 0);
-	if (send_res != echo_length) {
+	if (send_res < 0) {
 		return (int)send_res;
 	}
 
@@ -152,23 +152,23 @@ int scion_ping(const struct sockaddr *addr, socklen_t addrlen, scion_ia ia, stru
 	bool debug = true;
 	ret = scion_setsockopt(socket, SOL_SOCKET, SCION_SO_DEBUG, &debug, sizeof(debug));
 	if (ret != 0) {
-		return ret;
+		goto cleanup_socket;
 	}
 
 	ret = scion_setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout);
 	if (ret != 0) {
-		return ret;
+		goto cleanup_socket;
 	}
 
 	ret = scion_connect(socket, addr, addrlen, ia);
 	if (ret != 0) {
-		return ret;
+		goto cleanup_socket;
 	}
 
 	struct scion_path *path;
 	ret = scion_getsockpath(socket, &path);
 	if (ret != 0) {
-		return ret;
+		goto cleanup_socket;
 	}
 	(void)printf("\nUsing path:\n  ");
 	scion_path_print(path);
