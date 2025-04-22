@@ -26,6 +26,7 @@
 #include "scion/util/http2_rpc.h"
 
 #define SEGMENTS_PATH "/proto.control_plane.v1.SegmentLookupService/Segments"
+#define INITIAL_RPC_OUTPUT_BUFFER_SIZE (2 << 15)
 
 static int set_split_seg(struct scion_split_segments *split_seg, bool has_up, scion_ia up_src, scion_ia up_dst,
 	bool has_core, scion_ia core_src, scion_ia core_dst, bool has_down, scion_ia down_src, scion_ia down_dst)
@@ -286,36 +287,34 @@ int scion_path_segments_lookup(const char *hostname, const char *ip, uint16_t po
 	(void)proto__control_plane__v1__segments_request__pack(&seg_req, msg_buf);
 
 	http2_rpc_handle hd;
-	ret = http2_rpc_handle_init(&hd, hostname, ip, port, 2 * 20480); // TODO: Hardcoded size?
+	ret = http2_rpc_handle_init(&hd, hostname, ip, port, INITIAL_RPC_OUTPUT_BUFFER_SIZE);
 	if (ret != 0) {
-		free(msg_buf);
-		return ret;
+		goto cleanup_msg_buf;
 	}
 
 	ret = http2_rpc_request(&hd, SEGMENTS_PATH, msg_buf, len);
 	if (ret != 0) {
-		free(msg_buf);
-		http2_rpc_handle_free(&hd);
-		return ret;
+		goto cleanup_rpc_handle;
 	}
 
-	if (hd.grpc_status_code == 0) {
-		Proto__ControlPlane__V1__SegmentsResponse *response = proto__control_plane__v1__segments_response__unpack(
-			NULL, hd.bytes_written - 5, (const uint8_t *)(hd.output_buffer) + 5);
-		if (response->n_segments > 0) {
-			ret = protobuf_to_path_segments(response, segments);
-			if (ret != 0) {
-				free(msg_buf);
-				proto__control_plane__v1__segments_response__free_unpacked(response, NULL);
-				return ret;
-			}
-		}
-		proto__control_plane__v1__segments_response__free_unpacked(response, NULL);
+	if (hd.grpc_status_code != 0) {
+		ret = SCION_GRPC_ERR;
+		goto cleanup_rpc_handle;
 	}
 
-	ret = hd.grpc_status_code;
-	free(msg_buf);
+	Proto__ControlPlane__V1__SegmentsResponse *response = proto__control_plane__v1__segments_response__unpack(
+		NULL, hd.bytes_written - 5, (const uint8_t *)(hd.output_buffer) + 5);
+	if (response->n_segments > 0) {
+		ret = protobuf_to_path_segments(response, segments);
+	}
+	proto__control_plane__v1__segments_response__free_unpacked(response, NULL);
+
+cleanup_rpc_handle:
 	http2_rpc_handle_free(&hd);
+
+cleanup_msg_buf:
+	free(msg_buf);
+
 	return ret;
 }
 
