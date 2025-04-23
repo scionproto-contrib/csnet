@@ -73,8 +73,8 @@ target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libnghttp2.a)
 # Link protobuf-c
 target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libprotobuf-c.a)
 
-# Set compile options
-target_compile_options(scion PRIVATE
+# Set compiler flags
+extract_valid_c_compiler_flags(COMPILER_FLAGS
         -O2
         -Wall
         -Wextra
@@ -87,59 +87,40 @@ target_compile_options(scion PRIVATE
         -Werror=implicit
         -Werror=incompatible-pointer-types
         -Werror=int-conversion
+        -Wno-error=unused-command-line-argument
         -U_FORTIFY_SOURCE
         -D_FORTIFY_SOURCE=3
         -fstack-protector-strong
         -fno-delete-null-pointer-checks
         -fno-strict-overflow
         -fno-strict-aliasing
+        -fstack-clash-protection
+        -fcf-protection=full
+        -Wtrampolines
+        -Wbidi-chars=any
+        -Wtrivial-auto-var-init
 )
+target_compile_options(scion PRIVATE ${COMPILER_FLAGS})
 
-target_link_options(scion PRIVATE
+# Set linker flags
+extract_valid_c_linker_flags(LINKER_FLAGS
         -Wl,-z,nodlopen
         -Wl,-z,noexecstack
         -Wl,-z,relro
         -Wl,-z,now
 )
-
-if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
-    target_compile_options(scion PRIVATE
-            -fstack-clash-protection
-            -fcf-protection=full
-    )
-endif ()
+target_link_options(scion PRIVATE ${LINKER_FLAGS})
 
 # enable additional flags in Debug builds
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_options(scion PRIVATE
-            -Werror
-            -fsanitize=address -fno-omit-frame-pointer
+    extract_valid_c_linker_flags(SANITIZER_FLAGS
+            -fsanitize=address
+            -fno-omit-frame-pointer
             -fsanitize=undefined
+            -fsanitize=leak
     )
-
-    target_link_options(scion INTERFACE
-            -fsanitize=address -fno-omit-frame-pointer
-            -fsanitize=undefined
-    )
-
-    if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
-        target_compile_options(scion PRIVATE
-                -fsanitize=leak
-        )
-
-        target_link_options(scion INTERFACE
-                -fsanitize=leak
-        )
-    endif ()
-endif ()
-
-# enable GCC specific flags
-if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(scion PRIVATE
-            -Wtrampolines
-            -Wbidi-chars=any
-            -Wtrivial-auto-var-init
-    )
+    target_compile_options(scion PRIVATE -Werror ${SANITIZER_FLAGS})
+    target_link_options(scion INTERFACE ${SANITIZER_FLAGS})
 endif ()
 
 # declare public headers for installation
