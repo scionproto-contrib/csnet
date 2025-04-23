@@ -33,13 +33,13 @@ Make sure to allow incoming connections with TCP on the port of the control serv
 
 ## Building and Installation
 
-Setup the CMake build directory with
+Setup the CMake build directory in `./dist` with
 
 ```bash
 cmake -DBUILD_EXAMPLES=ON -DBUILD_TESTS=ON -DBUILD_DOCS=ON -B dist
 ```
 
-The options `DBUILD_EXAMPLES`, `DBUILD_TESTS` and `DBUILD_DOCS` can also be turned off.
+The options `DBUILD_EXAMPLES`, `DBUILD_TESTS` and `DBUILD_DOCS` can be turned off.
 
 Build everything with
 
@@ -47,13 +47,15 @@ Build everything with
 cmake --build dist
 ```
 
-The resulting binaries and library will be put in `./dist`.
-
 To install the library execute:
 
 ```bash
  cmake --install dist --prefix "your installation directory"
 ```
+
+This will produce the static libraries `lib/libscion.a`, `lib/libnghttp2.a`, `lib/libprotobuf.a` and the header
+file `include/scion/scion.h` in your installation directory. When using the library make sure to link against all the
+libraries produced by the installation.
 
 ## ESP32
 
