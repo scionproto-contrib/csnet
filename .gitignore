@@ -4,6 +4,7 @@
 /examples/topology.json
 /dist
 /docs/html
+/network
 
 /esp32/spiffs_partition/*
 !/esp32/spiffs_partition/.gitkeep

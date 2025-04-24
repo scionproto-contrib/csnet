@@ -53,7 +53,7 @@
 
 #define REMOTE_AS "2-ff00:0:222"
 #define REMOTE_HOST "fd00:f00d:cafe::7f00:55"
-#define REMOTE_PORT 31000
+#define REMOTE_PORT 31003
 #define REMOTE_AF SCION_AF_IPV6
 #define ALPN "\xahello-quic"
 #define MESSAGE "Hello QUIC"

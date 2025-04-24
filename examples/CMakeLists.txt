@@ -1,7 +1,12 @@
 set(DEPENDENCY_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/dependencies)
 
 # Copy topology file
-configure_file(topology.json ${CMAKE_CURRENT_BINARY_DIR}/topology.json COPYONLY)
+if (EXISTS "topology.json")
+    configure_file(topology.json ${CMAKE_CURRENT_BINARY_DIR}/topology.json COPYONLY)
+else ()
+    configure_file(topology.default.json ${CMAKE_CURRENT_BINARY_DIR}/topology.json COPYONLY)
+endif ()
+
 
 add_executable(paths_example paths.c)
 target_link_libraries(paths_example PRIVATE scion)
