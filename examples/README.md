@@ -1,14 +1,26 @@
 ## Examples
 
-This directory contains examples for using SCION on the ESP32 and on Unix systems. All examples require the SCION test network, see [Getting started](/docs/getting-started.md).
+This directory contains examples for using the CSNET library on UNIX-like systems. As mentioned in
+the [main README](../README.md#requirements), running the examples **requires a running SCION network**. Some examples
+have additional requirements documented below.
 
-The following 5 examples are available:
-- `ShowPaths`: Fetch paths between the local AS and specified destination AS and print them. Unix version: `examples/unix/unix_paths_example_main.c`, ESP32 version: `examples/esp32/esp32_paths_example_main.c`. [Code Breakdown](/docs/examples/paths_example.md) (for Unix version.)
+The following examples are available:
 
-- `Ping`: Ping a SCION-enabled host using SCMP echo requests. Unix version: `examples/unix/unix_ping_example_main.c`, ESP32 version: `examples/esp32/esp32_ping_example_main.c`.
+- `udp.c`: Shows how to send and receive a UDP packet. Requires a running `scripts/run-testserver.sh`.
 
-- `UDP client`: Send a message using UDP over SCION to a server and print the response. Unix version: `examples/unix/unix_udp_example_main.c`, ESP32 version: `examples/esp32/esp32_udp_example_main.c`.
+- `paths.c`: Shows how to fetch the available paths to a specific destination in the network.
 
-- `Set Path`: Similar to the `UDP cleint` example, but choses a specific path to send the UDP packet. Unix version: `examples/unix/unix_set_path_example_main.c`, ESP32 version: `examples/esp32/esp32_set_path_example_main.c`.
+- `choose_path.c`: Shows how to send a packet over a specific path in the network. Requires a running
+  `scripts/run-testserver.sh`.
 
-- `Server`: A UDP server which responds to incomming messages with the same message. It sends the response over the same path as the original message. Unix version: `examples/unix/unix_server_example_main.c`, ESP32 version: `examples/esp32/esp32_server_example_main.c`.
+- `server.c`: Shows how to implement a simple server that receives incoming packets. Run `scripts/run-testclient.sh` to
+  receive a packet.
+
+- `ping.c`: Shows how to ping a host in the network.
+
+- `simple_quic_client.c`: Shows how to implement a simple QUIC client that uses UDP over SCION with the
+  help of ngtcp2. Requires a running `scripts/run-quic-server.sh`.
+
+- `scmp_error.c`: Shows how to catch SCMP errors when sending packets. Requires a running `scmp_error_generator.c`.
+
+- `features.c`: Showcases some additional features of the library. Requires a running `scripts/run-testserver.sh`.
