@@ -4,32 +4,20 @@
 
 ## Requirements
 
-Building and installing the csnet library requires CMake 3.22 or newer.
+Building and installing the library and examples requires CMake 3.22 or newer (
+download [here](https://cmake.org/download/)).
 
-All dependencies of the library (in `./lib`) are fetched automatically with CMake.
+All the requirements for building the library and examples are fetched automatically with CMake.
 
-Building and running the examples (in `./examples`) additionally requires the following:
+Running the examples (in `./examples`) additionally requires the following:
 
-- a running local SCION Network (see [SCION Test Network Setup](#scion-testnetwork-setup))
-- create a `topology.json` from the `topology.example.json` by filling in the respective IP addresses
+- a running local SCION Network (see [Local SCION Network Setup](#local-scion-network-setup) for setup instructions)
+- some examples have additional requirements, consult the [README](./examples/README.md) for more information
 
-## SCION Test Network Setup
+Building the documentation (in `./docs`) requires:
 
-To run a local test setup of the default topology use the SCION testnet (https://github.com/marcfrei/scion-testnet).
-After successfully installing the testnet the network can be started with `scripts/run-testnet.sh`.
-Some tests also require a running server which can be started with `scripts/run-testserver.sh`.
-
-### Windows prerequisites
-
-Currently, SCION is not supported on Windows, hence using WSL is recommended.
-
-In order for your SCION test network to be accessible from your LAN the mirrored mode networking must be enabled in
-WSL (see here for more information about mirrored mode networking).
-Additionally, you must adjust the settings of your Windows Defender Firewall, because Windows blocks all incoming
-connections by default.
-Make sure to allow incoming connections with TCP on the port of the control service (for AS `1-ff00:0:133` this is
-`31066`) and allow all incoming UDP connections on the ports of the border routers (for AS `1-ff00:0:133` this is
-`31068` and `31070`).
+- doxygen (download [here](https://www.doxygen.nl/download.html))
+- graphviz (download [here](https://graphviz.org/download/))
 
 ## Building and Installation
 
@@ -62,11 +50,21 @@ This will produce the static libraries `lib/libscion.a`, `lib/libnghttp2.a`, `li
 file `include/scion/scion.h` in your installation directory. When using the library make sure to link against all the
 libraries produced by the installation.
 
+## Local SCION Network Setup
+
+Requirements:
+
+- Linux, MacOS or WSL
+- Go 1.23 or newer (download [here](https://go.dev/dl/))
+
+To set up a local SCION Network execute the setup script in `scripts/setup-network.sh`. After successfully installing
+it, the network can be started with `scripts/run-testnet.sh`.
+
 ## ESP32
 
 EPS32 specific instructions can be found [here](./esp32/README.md).
 
-## Development
+## Library Development
 
 ### Requirements
 
@@ -74,15 +72,7 @@ Required tools:
 
 - `protobuf` and `protobuf-c`: Protobuf to C compiler required to generate code from .proto files to talk to a control
   server.
-- `ESP-IDF`: The ESP IoT Development Framework, official toolchain to program ESP chips. Installation
-  guidelines: https://docs.espressif.com/projects/esp-idf/en/stable/esp32/get-started/linux-macos-setup.html
 - (optionally) `clang-format`: Code formatter we use.
-- (optionally) `doxygen` and `graphviz`: Tools for generating API docs.
-
-Windows (WSL):
-
-- USBIPD-WIN: software for sharing locally connected USB devices with WSL,
-  see: https://learn.microsoft.com/en-us/windows/wsl/connect-usb
 
 ### Code Quality
 
