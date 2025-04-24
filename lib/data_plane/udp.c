@@ -65,7 +65,7 @@ int scion_udp_serialize(struct scion_udp *udp, uint8_t *buf, uint16_t *len)
 	*(uint16_t *)(buf + 4) = htobe16(udp_len);
 
 	// TODO calculate checksum
-	if (udp->data_length > SCION_UDP_HDR_LEN) {
+	if (udp->data_length > 0) {
 		(void)memcpy(buf + 8, udp->data, udp->data_length);
 	}
 
