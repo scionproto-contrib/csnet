@@ -1,7 +1,7 @@
 set(DEPENDENCY_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/dependencies)
 
 # Copy topology file
-if (EXISTS "topology.json")
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/topology.json")
     configure_file(topology.json ${CMAKE_CURRENT_BINARY_DIR}/topology.json COPYONLY)
 else ()
     configure_file(topology.default.json ${CMAKE_CURRENT_BINARY_DIR}/topology.json COPYONLY)
