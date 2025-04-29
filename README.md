@@ -36,10 +36,15 @@ Make sure to allow incoming connections with TCP on the port of the control serv
 Setup the CMake build directory in `./dist` with
 
 ```bash
-cmake -DBUILD_EXAMPLES=ON -DBUILD_TESTS=ON -DBUILD_DOCS=ON -B dist
+cmake -DBUILD_EXAMPLES=ON -DBUILD_TESTS=OFF -DBUILD_DOCS=OFF -B dist
 ```
 
-The options `DBUILD_EXAMPLES`, `DBUILD_TESTS` and `DBUILD_DOCS` can be turned off.
+The following options exist:
+
+- `BUILD_EXAMPLES`: additionally build the examples in `./examples`.
+- `BUILD_TESTS`: additionally build the tests in `./tests` and some of the examples in `./examples` that serve as E2E
+  tests. This means that even if `BUILD_EXAMPLES` is `OFF` some examples may still be built if `BUILD_TESTS` is `ON`.
+- `BUILD_DOCS`: additionally build the docs which are output to `./docs`.
 
 Build everything with
 
