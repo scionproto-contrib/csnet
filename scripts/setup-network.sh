@@ -8,7 +8,7 @@ fi
 
 WORKSPACE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-mkdir -p network
+mkdir -p "$WORKSPACE_DIR/network"
 
 export SCION_PATH="$WORKSPACE_DIR/network/scion"
 export SCION_TESTNET_PATH="$WORKSPACE_DIR/network/scion-testnet"
