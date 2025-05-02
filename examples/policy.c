@@ -1,4 +1,4 @@
-// Copyright 2024 ETH Zurich
+// Copyright 2025 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,15 +13,32 @@
 // limitations under the License.
 
 #include <arpa/inet.h>
-#include <stdbool.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <scion/scion.h>
 
-static bool select_path(struct scion_path *path)
+static bool has_nine_hops(struct scion_path *path)
 {
-	return scion_path_get_hops(path) == 8 && scion_path_get_mtu(path) == 1400;
+	return scion_path_get_hops(path) == 9;
+}
+
+static int compare_mtu(struct scion_path *path_one, struct scion_path *path_two)
+{
+	uint32_t mtu_one = scion_path_get_mtu(path_one);
+	uint32_t mtu_two = scion_path_get_mtu(path_two);
+
+	return (mtu_one > mtu_two) - (mtu_one < mtu_two);
+}
+
+static void policy_filter(struct scion_path_collection *paths)
+{
+	// only use paths that have exactly nine hops
+	scion_path_collection_filter(paths, has_nine_hops);
+	// sort paths with descending MTU
+	scion_path_collection_sort(paths, compare_mtu, /* ascending */ false);
 }
 
 int main(int argc, char *argv[])
@@ -31,7 +48,7 @@ int main(int argc, char *argv[])
 	printf("\nHello SCION on Linux\n\n");
 
 	struct scion_topology *topology;
-	ret = scion_topology_from_file(&topology, "../topology/topology.json");
+	ret = scion_topology_from_file(&topology, "topology.json");
 	if (ret != 0) {
 		printf("ERROR: Topology init failed with error code: %d\n", ret);
 		return EXIT_FAILURE;
@@ -59,32 +76,36 @@ int main(int argc, char *argv[])
 		goto cleanup_network;
 	}
 
-	// ### Select path and set path ###
-	struct scion_path_collection *paths;
-	ret = scion_fetch_paths(network, dst_ia, SCION_FETCH_OPT_DEBUG, &paths);
+	int optval = true;
+	ret = scion_setsockopt(scion_sock, SOL_SOCKET, SCION_SO_DEBUG, &optval, sizeof(optval));
 	if (ret != 0) {
-		printf("ERROR: Failed to fetch paths with error code: %d\n", ret);
+		printf("ERROR: Setting socket to debug mode failed with error code: %d\n", ret);
 		ret = EXIT_FAILURE;
 		goto cleanup_socket;
 	}
 
-	struct scion_path *path = scion_path_collection_find(paths, select_path);
-	if (path == NULL) {
-		printf("ERROR: Failed to find path meeting criteria\n");
+	struct scion_policy policy = { .filter = policy_filter };
+	ret = scion_setsockpolicy(scion_sock, policy);
+	if (ret != 0) {
+		printf("ERROR: Setting socket policy failed with error code: %d\n", ret);
 		ret = EXIT_FAILURE;
-		goto cleanup_paths;
+		goto cleanup_socket;
+	}
+
+	ret = scion_connect(scion_sock, (struct sockaddr *)&dst_addr, sizeof(dst_addr), dst_ia);
+	if (ret != 0) {
+		printf("ERROR: Socket connect failed with error code: %d\n", ret);
+		ret = EXIT_FAILURE;
+		goto cleanup_socket;
 	}
 
 	// ### Send and Receive ###
-	char tx_buf[] = "Hello, Scion!";
-	printf("Using Path:\n");
-	scion_path_print(path);
-	ret = scion_sendto(scion_sock, tx_buf, sizeof tx_buf - 1, /* flags: */ 0, (struct sockaddr *)&dst_addr,
-		sizeof(dst_addr), dst_ia, path);
+	char tx_buf[] = "Hello, Scion! (from Linux)";
+	ret = scion_send(scion_sock, tx_buf, sizeof tx_buf - 1, /* flags: */ 0);
 	if (ret < 0) {
 		printf("ERROR: Send failed with error code: %d\n", ret);
 		ret = EXIT_FAILURE;
-		goto cleanup_paths;
+		goto cleanup_socket;
 	}
 	printf("[Sent %d bytes]: \"%s\"\n", ret, tx_buf);
 
@@ -93,16 +114,13 @@ int main(int argc, char *argv[])
 	if (ret < 0) {
 		printf("ERROR: Receive failed with error code: %d\n", ret);
 		ret = EXIT_FAILURE;
-		goto cleanup_paths;
+		goto cleanup_socket;
 	}
 	rx_buf[ret] = '\0';
-
 	printf("[Received %d bytes]: \"%s\"\n", ret, rx_buf);
 
+	printf("\nDone.\n");
 	ret = EXIT_SUCCESS;
-
-cleanup_paths:
-	scion_path_collection_free(paths);
 
 cleanup_socket:
 	scion_close(scion_sock);

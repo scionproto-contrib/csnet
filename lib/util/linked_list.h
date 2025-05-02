@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 
 struct scion_linked_list_node {
@@ -28,12 +29,16 @@ struct scion_linked_list_node {
 };
 
 struct scion_linked_list {
-	uint32_t size;
+	size_t size;
 	struct scion_linked_list_node *first;
 	struct scion_linked_list_node *last;
 };
 
 typedef void (*scion_list_value_free)(void *value);
+
+typedef bool scion_list_predicate(void *value);
+
+typedef int scion_list_comparator(void *value_one, void *value_two);
 
 /**
  * Frees a linked list.
@@ -97,5 +102,10 @@ void *scion_list_pop(struct scion_linked_list *list);
  *      - struct scion_linked_list *list: Pointer to a scion_linked_list struct which you want to reverse.
  */
 void scion_list_reverse(struct scion_linked_list *list);
+
+void scion_list_sort(struct scion_linked_list *list, scion_list_comparator compare, bool ascending);
+
+void scion_list_filter(
+	struct scion_linked_list *list, scion_list_predicate predicate, scion_list_value_free free_value);
 
 void *scion_list_get(struct scion_linked_list *list, uint32_t n);

@@ -20,6 +20,11 @@ target_link_libraries(features_example PRIVATE scion)
 add_test(NAME features COMMAND features_example)
 set_tests_properties(features PROPERTIES LABELS "e2e")
 
+add_executable(policy_example policy.c)
+target_link_libraries(policy_example PRIVATE scion)
+add_test(NAME policy COMMAND policy_example)
+set_tests_properties(policy PROPERTIES LABELS "e2e")
+
 if (BUILD_EXAMPLES)
     add_executable(server_example server.c)
     target_link_libraries(server_example PRIVATE scion)

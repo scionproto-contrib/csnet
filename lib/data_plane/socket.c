@@ -28,6 +28,7 @@
 #include "common/path_collection.h"
 #include "control_plane/fetch.h"
 #include "control_plane/network.h"
+#include "control_plane/policy.h"
 #include "control_plane/topology.h"
 #include "data_plane/packet.h"
 #include "data_plane/path.h"
@@ -128,16 +129,13 @@ static void sockaddr_copy_address(
 	}
 }
 
-static void socket_free_internal(struct scion_socket *scion_sock)
+static void socket_free(struct scion_socket *scion_sock)
 {
 	if (scion_sock == NULL) {
 		return;
 	}
 	scion_sock->socket_fd = -1;
-	if (scion_sock->path != NULL) {
-		scion_path_free(scion_sock->path);
-		scion_sock->path = NULL;
-	}
+	scion_path_collection_free(scion_sock->paths);
 	free(scion_sock);
 }
 
@@ -171,28 +169,6 @@ static int get_source_address(struct scion_socket *socket, struct sockaddr *addr
 static bool is_source_address_set(struct scion_socket *socket)
 {
 	return socket->is_src_addr_set;
-}
-
-static int fetch_path(struct scion_socket *scion_sock, scion_ia dst_ia, struct scion_path **path)
-{
-	assert(scion_sock);
-	assert(scion_sock->network);
-	assert(path);
-	int ret;
-
-	struct scion_path_collection *paths;
-	ret = scion_fetch_paths(scion_sock->network, dst_ia, scion_sock->debug ? SCION_FETCH_OPT_DEBUG : 0, &paths);
-	if (ret != 0) {
-		return ret;
-	}
-
-	if ((*path = scion_path_collection_pop(paths)) == NULL) {
-		ret = SCION_NO_PATHS;
-	}
-
-	scion_path_collection_free(paths);
-
-	return ret;
 }
 
 static int bind_if_unbound(struct scion_socket *scion_sock)
@@ -231,6 +207,21 @@ static int bind_if_unbound(struct scion_socket *scion_sock)
 	}
 
 	return 0;
+}
+
+static int fetch_paths(struct scion_socket *scion_sock, scion_ia dst_ia, struct scion_path_collection **paths)
+{
+	assert(scion_sock);
+	assert(scion_sock->network);
+	assert(paths);
+	int ret;
+
+	ret = scion_fetch_paths(scion_sock->network, dst_ia, scion_sock->debug ? SCION_FETCH_OPT_DEBUG : 0, paths);
+	if (ret != 0) {
+		return ret;
+	}
+
+	return ret;
 }
 
 int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_family, enum scion_proto protocol,
@@ -273,6 +264,9 @@ int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_f
 		goto cleanup_socket_storage;
 	}
 
+	scion_sock_storage->paths = NULL;
+	scion_sock_storage->policy = scion_policy_least_hops;
+
 	scion_sock_storage->src_addr_len = sizeof(scion_sock_storage->src_addr);
 
 	if (network != NULL) {
@@ -305,14 +299,22 @@ cleanup_socket_storage:
 	return ret;
 }
 
-static int refresh_connected_path(struct scion_socket *scion_sock)
+static int refresh_connected_paths(struct scion_socket *scion_sock)
 {
-	int ret = fetch_path(scion_sock, scion_sock->dst_ia, &scion_sock->path);
+	scion_path_collection_free(scion_sock->paths);
+
+	int ret = fetch_paths(scion_sock, scion_sock->dst_ia, &scion_sock->paths);
 	if (ret != 0) {
 		return ret;
 	}
 
-	if (scion_sock->path->path_type == SCION_PATH_TYPE_EMPTY
+	scion_sock->policy.filter(scion_sock->paths);
+
+	if (scion_path_collection_size(scion_sock->paths) == 0) {
+		return SCION_NO_PATHS;
+	}
+
+	if (scion_path_collection_first(scion_sock->paths)->path_type == SCION_PATH_TYPE_EMPTY
 		&& scion_sock->dst_addr.ss_family != scion_sock->local_addr_family) {
 		return SCION_ADDR_FAMILY_MISMATCH;
 	}
@@ -339,7 +341,7 @@ int scion_connect(struct scion_socket *scion_sock, const struct sockaddr *addr, 
 	scion_sock->dst_addr_len = addrlen;
 	scion_sock->dst_ia = ia;
 
-	ret = refresh_connected_path(scion_sock);
+	ret = refresh_connected_paths(scion_sock);
 	if (ret != 0) {
 		return ret;
 	}
@@ -353,6 +355,7 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 	const struct sockaddr *dst_addr, socklen_t dst_addr_len, struct scion_path *path)
 {
 	assert(scion_sock->protocol == SCION_PROTO_UDP || scion_sock->protocol == SCION_PROTO_SCMP);
+	assert(path);
 	ssize_t ret;
 
 	if (path->metadata != NULL && path->metadata->expiry <= time(NULL) + PATH_EXPIRATION_THRESHOLD_IN_SECONDS) {
@@ -534,6 +537,12 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 	}
 
 	if (ret > 0) {
+		if (scion_sock->debug) {
+			(void)printf("Sending packet over the following path:\n");
+			scion_path_print(path);
+			(void)printf("\n");
+		}
+
 		if ((size_t)ret != packet_length) {
 			// Packet partially transmitted
 			ret = SCION_SEND_ERR;
@@ -555,16 +564,25 @@ cleanup_packet:
 static ssize_t scion_sendto_connected_path(struct scion_socket *scion_sock, const void *buf, size_t size, int flags,
 	const struct sockaddr *dst_addr, socklen_t dst_addr_len)
 {
-	ssize_t ret = scion_sendto_path(scion_sock, buf, size, flags, dst_addr, dst_addr_len, scion_sock->path);
+	struct scion_path *path = scion_path_collection_first(scion_sock->paths);
+	if (path == NULL) {
+		return SCION_NO_PATHS;
+	}
+
+	ssize_t ret = scion_sendto_path(scion_sock, buf, size, flags, dst_addr, dst_addr_len, path);
 
 	if (ret == SCION_PATH_EXPIRED) {
-		ret = refresh_connected_path(scion_sock);
-
+		ret = refresh_connected_paths(scion_sock);
 		if (ret != 0) {
 			return ret;
 		}
 
-		ret = scion_sendto_path(scion_sock, buf, size, flags, dst_addr, dst_addr_len, scion_sock->path);
+		path = scion_path_collection_first(scion_sock->paths);
+		if (path == NULL) {
+			return SCION_NO_PATHS;
+		}
+
+		ret = scion_sendto_path(scion_sock, buf, size, flags, dst_addr, dst_addr_len, path);
 	}
 
 	return ret;
@@ -592,10 +610,6 @@ ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t si
 		return SCION_NETWORK_UNKNOWN;
 	}
 
-	if (path != NULL && path->dst != dst_ia) {
-		return SCION_DST_MISMATCH;
-	}
-
 	if ((flags & IMPLEMENTED_SEND_FLAGS) != flags) {
 		return SCION_FLAG_NOT_IMPLEMENTED;
 	}
@@ -615,6 +629,10 @@ ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t si
 		dst_ia = scion_sock->dst_ia;
 	}
 
+	if (path != NULL && path->dst != dst_ia) {
+		return SCION_DST_MISMATCH;
+	}
+
 	// Handle path, there are 3 different cases:
 	// 1. No path was provided but destination IA matches the connected IA
 	//    --> Use connected path
@@ -624,15 +642,23 @@ ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t si
 	//    --> Use the provided path
 	bool cleanup_path = false;
 	if (path == NULL) {
-		if (scion_sock->path != NULL && scion_sock->path->dst == dst_ia) {
+		if (scion_sock->is_connected && scion_sock->dst_ia == dst_ia) {
 			return scion_sendto_connected_path(scion_sock, buf, size, flags, dst_addr, addrlen);
 		}
 
-		ret = fetch_path(scion_sock, dst_ia, &path);
+		struct scion_path_collection *paths;
+
+		ret = fetch_paths(scion_sock, dst_ia, &paths);
 		if (ret != 0) {
 			return ret;
 		}
 
+		path = scion_path_collection_pop(paths);
+		if (path == NULL) {
+			return SCION_NO_PATHS;
+		}
+
+		scion_path_collection_free(paths);
 		cleanup_path = true;
 	}
 
@@ -941,7 +967,7 @@ int scion_close(struct scion_socket *scion_sock)
 	(void)close(scion_sock->socket_fd);
 	scion_sock->socket_fd = -1;
 
-	socket_free_internal(scion_sock);
+	socket_free(scion_sock);
 
 	return 0;
 }
@@ -983,20 +1009,6 @@ int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, so
 	return 0;
 }
 
-int scion_getsockpath(struct scion_socket *scion_sock, struct scion_path **path)
-{
-	assert(scion_sock);
-	assert(path);
-
-	if (!scion_sock->is_bound) {
-		return SCION_NOT_BOUND;
-	}
-
-	*path = scion_sock->path;
-
-	return 0;
-}
-
 int scion_getsockfd(struct scion_socket *scion_sock, int *fd)
 {
 	assert(scion_sock);
@@ -1016,6 +1028,20 @@ int scion_setsockerrcb(struct scion_socket *scion_sock, scion_socket_scmp_error_
 
 	return 0;
 }
+
+int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy policy)
+{
+	assert(scion_socket);
+	int ret = 0;
+
+	scion_sock->policy = policy;
+
+	if (scion_sock->is_connected) {
+		ret = refresh_connected_paths(scion_sock);
+	}
+
+	return ret;
+};
 
 void scion_print_addr(const struct sockaddr *addr, scion_ia ia)
 {
