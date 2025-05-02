@@ -284,7 +284,7 @@ uint32_t scion_path_byte_size(struct scion_path *path, bool print_details)
 		if (print_details) {
 			(void)printf("		-- total metadata size: %" PRIu32 " bytes\n", meta_size);
 			if (path->metadata->interfaces != NULL) {
-				(void)printf("			of which: %" PRIu32 " interfaces size: %" PRIu32 " bytes\n",
+				(void)printf("			of which: %zu interfaces size: %" PRIu32 " bytes\n",
 					path->metadata->interfaces->size, intf_size);
 			} else {
 				(void)printf("			of which: interfaces size: %" PRIu32 " bytes\n", intf_size);
@@ -305,11 +305,15 @@ uint32_t scion_path_byte_size(struct scion_path *path, bool print_details)
 	return size;
 }
 
-uint32_t scion_path_get_weight(const struct scion_path *path)
+size_t scion_path_get_hops(const struct scion_path *path)
 {
 	assert(path != NULL);
 
-	return path->weight;
+	if (path->path_type == SCION_PATH_TYPE_EMPTY) {
+		return 0;
+	} else {
+		return (path->metadata->interfaces->size / 2) + 1;
+	}
 }
 
 uint32_t scion_path_get_mtu(const struct scion_path *path)

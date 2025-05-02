@@ -62,8 +62,8 @@ static int parse_remote(char *str, scion_ia *ia, struct sockaddr *addr, socklen_
 	return 0;
 }
 
-static int scion_send_echo_request(
-	struct scion_socket *scion_sock, uint16_t seqno, uint8_t *payload, uint16_t length, struct timeval *tv)
+static int scion_send_echo_request(struct scion_socket *scion_sock, struct scion_path *path, uint16_t seqno,
+	uint8_t *payload, uint16_t length, struct timeval *tv)
 {
 	assert(scion_sock);
 	int ret;
@@ -74,8 +74,7 @@ static int scion_send_echo_request(
 
 	struct sockaddr_storage src_addr;
 	socklen_t src_addr_len = sizeof(src_addr);
-	scion_ia ia;
-	ret = scion_getsockname(scion_sock, (struct sockaddr *)&src_addr, &src_addr_len, &ia);
+	ret = scion_getsockname(scion_sock, (struct sockaddr *)&src_addr, &src_addr_len, NULL);
 	if (ret != 0) {
 		return ret;
 	}
@@ -106,7 +105,7 @@ static int scion_send_echo_request(
 		(void)gettimeofday(tv, NULL);
 	}
 
-	ssize_t send_res = scion_send(scion_sock, echo_buffer, echo_length, 0);
+	ssize_t send_res = scion_sendto(scion_sock, echo_buffer, echo_length, 0, NULL, 0, 0, path);
 	if (send_res < 0) {
 		return (int)send_res;
 	}
@@ -164,8 +163,8 @@ static int scion_recv_echo_reply(struct scion_socket *scion_socket, uint16_t seq
 	return 0;
 }
 
-static int ping(struct scion_socket *socket, struct sockaddr *addr, socklen_t addrlen, scion_ia ia, uint16_t count,
-	uint16_t payload_size)
+static int ping(struct scion_socket *socket, struct scion_path *path, struct sockaddr *addr, scion_ia ia,
+	uint16_t count, uint16_t payload_size)
 {
 	int ret;
 
@@ -177,11 +176,6 @@ static int ping(struct scion_socket *socket, struct sockaddr *addr, socklen_t ad
 	uint16_t packets_received = 0;
 	uint16_t packets_lost = 0;
 
-	struct scion_path *path;
-	ret = scion_getsockpath(socket, &path);
-	if (ret != 0) {
-		return ret;
-	}
 	(void)printf("\nUsing path:\n  ");
 	scion_path_print(path);
 	(void)printf("\n");
@@ -214,7 +208,7 @@ static int ping(struct scion_socket *socket, struct sockaddr *addr, socklen_t ad
 	double avg = 0.0;
 
 	for (uint16_t i = 0; i < count; i++) {
-		ret = scion_send_echo_request(socket, i, payload, payload_size, &start);
+		ret = scion_send_echo_request(socket, path, i, payload, payload_size, &start);
 		if (ret != 0) {
 			(void)printf("SEND ERROR: seqno=%" PRIu16 ", code=%d\n", i, ret);
 			continue;
@@ -413,12 +407,6 @@ int main(int argc, char **argv)
 		goto cleanup_network;
 	}
 
-	bool debug = true;
-	ret = scion_setsockopt(socket, SOL_SOCKET, SCION_SO_DEBUG, &debug, sizeof(debug));
-	if (ret != 0) {
-		goto cleanup_socket;
-	}
-
 	ret = scion_setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout);
 	if (ret != 0) {
 		fprintf(stderr, "Error: could not set socket option (%s, code %d)\n", scion_strerror(ret), ret);
@@ -487,11 +475,30 @@ int main(int argc, char **argv)
 		goto cleanup_socket;
 	}
 
-	ret = ping(socket, (struct sockaddr *)&dst_addr, dst_addr_len, dst_ia, count, payload_size);
+	struct scion_path_collection *paths;
+	ret = scion_fetch_paths(network, dst_ia, SCION_FETCH_OPT_DEBUG, &paths);
+	if (ret != 0) {
+		fprintf(stderr, "Error: could not fetch paths (%s, code %d)\n", scion_strerror(ret), ret);
+		goto cleanup_socket;
+	}
+
+	struct scion_path *path = scion_path_collection_pop(paths);
+	if (path == NULL) {
+		fprintf(stderr, "Error: no paths available to destination (%s, code %d)\n", scion_strerror(ret), ret);
+		goto cleanup_paths;
+	}
+
+	ret = ping(socket, path, (struct sockaddr *)&dst_addr, dst_ia, count, payload_size);
 	if (ret < 0) {
 		fprintf(stderr, "Error: could not ping (%s, code %d)\n", scion_strerror(ret), ret);
 		ret = 2;
 	}
+
+cleanup_path:
+	scion_path_free(path);
+
+cleanup_paths:
+	scion_path_collection_free(paths);
 
 cleanup_socket:
 	scion_close(socket);
