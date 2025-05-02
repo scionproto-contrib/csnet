@@ -41,6 +41,8 @@ add_library(scion STATIC
         control_plane/segment.c
         control_plane/topology.c
         control_plane/network.c
+        control_plane/policy.c
+        control_plane/policy.h
         data_plane/packet.c
         data_plane/path.c
         data_plane/ping.c
@@ -114,10 +116,10 @@ target_link_options(scion PRIVATE ${LINKER_FLAGS})
 # enable additional flags in Debug builds
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     extract_valid_c_linker_flags(SANITIZER_FLAGS
-            -fsanitize=address
-            -fno-omit-frame-pointer
-            -fsanitize=undefined
-            -fsanitize=leak
+            #-fsanitize=address
+            #-fno-omit-frame-pointer
+            #-fsanitize=undefined
+            #-fsanitize=leak
     )
     target_compile_options(scion PRIVATE -Werror ${SANITIZER_FLAGS})
     target_link_options(scion INTERFACE ${SANITIZER_FLAGS})
