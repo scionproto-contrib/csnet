@@ -17,6 +17,8 @@
 
 #include "util/linked_list.h"
 
+#include <assert.h>
+
 static void scion_list_node_free(struct scion_linked_list_node *node, scion_list_value_free free_value)
 {
 	if (node == NULL) {
@@ -146,6 +148,104 @@ void scion_list_reverse(struct scion_linked_list *list)
 	prev = list->first;
 	list->first = list->last;
 	list->last = prev;
+}
+
+/**
+ * Updates a list with a new head and updates last pointer and size.
+ */
+static void update_list(struct scion_linked_list *list, struct scion_linked_list_node *new_head)
+{
+	struct scion_linked_list_node *current = new_head;
+	struct scion_linked_list_node *prev = NULL;
+	size_t count = 0;
+	while (current != NULL) {
+		count += 1;
+		prev = current;
+		current = current->next;
+	}
+
+	list->first = new_head;
+	list->last = prev;
+	list->size = count;
+}
+
+static struct scion_linked_list_node *merge(struct scion_linked_list_node *left, struct scion_linked_list_node *right,
+	scion_list_comparator compare, bool ascending)
+{
+	if (left == NULL)
+		return right;
+	if (right == NULL)
+		return left;
+
+	int compare_result = compare(left->value, right->value);
+
+	// if left < right and ascending or left > right and descending
+	if ((compare_result < 0 && ascending) || (compare_result > 0 && !ascending)) {
+		left->next = merge(left->next, right, compare, ascending);
+		return left;
+	} else {
+		right->next = merge(left, right->next, compare, ascending);
+		return right;
+	}
+}
+
+static struct scion_linked_list_node *merge_sort(
+	struct scion_linked_list_node *head, scion_list_comparator compare, bool ascending)
+{
+	if (head == NULL || head->next == NULL) {
+		return head;
+	}
+
+	struct scion_linked_list_node *slow = head;
+	struct scion_linked_list_node *fast = head->next;
+
+	while (fast && fast->next) {
+		slow = slow->next;
+		fast = fast->next->next;
+	}
+
+	struct scion_linked_list_node *mid = slow->next;
+	slow->next = NULL;
+
+	struct scion_linked_list_node *left = merge_sort(head, compare, ascending);
+	struct scion_linked_list_node *right = merge_sort(mid, compare, ascending);
+
+	return merge(left, right, compare, ascending);
+}
+
+void scion_list_sort(struct scion_linked_list *list, scion_list_comparator compare, bool ascending)
+{
+	size_t old_size = list->size;
+	struct scion_linked_list_node *new_head = merge_sort(list->first, compare, ascending);
+
+	update_list(list, new_head);
+	assert(old_size == list->size);
+}
+
+static struct scion_linked_list_node *filter(
+	struct scion_linked_list_node *head, scion_list_predicate predicate, scion_list_value_free free_value)
+{
+	if (head == NULL) {
+		return NULL;
+	}
+
+	struct scion_linked_list_node *filtered_next = filter(head->next, predicate, free_value);
+
+	if (predicate(head->value)) {
+		head->next = filtered_next;
+		return head;
+	} else {
+		// filter out current head and free node (and possibly also the value)
+		scion_list_node_free(head, free_value);
+		return filtered_next;
+	}
+}
+
+void scion_list_filter(struct scion_linked_list *list, scion_list_predicate predicate, scion_list_value_free free_value)
+{
+	struct scion_linked_list_node *new_head = filter(list->first, predicate, free_value);
+
+	update_list(list, new_head);
 }
 
 void *scion_list_get(struct scion_linked_list *list, uint32_t n)

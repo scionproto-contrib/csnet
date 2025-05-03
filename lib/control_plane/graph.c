@@ -1535,6 +1535,8 @@ static bool scion_check_duplicate_path(struct scion_linked_list *ifids_list, uin
 static int scion_path_solution_list_to_path_list(struct scion_linked_list *path_solutions,
 	struct scion_linked_list *paths, scion_ia src, scion_ia dst, struct scion_topology *topology, uint opt)
 {
+	// TODO: remove me
+	(void)opt;
 	assert(path_solutions);
 	assert(paths);
 
@@ -1580,11 +1582,6 @@ static int scion_path_solution_list_to_path_list(struct scion_linked_list *path_
 				scion_path_free(path);
 			} else {
 				scion_list_append(ifids_list, ifids);
-
-				if (!(opt & SCION_FETCH_OPT_DEBUG)) {
-					scion_list_free(path->metadata->interfaces, free);
-					path->metadata->interfaces = NULL;
-				}
 				scion_list_append(paths, path);
 			}
 		}

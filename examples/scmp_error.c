@@ -19,6 +19,8 @@
 
 #include <scion/scion.h>
 
+bool received_scmp = false;
+
 static void handle_scmp(uint8_t *buf, size_t size, void *ctx)
 {
 	uint8_t type = scion_scmp_get_type(buf, size);
@@ -30,6 +32,8 @@ static void handle_scmp(uint8_t *buf, size_t size, void *ctx)
 		printf("%02x", buf[i]);
 	}
 	printf("\n");
+
+	received_scmp = true;
 }
 
 int main(int argc, char *argv[])
@@ -74,6 +78,14 @@ int main(int argc, char *argv[])
 		goto cleanup_socket;
 	}
 
+	struct timeval timeout = { .tv_sec = 3, .tv_usec = 0 };
+	ret = scion_setsockopt(scion_sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout);
+	if (ret != 0) {
+		printf("ERROR: Setting SO_RCVTIMEO failed with error code: %d\n", ret);
+		ret = EXIT_FAILURE;
+		goto cleanup_socket;
+	}
+
 	ret = scion_connect(scion_sock, (struct sockaddr *)&dst_addr, sizeof(dst_addr), dst_ia);
 	if (ret != 0) {
 		printf("ERROR: Socket connect failed with error code: %d\n", ret);
@@ -89,17 +101,22 @@ int main(int argc, char *argv[])
 		ret = EXIT_FAILURE;
 		goto cleanup_socket;
 	}
+
 	printf("[Sent %d bytes]: \"%s\"\n", ret, tx_buf);
 
 	char rx_buf[200];
 	ret = scion_recv(scion_sock, &rx_buf, sizeof rx_buf - 1, /* flags: */ 0);
-	if (ret < 0) {
+	if (ret != SCION_WOULD_BLOCK) {
 		printf("ERROR: Receive failed with error code: %d\n", ret);
 		ret = EXIT_FAILURE;
 		goto cleanup_socket;
 	}
-	rx_buf[ret] = '\0';
-	printf("[Received %d bytes]: \"%s\"\n", ret, rx_buf);
+
+	if (received_scmp != true) {
+		printf("ERROR: Did not receive SCMP error message: %d\n", ret);
+		ret = EXIT_FAILURE;
+		goto cleanup_socket;
+	}
 
 	printf("\nDone.\n");
 	ret = EXIT_SUCCESS;

@@ -1,7 +1,12 @@
 set(DEPENDENCY_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/dependencies)
 
 # Copy topology file
-configure_file(topology.json ${CMAKE_CURRENT_BINARY_DIR}/topology.json COPYONLY)
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/topology.json")
+    configure_file(topology.json ${CMAKE_CURRENT_BINARY_DIR}/topology.json COPYONLY)
+else ()
+    configure_file(topology.default.json ${CMAKE_CURRENT_BINARY_DIR}/topology.json COPYONLY)
+endif ()
+
 
 add_executable(paths_example paths.c)
 target_link_libraries(paths_example PRIVATE scion)
@@ -27,6 +32,11 @@ add_executable(features_example features.c)
 target_link_libraries(features_example PRIVATE scion)
 add_test(NAME features COMMAND features_example)
 set_tests_properties(features PROPERTIES LABELS "e2e")
+
+add_executable(policy_example policy.c)
+target_link_libraries(policy_example PRIVATE scion)
+add_test(NAME policy COMMAND policy_example)
+set_tests_properties(policy PROPERTIES LABELS "e2e")
 
 if (BUILD_EXAMPLES)
     add_executable(server_example server.c)

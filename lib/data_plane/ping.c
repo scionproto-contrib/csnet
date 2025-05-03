@@ -30,8 +30,8 @@
 #include "data_plane/scmp.h"
 #include "data_plane/socket.h"
 
-static int scion_send_echo_request(
-	struct scion_socket *scion_sock, uint16_t seqno, uint8_t *payload, uint16_t length, struct timeval *tv)
+static int scion_send_echo_request(struct scion_socket *scion_sock, struct scion_path *path, uint16_t seqno,
+	uint8_t *payload, uint16_t length, struct timeval *tv)
 {
 	assert(scion_sock);
 	int ret;
@@ -42,8 +42,7 @@ static int scion_send_echo_request(
 
 	struct sockaddr_storage src_addr;
 	socklen_t src_addr_len = sizeof(src_addr);
-	scion_ia ia;
-	ret = scion_getsockname(scion_sock, (struct sockaddr *)&src_addr, &src_addr_len, &ia);
+	ret = scion_getsockname(scion_sock, (struct sockaddr *)&src_addr, &src_addr_len, NULL);
 	if (ret != 0) {
 		return ret;
 	}
@@ -74,7 +73,7 @@ static int scion_send_echo_request(
 		(void)gettimeofday(tv, NULL);
 	}
 
-	ssize_t send_res = scion_send(scion_sock, echo_buffer, echo_length, 0);
+	ssize_t send_res = scion_sendto(scion_sock, echo_buffer, echo_length, 0, NULL, 0, 0, path);
 	if (send_res < 0) {
 		return (int)send_res;
 	}
@@ -141,8 +140,10 @@ int scion_ping(const struct sockaddr *addr, socklen_t addrlen, scion_ia ia, stru
 	uint16_t packets_received = 0;
 	uint16_t packets_lost = 0;
 
+	enum scion_addr_family local_addr_family = network->topology->local_addr_family;
+
 	struct scion_socket *socket;
-	ret = scion_socket(&socket, network->topology->local_addr_family, SCION_PROTO_SCMP, network);
+	ret = scion_socket(&socket, local_addr_family, SCION_PROTO_SCMP, network);
 	if (ret != 0) {
 		return ret;
 	}
@@ -163,11 +164,18 @@ int scion_ping(const struct sockaddr *addr, socklen_t addrlen, scion_ia ia, stru
 		goto cleanup_socket;
 	}
 
-	struct scion_path *path;
-	ret = scion_getsockpath(socket, &path);
+	struct scion_path_collection *paths;
+	ret = scion_fetch_paths(network, ia, SCION_FETCH_OPT_DEBUG, &paths);
 	if (ret != 0) {
 		goto cleanup_socket;
 	}
+
+	struct scion_path *path = scion_path_collection_pop(paths);
+	if (path == NULL) {
+		ret = SCION_NO_PATHS;
+		goto cleanup_paths;
+	}
+
 	(void)printf("\nUsing path:\n  ");
 	scion_path_print(path);
 	(void)printf("\n");
@@ -177,7 +185,7 @@ int scion_ping(const struct sockaddr *addr, socklen_t addrlen, scion_ia ia, stru
 
 		if (payload == NULL) {
 			ret = SCION_MALLOC_FAIL;
-			goto cleanup_socket;
+			goto cleanup_path;
 		}
 
 #ifdef __APPLE__
@@ -200,7 +208,7 @@ int scion_ping(const struct sockaddr *addr, socklen_t addrlen, scion_ia ia, stru
 	double avg = 0.0;
 
 	for (uint16_t i = 0; i < n; i++) {
-		ret = scion_send_echo_request(socket, i, payload, payload_len, &start);
+		ret = scion_send_echo_request(socket, path, i, payload, payload_len, &start);
 		if (ret != 0) {
 			(void)printf("SEND ERROR: seqno=%" PRIu16 "\n", i);
 			continue;
@@ -258,6 +266,12 @@ int scion_ping(const struct sockaddr *addr, socklen_t addrlen, scion_ia ia, stru
 cleanup_payload:
 #endif
 	free(payload);
+
+cleanup_path:
+	scion_path_free(path);
+
+cleanup_paths:
+	scion_path_collection_free(paths);
 
 cleanup_socket:
 	scion_close(socket);
