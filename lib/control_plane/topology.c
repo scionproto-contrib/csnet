@@ -408,7 +408,7 @@ cleanup_topology:
 	return ret;
 }
 
-int scion_topology_next_underlay_hop(struct scion_topology *t, uint16_t ifid, struct scion_path_underlay *underlay)
+int scion_topology_next_underlay_hop(struct scion_topology *t, scion_interface ifid, struct scion_underlay *underlay)
 {
 	assert(t);
 	assert(t->border_routers);
@@ -418,7 +418,7 @@ int scion_topology_next_underlay_hop(struct scion_topology *t, uint16_t ifid, st
 	while (curr) {
 		struct scion_border_router *br = curr->value;
 		if (br != NULL) {
-			if (br->ifid == ifid) {
+			if (ifid == SCION_INTERFACE_ANY || br->ifid == ifid) {
 				if (strchr(br->ip, 0x2e) != NULL) { // 0x2e == '.'
 					// ip contains "." -> IPv4
 					struct sockaddr_in *next_addr = (struct sockaddr_in *)&underlay->addr;
@@ -426,6 +426,7 @@ int scion_topology_next_underlay_hop(struct scion_topology *t, uint16_t ifid, st
 					next_addr->sin_family = AF_INET;
 					next_addr->sin_port = htons(br->port);
 					underlay->addrlen = sizeof(struct sockaddr_in);
+					underlay->addr_family = SCION_AF_IPV4;
 					return 0;
 				} else {
 					struct sockaddr_in6 *next_addr = (struct sockaddr_in6 *)&underlay->addr;
@@ -436,6 +437,7 @@ int scion_topology_next_underlay_hop(struct scion_topology *t, uint16_t ifid, st
 					next_addr->sin6_family = AF_INET6;
 					next_addr->sin6_port = htons(br->port);
 					underlay->addrlen = sizeof(struct sockaddr_in6);
+					underlay->addr_family = SCION_AF_IPV6;
 					return 0;
 				}
 			}

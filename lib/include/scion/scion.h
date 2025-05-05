@@ -169,8 +169,15 @@ enum scion_error {
 	 * The message is too large.
 	 */
 	SCION_MSG_TOO_LARGE = -30,
+	/**
+	 * The source address of the socket could not automatically be determined. It has to be provided by
+	 * explicitly binding the socket to a non-wildcard address.
+	 *
+	 * @see [Source Address Determination](docs/design/source_address_determination.md)
+	 */
+	SCION_SRC_ADDR_UNKNOWN = -31,
 	// TODO document me or remove me
-	SCION_NETWORK_SOURCE_ADDR_ERR = -31,
+	SCION_NETWORK_SOURCE_ADDR_ERR = -32,
 	// Internal errors
 	SCION_NOT_ENOUGH_DATA = -201,
 	SCION_PACKET_FIELD_INVALID = -202,
@@ -255,9 +262,6 @@ struct scion_network;
  * @param[out] net The resulting network.
  * @param[in] topology The topology of the network.
  * @return 0 on success, a negative error code on failure.
- *
- * @note Tries to automatically determine the source address of the network.
- * In case this fails, the source address can be explicitly set with @link scion_network_set_addr @endlink.
  */
 int scion_network(struct scion_network **net, struct scion_topology *topology);
 
@@ -266,25 +270,6 @@ int scion_network(struct scion_network **net, struct scion_topology *topology);
  * @param[in] net The network to free.
  */
 void scion_network_free(struct scion_network *net);
-
-/**
- * Sets the network source address explicitly.
- * @param[in,out] net The network.
- * @param[in] addr The source address to set.
- * @param[in] addr_len The length of the source address.
- * @return 0 on success, a negative error code on failure.
- */
-int scion_network_set_addr(struct scion_network *net, const struct sockaddr *addr, socklen_t addr_len);
-
-/**
- * Gets the network source address.
- * @param[in] net The network.
- * @param[out] addr The source address to set.
- * @param[in,out] addr_len Must contain the size of the address buffer when calling. Contains the effective size of the
- * address on return.
- * @return 0 on success, a negative error code on failure.
- */
-int scion_network_get_addr(struct scion_network *net, struct sockaddr *addr, socklen_t *addr_len);
 
 /**
  * A SCION path.

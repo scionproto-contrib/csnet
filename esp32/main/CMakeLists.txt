@@ -27,6 +27,7 @@ set(SOURCES
         "../../lib/data_plane/scmp.c"
         "../../lib/data_plane/path.c"
         "../../lib/data_plane/packet.c"
+        "../../lib/data_plane/underlay.c"
         "../../lib/control_plane/topology.c"
         "../../lib/data_plane/socket.c"
         "../../lib/data_plane/udp.c"

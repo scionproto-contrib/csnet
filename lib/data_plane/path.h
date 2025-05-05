@@ -21,6 +21,7 @@
 #include "common/isd_as.h"
 #include "scion/scion.h"
 #include "util/linked_list.h"
+#include "data_plane/underlay.h"
 
 #define SCION_MAX_INFS 3
 #define SCION_MAX_HOPS 64
@@ -46,15 +47,10 @@ struct scion_path_metadata {
 	// https://github.com/scionproto/scion/blob/master/pkg/snet/path.go#L71
 };
 
-struct scion_path_underlay {
-	struct sockaddr_storage addr;
-	socklen_t addrlen;
-};
-
 struct scion_path {
 	scion_ia src;
 	scion_ia dst;
-	struct scion_path_underlay underlay_next_hop;
+	struct scion_underlay underlay_next_hop;
 	enum scion_path_type path_type;
 	struct scion_path_raw *raw_path;
 	struct scion_path_metadata *metadata;

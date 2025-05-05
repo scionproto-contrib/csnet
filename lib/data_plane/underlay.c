@@ -12,37 +12,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <arpa/inet.h>
 #include <assert.h>
 #include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
-#include "control_plane/network.h"
+#include "data_plane/underlay.h"
 
-int scion_network(struct scion_network **net, struct scion_topology *topology)
+int scion_underlay_probe(struct scion_underlay *underlay, struct sockaddr *addr, socklen_t *addrlen)
 {
-	assert(net);
-	assert(topology);
+	assert(underlay);
+	int ret;
 
-	struct scion_network *new_net = malloc(sizeof(struct scion_network));
-	if (new_net == NULL) {
-		return SCION_MEM_ALLOC_FAIL;
+	int sock_fd = socket((int)underlay->addr_family, SOCK_DGRAM, 0);
+	if (sock_fd == -1) {
+		return SCION_GENERIC_ERR;
 	}
 
-	new_net->topology = topology;
+	do {
+		ret = connect(sock_fd, (struct sockaddr *)&underlay->addr, underlay->addrlen);
+	} while (ret == -1 && errno == EINTR);
 
-	new_net->src_addr_len = sizeof(struct sockaddr_storage);
-	new_net->src_addr_known = false;
+	if (ret != 0) {
+		ret = SCION_GENERIC_ERR;
+		goto cleanup_socket;
+	}
 
-	*net = new_net;
+	ret = getsockname(sock_fd, addr, addrlen);
+	if (ret != 0) {
+		ret = SCION_GENERIC_ERR;
+	}
 
-	return 0;
-}
+cleanup_socket:
+	close(sock_fd);
 
-void scion_network_free(struct scion_network *net)
-{
-	free(net);
+	return ret;
 }

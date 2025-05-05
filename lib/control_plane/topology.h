@@ -23,6 +23,10 @@
 #include "scion/scion.h"
 #include "util/linked_list.h"
 
+#define SCION_INTERFACE_ANY ((scion_interface)0)
+
+typedef uint16_t scion_interface;
+
 struct scion_topology {
 	scion_ia ia;
 	bool local_core;
@@ -33,7 +37,7 @@ struct scion_topology {
 };
 
 struct scion_border_router {
-	uint16_t ifid;
+	scion_interface ifid;
 	char *ip;
 	uint16_t port;
 };
@@ -41,18 +45,27 @@ struct scion_border_router {
 /*
  * FUNCTION: scion_topology_next_underlay_hop
  * -----------------
- * Uses the topology file and a provided interface id to determine the next hop.
+ * Uses the topology file and a provided interface id to determine the next hop. If SCION_INTERFACE_ANY is used, an
+ * arbitrary underlay is returned.
  *
  * Arguments:
  * 		- struct scion_topology  *t: Pointer to a scion_topology struct, which contains the list of
  * 		  border routers.
- * 		- uint16_t ifid: Interface ID of the next hop.
+ * 		- scion_interface ifid: Interface ID of the next hop.
  * 		- struct scion_path_underlay *underlay: Pointer to memory where the underlay is stored.
  *
  * Returns:
  *      - An integer status code, 0 for success or an error code as defined in error.h.
  */
-int scion_topology_next_underlay_hop(struct scion_topology *t, uint16_t ifid, struct scion_path_underlay *underlay);
+/**
+ * Uses the topology file and a provided interface id to determine the next hop. If SCION_INTERFACE_ANY is used, an
+ * arbitrary underlay is returned.
+ * @param[in] t The topology.
+ * @param[in] ifid The interface, or @link SCION_INTERFACE_ANY @endlink.
+ * @param[out] underlay The underlay of the next hop.
+ * @return 0 on success, a negative error code on failure.
+ */
+int scion_topology_next_underlay_hop(struct scion_topology *t, scion_interface ifid, struct scion_underlay *underlay);
 
 /*
  * FUNCTION: scion_topology_is_local_as_core

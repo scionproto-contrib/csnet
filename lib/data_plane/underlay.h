@@ -14,16 +14,17 @@
 
 #pragma once
 
-#include "control_plane/topology.h"
+#include <sys/socket.h>
+
 #include "scion/scion.h"
 
-struct scion_network {
-	struct scion_topology *topology;
-	struct sockaddr_storage src_addr;
-	socklen_t src_addr_len;
-	bool src_addr_known;
+struct scion_underlay {
+	enum scion_addr_family addr_family;
+	struct sockaddr_storage addr;
+	socklen_t addrlen;
 };
 
-int scion_network(struct scion_network **net, struct scion_topology *topology);
-
-void scion_network_free(struct scion_network *net);
+/**
+ * Determines which source address can be used to communicate with the underlay by connecting to it.
+ */
+int scion_underlay_probe(struct scion_underlay *underlay, struct sockaddr *addr, socklen_t *addrlen);
