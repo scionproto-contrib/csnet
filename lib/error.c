@@ -91,6 +91,8 @@ char *scion_strerror(int err)
 		return "network unknown";
 	case SCION_MSG_TOO_LARGE:
 		return "message too large";
+	case SCION_SRC_ADDR_UNKNOWN:
+		return "source address unknown";
 	default:
 		return "unknown error";
 	}

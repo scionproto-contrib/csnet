@@ -34,6 +34,7 @@
 #include "data_plane/scmp.h"
 #include "data_plane/socket.h"
 #include "data_plane/udp.h"
+#include "data_plane/underlay.h"
 
 #ifndef MSG_CONFIRM
 #define MSG_CONFIRM 0
@@ -74,6 +75,59 @@ static bool sockaddr_eq(enum scion_proto protocol, struct sockaddr *this_addr, s
 	return false;
 }
 
+static bool sockaddr_is_any(struct sockaddr *addr)
+{
+	if (addr->sa_family == AF_INET) {
+		struct sockaddr_in *sockaddr_in = (struct sockaddr_in *)addr;
+		return sockaddr_in->sin_addr.s_addr == INADDR_ANY;
+	}
+
+	if (addr->sa_family == AF_INET6) {
+		struct sockaddr_in6 *sockaddr_in6 = (struct sockaddr_in6 *)addr;
+		return IN6_IS_ADDR_UNSPECIFIED(&sockaddr_in6->sin6_addr);
+	}
+
+	return false;
+}
+
+static void sockaddr_copy_port(
+	struct sockaddr *dst_addr, socklen_t *dst_addr_len, struct sockaddr *src_addr, socklen_t src_addr_len)
+{
+	assert(*dst_addr_len >= src_addr_len);
+
+	*dst_addr_len = src_addr_len;
+
+	if (src_addr->sa_family == AF_INET) {
+		struct sockaddr_in *src_addr_in = (struct sockaddr_in *)src_addr;
+		struct sockaddr_in *dst_addr_in = (struct sockaddr_in *)dst_addr;
+		dst_addr_in->sin_port = src_addr_in->sin_port;
+	} else if (src_addr->sa_family == AF_INET6) {
+		struct sockaddr_in6 *src_addr_in = (struct sockaddr_in6 *)src_addr;
+		struct sockaddr_in6 *dst_addr_in = (struct sockaddr_in6 *)dst_addr;
+		dst_addr_in->sin6_port = src_addr_in->sin6_port;
+	}
+}
+
+static void sockaddr_copy_address(
+	struct sockaddr *dst_addr, socklen_t *dst_addr_len, struct sockaddr *src_addr, socklen_t src_addr_len)
+{
+	assert(*dst_addr_len >= src_addr_len);
+
+	*dst_addr_len = src_addr_len;
+
+	if (src_addr->sa_family == AF_INET) {
+		struct sockaddr_in *src_addr_in = (struct sockaddr_in *)src_addr;
+		struct sockaddr_in *dst_addr_in = (struct sockaddr_in *)dst_addr;
+		dst_addr_in->sin_family = AF_INET;
+		dst_addr_in->sin_addr = src_addr_in->sin_addr;
+	} else if (src_addr->sa_family == AF_INET6) {
+		struct sockaddr_in6 *src_addr_in = (struct sockaddr_in6 *)src_addr;
+		struct sockaddr_in6 *dst_addr_in = (struct sockaddr_in6 *)dst_addr;
+		dst_addr_in->sin6_family = AF_INET6;
+		dst_addr_in->sin6_addr = src_addr_in->sin6_addr;
+	}
+}
+
 static void socket_free_internal(struct scion_socket *scion_sock)
 {
 	if (scion_sock == NULL) {
@@ -87,9 +141,66 @@ static void socket_free_internal(struct scion_socket *scion_sock)
 	free(scion_sock);
 }
 
-// Ensures that the socket is bound
-// In case the socket is already bound nothing happens, otherwise the socket will be bound to all interfaces and a
-// random port by the OS.
+static void set_source_address(struct scion_socket *socket, struct sockaddr *addr, socklen_t addr_len, bool with_port)
+{
+	if (with_port) {
+		socket->src_addr_len = sizeof(socket->src_addr);
+		sockaddr_copy_port((struct sockaddr *)&socket->src_addr, &socket->src_addr_len, addr, addr_len);
+	}
+
+	if (!sockaddr_is_any(addr)) {
+		socket->src_addr_len = sizeof(socket->src_addr);
+		sockaddr_copy_address((struct sockaddr *)&socket->src_addr, &socket->src_addr_len, addr, addr_len);
+
+		socket->is_src_addr_set = true;
+
+		// Set source address of network if not known yet
+		if (socket->network != NULL && !socket->network->src_addr_known) {
+			socket->network->src_addr_len = sizeof(socket->network->src_addr);
+			sockaddr_copy_address(
+				(struct sockaddr *)&socket->network->src_addr, &socket->network->src_addr_len, addr, addr_len);
+		}
+	}
+}
+
+static int get_source_address(struct scion_socket *socket, struct sockaddr *addr, socklen_t *addr_len)
+{
+	if (!socket->is_src_addr_set) {
+		return SCION_SRC_ADDR_UNKNOWN;
+	}
+
+	sockaddr_copy_address(addr, addr_len, (struct sockaddr *)&socket->src_addr, socket->src_addr_len);
+	sockaddr_copy_port(addr, addr_len, (struct sockaddr *)&socket->src_addr, socket->src_addr_len);
+	return 0;
+}
+
+static bool is_source_address_set(struct scion_socket *socket)
+{
+	return socket->is_src_addr_set;
+}
+
+static int fetch_path(struct scion_socket *scion_sock, scion_ia dst_ia, struct scion_path **path)
+{
+	assert(scion_sock);
+	assert(scion_sock->network);
+	assert(path);
+	int ret;
+
+	struct scion_path_collection *paths;
+	ret = scion_fetch_paths(scion_sock->network, dst_ia, scion_sock->debug ? SCION_FETCH_OPT_DEBUG : 0, &paths);
+	if (ret != 0) {
+		return ret;
+	}
+
+	if ((*path = scion_path_collection_pop(paths)) == NULL) {
+		ret = SCION_NO_PATHS;
+	}
+
+	scion_path_collection_free(paths);
+
+	return ret;
+}
+
 static int bind_if_unbound(struct scion_socket *scion_sock)
 {
 	assert(scion_sock);
@@ -101,11 +212,6 @@ static int bind_if_unbound(struct scion_socket *scion_sock)
 
 	if (scion_sock->network == NULL) {
 		return SCION_NETWORK_UNKNOWN;
-	}
-
-	// Source address is not set on the network and thus has to be bound explicitly for the socket
-	if (!scion_sock->network->src_addr_set) {
-		return SCION_NETWORK_SOURCE_ADDR_ERR;
 	}
 
 	struct sockaddr_storage addr;
@@ -130,39 +236,7 @@ static int bind_if_unbound(struct scion_socket *scion_sock)
 		return ret;
 	}
 
-	// When binding to the "any address" we need to overwrite the source address with an address that is reachable from
-	// the border routers
-	if (scion_sock->local_addr_family == SCION_AF_IPV4) {
-		(void)memcpy(&((struct sockaddr_in *)&scion_sock->src_addr)->sin_addr,
-			&((struct sockaddr_in *)&scion_sock->network->src_addr)->sin_addr, sizeof(struct in_addr));
-	} else {
-		(void)memcpy(&((struct sockaddr_in6 *)&scion_sock->src_addr)->sin6_addr,
-			&((struct sockaddr_in6 *)&scion_sock->network->src_addr)->sin6_addr, sizeof(struct in6_addr));
-	}
-
 	return 0;
-}
-
-static int fetch_path(struct scion_socket *scion_sock, scion_ia dst_ia, struct scion_path **path)
-{
-	assert(scion_sock);
-	assert(scion_sock->network);
-	assert(path);
-	int ret;
-
-	struct scion_path_collection *paths;
-	ret = scion_fetch_paths(scion_sock->network, dst_ia, scion_sock->debug ? SCION_FETCH_OPT_DEBUG : 0, &paths);
-	if (ret != 0) {
-		return ret;
-	}
-
-	if ((*path = scion_path_collection_pop(paths)) == NULL) {
-		ret = SCION_NO_PATHS;
-	}
-
-	scion_path_collection_free(paths);
-
-	return ret;
 }
 
 int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_family, enum scion_proto protocol,
@@ -202,6 +276,33 @@ int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_f
 		(void)fprintf(stderr, "ERROR: encountered an unexpected error when creating the socket (code: %d)\n", errno);
 		ret = SCION_GENERIC_ERR;
 		goto cleanup_socket_storage;
+	}
+
+	scion_sock_storage->src_addr_len = sizeof(scion_sock_storage->src_addr);
+
+	if (scion_sock_storage->network != NULL) {
+		if (scion_sock_storage->network->src_addr_known) {
+			set_source_address(scion_sock_storage, (struct sockaddr *)&scion_sock_storage->network->src_addr,
+				scion_sock_storage->network->src_addr_len, /* with_port */ false);
+		} else {
+			struct scion_underlay probe_underlay;
+
+			// get arbitrary border router
+			ret = scion_topology_next_underlay_hop(
+				scion_sock_storage->network->topology, SCION_INTERFACE_ANY, &probe_underlay);
+			if (ret != 0) {
+				return ret;
+			}
+
+			struct sockaddr_storage src_addr;
+			socklen_t src_addr_len = sizeof(src_addr);
+			ret = scion_underlay_probe(&probe_underlay, (struct sockaddr *)&src_addr, &src_addr_len);
+			if (ret != 0) {
+				return ret;
+			}
+
+			set_source_address(scion_sock_storage, (struct sockaddr *)&src_addr, src_addr_len, /* with_port */ false);
+		}
 	}
 
 	*scion_sock = scion_sock_storage;
@@ -291,6 +392,14 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 	}
 
 	// Source
+	struct sockaddr_storage src_addr;
+	socklen_t src_addr_len = sizeof(src_addr);
+
+	ret = get_source_address(scion_sock, (struct sockaddr *)&src_addr, &src_addr_len);
+	if (ret != 0) {
+		goto cleanup_packet;
+	}
+
 	if (scion_sock->src_addr.ss_family == AF_INET) {
 		// IPv4
 		packet.src_addr_type = SCION_ADDR_TYPE_T4IP;
@@ -580,8 +689,9 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
 			// Ignore packet
 			continue;
 		}
-		packet.path->underlay_next_hop = (struct scion_path_underlay){ .addr = underlay_addr,
-			.addrlen = underlay_addr_len };
+		packet.path->underlay_next_hop = (struct scion_underlay){
+			.addr = underlay_addr, .addrlen = underlay_addr_len, .addr_family = scion_sock->local_addr_family
+		};
 
 		uint16_t src_port;
 
@@ -657,6 +767,25 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
 
 		// All criteria are met, so we can return the packet
 		received_anticipated_packet = true;
+
+		// Set source address of socket to destination address of packet if not known yet
+		if (!is_source_address_set(scion_sock)) {
+			if (packet.dst_addr_type == SCION_ADDR_TYPE_T4IP) {
+				struct sockaddr_in sockaddr_in;
+				sockaddr_in.sin_family = AF_INET;
+				(void)memcpy(&sockaddr_in.sin_addr.s_addr, packet.raw_dst_addr, packet.raw_dst_addr_length);
+
+				set_source_address(
+					scion_sock, (struct sockaddr *)&sockaddr_in, sizeof(sockaddr_in), /* with_port*/ false);
+			} else if (packet.dst_addr_type == SCION_ADDR_TYPE_T16IP) {
+				struct sockaddr_in6 sockaddr_in6;
+				sockaddr_in6.sin6_family = AF_INET6;
+				(void)memcpy(&sockaddr_in6.sin6_addr.s6_addr, packet.raw_dst_addr, packet.raw_dst_addr_length);
+
+				set_source_address(
+					scion_sock, (struct sockaddr *)&sockaddr_in6, sizeof(sockaddr_in6), /* with_port*/ false);
+			}
+		}
 
 		if (src_addr != NULL) {
 			assert(addrlen);
@@ -780,12 +909,16 @@ int scion_bind(struct scion_socket *scion_sock, const struct sockaddr *addr, soc
 		return SCION_GENERIC_ERR;
 	}
 
-	scion_sock->src_addr_len = sizeof(struct sockaddr_storage);
-	ret = getsockname(scion_sock->socket_fd, (struct sockaddr *)&scion_sock->src_addr, &scion_sock->src_addr_len);
+	struct sockaddr_storage src_addr;
+	socklen_t src_addr_len = sizeof(src_addr);
+
+	ret = getsockname(scion_sock->socket_fd, (struct sockaddr *)&src_addr, &src_addr_len);
 	if (ret != 0) {
 		(void)fprintf(stderr, "ERROR: encountered an unexpected error after binding (code: %d)\n", errno);
 		return SCION_GENERIC_ERR;
 	}
+
+	set_source_address(scion_sock, (struct sockaddr *)&src_addr, src_addr_len, /* with_port */ true);
 
 	scion_sock->is_bound = true;
 
@@ -816,23 +949,19 @@ int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, so
 	if (addr != NULL) {
 		assert(addrlen);
 
-		if (scion_sock->src_addr.ss_family == AF_INET) {
-			if (*addrlen < sizeof(struct sockaddr_in)) {
-				return SCION_ADDR_BUF_ERR;
-			}
+		struct sockaddr_storage src_addr;
+		socklen_t src_addr_len = sizeof(src_addr);
 
-			*addrlen = sizeof(struct sockaddr_in);
-		} else if (scion_sock->src_addr.ss_family == AF_INET6) {
-			if (*addrlen < sizeof(struct sockaddr_in6)) {
-				return SCION_ADDR_BUF_ERR;
-			}
-
-			*addrlen = sizeof(struct sockaddr_in6);
-		} else {
-			return SCION_ADDR_FAMILY_UNKNOWN;
+		int ret = get_source_address(scion_sock, (struct sockaddr *)&src_addr, &src_addr_len);
+		if (ret != 0) {
+			return ret;
 		}
 
-		(void)memcpy(addr, &scion_sock->src_addr, *addrlen);
+		if (*addrlen < src_addr_len) {
+			return SCION_ADDR_BUF_ERR;
+		}
+
+		(void)memcpy(addr, &src_addr, src_addr_len);
 	}
 
 	if (ia != NULL) {

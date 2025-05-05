@@ -32,6 +32,7 @@ struct scion_socket {
 	struct scion_network *network;
 	struct sockaddr_storage src_addr;
 	socklen_t src_addr_len;
+	bool is_src_addr_set;
 	struct sockaddr_storage dst_addr;
 	socklen_t dst_addr_len;
 	scion_ia dst_ia;

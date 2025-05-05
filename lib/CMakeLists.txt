@@ -47,6 +47,7 @@ add_library(scion STATIC
         data_plane/socket.c
         data_plane/udp.c
         data_plane/scmp.c
+        data_plane/underlay.c
         util/http2_rpc.c
         util/linked_list.c
         proto/control_plane/experimental/v1/seg_detached_extensions.pb-c.c

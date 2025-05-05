@@ -89,19 +89,6 @@ static void example_task(void *args)
 		goto cleanup_topology;
 	}
 
-	struct sockaddr_in src_addr;
-	src_addr.sin_family = AF_INET;
-	src_addr.sin_port = htons(0);
-	src_addr.sin_addr.s_addr = ip_info.ip.addr;
-	socklen_t src_addr_len = sizeof(src_addr);
-
-	// Set network source address to be used explicitly because it cannot be automatically determined on ESP32
-	ret = scion_network_set_addr(network, (struct sockaddr *)&src_addr, src_addr_len);
-	if (ret != 0) {
-		printf("ERROR: Setting network address failed with error code: %d\n", ret);
-		goto cleanup_network;
-	}
-
 	struct sockaddr_in6 dst_addr;
 	dst_addr.sin6_family = AF_INET6;
 	dst_addr.sin6_port = htons(31000);
@@ -130,6 +117,18 @@ static void example_task(void *args)
 	ret = scion_setsockopt(scion_sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout);
 	if (ret != 0) {
 		printf("ERROR: Setting SO_RCVTIMEO failed: %d\n", ret);
+		goto cleanup_socket;
+	}
+
+	struct sockaddr_in src_addr;
+	src_addr.sin_family = AF_INET;
+	src_addr.sin_port = htons(0);
+	src_addr.sin_addr.s_addr = ip_info.ip.addr;
+	socklen_t src_addr_len = sizeof(src_addr);
+
+	ret = scion_bind(scion_sock, (struct sockaddr *)&src_addr, src_addr_len);
+	if (ret != 0) {
+		printf("ERROR: Socket bind failed with error code: %d\n", ret);
 		goto cleanup_socket;
 	}
 
@@ -162,10 +161,6 @@ static void example_task(void *args)
 	scion_ia_print(dst_ia);
 	printf("\n");
 	scion_path_collection_print(paths);
-
-	// ### PING ###
-	printf("\n\n");
-	scion_ping((struct sockaddr *)&dst_addr, sizeof(dst_addr), dst_ia, network, 3, 0, timeout );
 
 	// ### Send and Receive ###
 	char tx_buf[] = "Hello, SCION!";
