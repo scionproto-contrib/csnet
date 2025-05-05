@@ -7,7 +7,8 @@
 Building and installing the library and examples requires CMake 3.22 or newer (
 download [here](https://cmake.org/download/)).
 
-All the requirements for building the library and examples are fetched automatically with CMake.
+All the requirements for building the library and examples are fetched automatically with CMake and installed in the
+workspace build directory, ensuring the rest of the system remains unaffected.
 
 Running the examples (in `./examples`) additionally requires the following:
 
