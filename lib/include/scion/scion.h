@@ -197,12 +197,32 @@ char *scion_strerror(int err);
 /**
  * The address families that SCION supports.
  */
-enum scion_addr_family { SCION_AF_IPV4 = AF_INET, SCION_AF_IPV6 = AF_INET6 };
+enum scion_addr_family {
+	/**
+	 * IPv4 addresses.
+	 */
+	SCION_AF_IPV4 = AF_INET,
+	/**
+	 * IPv6 addresses.
+	 */
+	SCION_AF_IPV6 = AF_INET6
+};
 
 /**
  * The protocols that SCION supports.
  */
-enum scion_proto { SCION_PROTO_UDP = 17, SCION_PROTO_SCMP = 202 };
+enum scion_proto {
+	/**
+	 * User Datagram Protocol
+	 * @see https://en.wikipedia.org/wiki/User_Datagram_Protocol
+	 */
+	SCION_PROTO_UDP = 17,
+	/**
+	 * SCION Control Message Protocol
+	 * @see https://docs.scion.org/en/latest/protocols/scmp.html
+	 */
+	SCION_PROTO_SCMP = 202
+};
 
 /**
  * A fully qualified AS identifier called IA.
@@ -489,7 +509,7 @@ int scion_close(struct scion_socket *scion_sock);
  * the option value on return.
  * @return 0 on success, a negative error code on failure.
  *
- * @ Directly gets a socket option on the underlying system socket. Additionally, supports the socket level
+ * @note Directly gets a socket option on the underlying system socket. Additionally, supports the socket level
  * option SCION_SO_DEBUG, which allows for better debugging.
  */
 int scion_getsockopt(struct scion_socket *scion_sock, int level, int optname, void *optval, socklen_t *optlen);
