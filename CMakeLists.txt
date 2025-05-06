@@ -35,13 +35,15 @@ if (BUILD_DOCS)
     find_package(Doxygen REQUIRED doxygen)
 
     set(DOXYGEN_SORT_MEMBER_DOCS NO)
-    set(DOXYGEN_HTML_OUTPUT ${CMAKE_SOURCE_DIR}/docs)
+    set(DOXYGEN_HTML_OUTPUT ${CMAKE_SOURCE_DIR}/docs/api)
     set(DOXYGEN_GENERATE_LATEX NO)
+    set(DOXYGEN_USE_MDFILE_AS_MAINPAGE ${CMAKE_SOURCE_DIR}/README.md)
 
     doxygen_add_docs(doxygen
             lib/include/scion/scion.h
             README.md
             esp32/README.md
             examples/README.md
+            docs/design/source_address_determination.md
     )
 endif ()
