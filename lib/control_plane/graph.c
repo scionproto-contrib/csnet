@@ -437,7 +437,7 @@ static int init_vertex_info_node(struct vertex_info_node *node, struct vertex *v
 	ret = copy_vertex(v, key);
 	if (ret != 0) {
 		// ret != 0 implies key == NULL, meaning malloc failed
-		return SCION_MALLOC_FAIL;
+		return SCION_MEM_ALLOC_FAIL;
 	}
 	node->key = key;
 	node->value = NULL;
@@ -759,7 +759,7 @@ static int traverse_segment(struct dmg *graph, struct input_segment *seg)
 			struct tuple *t = malloc(sizeof(*t));
 			if (t == NULL) {
 				free_tuples_list(tuples);
-				return SCION_MALLOC_FAIL;
+				return SCION_MEM_ALLOC_FAIL;
 			}
 			ret = vertex_from_ia(pinned_ia, &t->src);
 			if (ret != 0) {
@@ -782,7 +782,7 @@ static int traverse_segment(struct dmg *graph, struct input_segment *seg)
 			struct tuple *t = malloc(sizeof(*t));
 			if (t == NULL) {
 				free_tuples_list(tuples);
-				return SCION_MALLOC_FAIL;
+				return SCION_MEM_ALLOC_FAIL;
 			}
 			ret = vertex_from_ia(pinned_ia, &t->src);
 			if (ret != 0) {
@@ -1111,19 +1111,19 @@ static int get_paths_from_graph(struct dmg *dmg, scion_ia src_ia, scion_ia dst_i
 
 	struct scion_linked_list *queue = scion_list_create();
 	if (queue == NULL) {
-		return SCION_MALLOC_FAIL;
+		return SCION_MEM_ALLOC_FAIL;
 	}
 
 	struct scion_linked_list *current_edge_list = scion_list_create();
 	if (current_edge_list == NULL) {
-		ret = SCION_MALLOC_FAIL;
+		ret = SCION_MEM_ALLOC_FAIL;
 		goto cleanup_queue_with_values;
 	}
 
 	struct path_solution *current_path_sol = malloc(sizeof(*current_path_sol));
 	ret = init_path_solution(current_path_sol, current_edge_list, src, NULL, 0);
 	if (ret != 0) {
-		ret = SCION_MALLOC_FAIL;
+		ret = SCION_MEM_ALLOC_FAIL;
 		goto cleanup_edge_list;
 	}
 	scion_list_append(queue, (void *)current_path_sol);

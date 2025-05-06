@@ -19,63 +19,45 @@ char *scion_strerror(int err)
 	switch (err) {
 	case SCION_GENERIC_ERR:
 		return "generic error";
-	case SCION_MALLOC_FAIL:
-		return "malloc failure";
+	case SCION_MEM_ALLOC_FAIL:
+		return "memory allocation failed";
 	case SCION_NO_PATHS:
 		return "no paths";
-	case SCION_INVALID_NEXT_HOP:
-		return "invalid next hop";
 	case SCION_BUFFER_SIZE_ERR:
 		return "buffer size error";
 	case SCION_NOT_ENOUGH_DATA:
 		return "not enough data";
-	case SCION_INVALID_FIELD:
-		return "invalid field";
-	case SCION_UNKNOWN_ADDR_TYPE:
-		return "unknown address type";
-	case SCION_INVALID_SOCKET_FD:
-		return "invalid socket fd";
+	case SCION_PACKET_FIELD_INVALID:
+		return "invalid packet field";
+	case SCION_ADDR_FAMILY_UNKNOWN:
+		return "unknown address family";
 	case SCION_MAX_HDR_LEN_EXCEEDED:
 		return "max header length exceeded";
-	case SCION_UNALIGNED_HDR:
-		return "unaligned header";
-	case SCION_LEN_MISMATCH:
-		return "length mismatch";
 	case SCION_GRPC_ERR:
 		return "grpc error";
 	case SCION_FILE_NOT_FOUND:
 		return "file not found";
-	case SCION_JSON_LOAD_ERR:
-		return "json load error";
-	case SCION_CORRUPT_TOPOLOGY:
-		return "corrupt topology";
-	case SCION_UNKNOWN_BR_IFID:
-		return "unknown border router IFID";
-	case SCION_SOCKET_ERR:
-		return "socket error";
-	case SCION_IP_VERSION_MISMATCH:
-		return "IP version mismatch";
-	case SCION_UNKNOWN_PROTO:
+	case SCION_TOPOLOGY_INVALID:
+		return "invalid topology";
+	case SCION_ADDR_FAMILY_MISMATCH:
+		return "address family mismatch";
+	case SCION_NETWORK_ADDR_FAMILY_MISMATCH:
+		return "network address family mismatch";
+	case SCION_PROTO_UNKNOWN:
 		return "unknown protocol";
 	case SCION_NOT_CONNECTED:
 		return "not connected";
-	case SCION_INVALID_META_HDR:
+	case SCION_META_HDR_INVALID:
 		return "invalid meta header";
 	case SCION_DST_MISMATCH:
-		return "destination mismatch";
+		return "destination IA mismatch";
 	case SCION_INVALID_ISD_AS_STR:
 		return "invalid ISD AS string";
-	case SCION_LOCAL_ISD_AS_MISMATCH:
-		return "local ISD AS mismatch";
-	case SCION_UNDEFINED_ADDR:
-		return "undefined address";
-	case SCION_INVALID_PATH_TYPE:
+	case SCION_PATH_TYPE_INVALID:
 		return "invalid path type";
 	case SCION_WOULD_BLOCK:
 		return "would block";
-	case SCION_BIND_ERR:
-		return "bind error";
-	case SCION_INVALID_ADDR:
+	case SCION_ADDR_INVALID:
 		return "invalid address";
 	case SCION_ALREADY_BOUND:
 		return "socket already bound";
@@ -91,19 +73,11 @@ char *scion_strerror(int err)
 		return "address is already in use";
 	case SCION_ADDR_NOT_AVAILABLE:
 		return "a nonexistent interface was requested or the address is not local";
-	case SCION_NO_MEM:
-		return "not enough memory";
 	case SCION_OUTPUT_QUEUE_FULL:
 		return "output queue is full";
-	case SCION_INVALID_BUFFER:
-		return "invalid buffer provided";
-	case SCION_SOCK_OPT_ERR:
-		return "socket operation error";
-	case SCION_INVALID_SOCK_OPT:
+	case SCION_SOCK_OPT_INVALID:
 		return "invalid socket option";
-	case SCION_INVALID_SCMP_TYPE:
-		return "invalid SCMP type";
-	case SCION_INVALID_SCMP_CODE:
+	case SCION_SCMP_CODE_INVALID:
 		return "invalid SCMP code";
 	case SCION_ADDR_BUF_ERR:
 		return "address buffer error";
@@ -114,7 +88,7 @@ char *scion_strerror(int err)
 	case SCION_NOT_BOUND:
 		return "socket is not bound";
 	case SCION_NETWORK_UNKNOWN:
-		return "nework unknown";
+		return "network unknown";
 	case SCION_MSG_TOO_LARGE:
 		return "message too large";
 	default:

@@ -33,57 +33,151 @@ extern "C" {
 
 #define SCION_FETCH_OPT_DEBUG 1
 
+/**
+ * Possible error codes returned by the CSNET library.
+ *
+ * Errors codes smaller than -200 are internal error codes.
+ */
 enum scion_error {
+	/**
+	 * Something went wrong.
+	 */
 	SCION_GENERIC_ERR = -1,
-	SCION_MALLOC_FAIL = -3,
-	SCION_NO_PATHS = -4,
-	SCION_INVALID_NEXT_HOP = -5,
-	SCION_BUFFER_SIZE_ERR = -6,
-	SCION_NOT_ENOUGH_DATA = -7,
-	SCION_INVALID_FIELD = -8,
-	SCION_UNKNOWN_ADDR_TYPE = -9,
-	SCION_INVALID_SOCKET_FD = -10,
-	SCION_MAX_HDR_LEN_EXCEEDED = -11,
-	SCION_UNALIGNED_HDR = -12,
-	SCION_LEN_MISMATCH = -13,
-	SCION_GRPC_ERR = -14,
-	SCION_FILE_NOT_FOUND = -15,
-	SCION_JSON_LOAD_ERR = -16,
-	SCION_CORRUPT_TOPOLOGY = -17,
-	SCION_UNKNOWN_BR_IFID = -18,
-	SCION_SOCKET_ERR = -19,
-	SCION_IP_VERSION_MISMATCH = -20,
-	SCION_UNKNOWN_PROTO = -21,
-	SCION_NOT_CONNECTED = -22,
-	SCION_INVALID_META_HDR = -23,
-	SCION_DST_MISMATCH = -24,
-	SCION_INVALID_ISD_AS_STR = -25,
-	SCION_LOCAL_ISD_AS_MISMATCH = -26,
-	SCION_UNDEFINED_ADDR = -27,
-	SCION_INVALID_PATH_TYPE = -28,
-	SCION_WOULD_BLOCK = -29,
-	SCION_BIND_ERR = -30,
-	SCION_INVALID_ADDR = -31,
-	SCION_ALREADY_BOUND = -32,
-	SCION_FLAG_NOT_IMPLEMENTED = -33,
-	SCION_FLAG_NOT_SUPPORTED = -34,
-	SCION_SEND_ERR = -35,
-	SCION_RECV_ERR = -36,
-	SCION_ADDR_IN_USE = -37,
-	SCION_ADDR_NOT_AVAILABLE = -38,
-	SCION_NO_MEM = -39,
-	SCION_OUTPUT_QUEUE_FULL = -40,
-	SCION_INVALID_BUFFER = -41,
-	SCION_SOCK_OPT_ERR = -42,
-	SCION_INVALID_SOCK_OPT = -43,
-	SCION_INVALID_SCMP_TYPE = -44,
-	SCION_INVALID_SCMP_CODE = -45,
-	SCION_ADDR_BUF_ERR = -46,
-	SCION_PATH_EXPIRED = -47,
-	SCION_NETWORK_SOURCE_ADDR_ERR = -48,
-	SCION_NOT_BOUND = -49,
-	SCION_NETWORK_UNKNOWN = -50,
-	SCION_MSG_TOO_LARGE = -51,
+	/**
+	 * Memory allocation failed.
+	 */
+	SCION_MEM_ALLOC_FAIL = -2,
+	/**
+	 * No paths to the destination were found.
+	 */
+	SCION_NO_PATHS = -3,
+	/**
+	 * The buffer provided was not large enough.
+	 */
+	SCION_BUFFER_SIZE_ERR = -4,
+	/**
+	 * Encountered an unsupported address family.
+	 *
+	 * @see @link scion_addr_family @endlink
+	 */
+	SCION_ADDR_FAMILY_UNKNOWN = -5,
+	/**
+	 * Could not send the packet because the maximum SCION header length was exceeded.
+	 */
+	SCION_MAX_HDR_LEN_EXCEEDED = -6,
+	/**
+	 * The file provided was not found.
+	 */
+	SCION_FILE_NOT_FOUND = -7,
+	/**
+	 * The topology is invalid.
+	 */
+	SCION_TOPOLOGY_INVALID = -8,
+	/**
+	 * The provided address has a different address family than the socket.
+	 */
+	SCION_ADDR_FAMILY_MISMATCH = -9,
+	/**
+	 * The provided network has a different address family than the socket.
+	 */
+	SCION_NETWORK_ADDR_FAMILY_MISMATCH = -10,
+	/**
+	 * The protocol is not supported.
+	 *
+	 * @see @link scion_proto @endlink
+	 */
+	SCION_PROTO_UNKNOWN = -11,
+	/**
+	 * The socket is not connected yet.
+	 */
+	SCION_NOT_CONNECTED = -12,
+	/**
+	 * The path destination IA does not match the destination IA.
+	 */
+	SCION_DST_MISMATCH = -13,
+	/**
+	 * The provided IA string is invalid.
+	 */
+	SCION_INVALID_ISD_AS_STR = -14,
+	/**
+	 * The receive operation is in non-blocking mode and there is nothing to receive.
+	 */
+	SCION_WOULD_BLOCK = -15,
+	/**
+	 * The provided address is invalid.
+	 */
+	SCION_ADDR_INVALID = -16,
+	/**
+	 * The socket is already bound.
+	 */
+	SCION_ALREADY_BOUND = -17,
+	/**
+	 * The flag is not implemented by the library.
+	 */
+	SCION_FLAG_NOT_IMPLEMENTED = -18,
+	/**
+	 * The flag is not supported by the OS.
+	 */
+	SCION_FLAG_NOT_SUPPORTED = -19,
+	/**
+	 * Encountered an unexpected error when sending packets.
+	 */
+	SCION_SEND_ERR = -20,
+	/**
+	 * Encountered an unexpected error when receiving packets.
+	 */
+	SCION_RECV_ERR = -21,
+	/**
+	 * The address is already in use.
+	 *
+	 * @see [EADDRINUSE](https://man7.org/linux/man-pages/man7/ip.7.html#ERRORS)
+	 */
+	SCION_ADDR_IN_USE = -22,
+	/**
+	 * The address is not available.
+	 *
+	 * @see [EADDRNOTAVAIL](https://man7.org/linux/man-pages/man7/ip.7.html#ERRORS)
+	 */
+	SCION_ADDR_NOT_AVAILABLE = -23,
+	/**
+	 * The socket output queue is already full.
+	 *
+	 * @see [ENOBUFS](https://man7.org/linux/man-pages/man7/ip.7.html#ERRORS)
+	 */
+	SCION_OUTPUT_QUEUE_FULL = -24,
+	/**
+	 * The provided socket option is invalid.
+	 */
+	SCION_SOCK_OPT_INVALID = -25,
+	/**
+	 * The provided address buffer is too small.
+	 */
+	SCION_ADDR_BUF_ERR = -26,
+	/**
+	 * The path has expired and needs to be refreshed.
+	 */
+	SCION_PATH_EXPIRED = -27,
+	/**
+	 * The socket is not bound.
+	 */
+	SCION_NOT_BOUND = -28,
+	/**
+	 * Operation cannot be performed with a networkless socket.
+	 */
+	SCION_NETWORK_UNKNOWN = -29,
+	/**
+	 * The message is too large.
+	 */
+	SCION_MSG_TOO_LARGE = -30,
+	// TODO document me or remove me
+	SCION_NETWORK_SOURCE_ADDR_ERR = -31,
+	// Internal errors
+	SCION_NOT_ENOUGH_DATA = -201,
+	SCION_PACKET_FIELD_INVALID = -202,
+	SCION_GRPC_ERR = -203,
+	SCION_META_HDR_INVALID = -204,
+	SCION_PATH_TYPE_INVALID = -205,
+	SCION_SCMP_CODE_INVALID = -206,
 };
 
 /**
@@ -108,7 +202,7 @@ enum scion_proto { SCION_PROTO_UDP = 17, SCION_PROTO_SCMP = 202 };
  */
 typedef uint64_t scion_ia;
 
-/** \fn
+/**
  * Parses an IA string.
  * @param[in] str The string.
  * @param[in] len The length of the string (without NULL terminator).
@@ -424,7 +518,7 @@ int scion_getsockopt(struct scion_socket *scion_sock, int level, int optname, vo
  * @param[in] optlen The option value buffer length.
  * @return 0 on success, a negative error code on failure.
  *
- * @notes Directly sets a socket option on the underlying system socket. Additionally, supports the socket level
+ * @note Directly sets a socket option on the underlying system socket. Additionally, supports the socket level
  * option SCION_SO_DEBUG, which allows for better debugging.
  */
 int scion_setsockopt(struct scion_socket *scion_sock, int level, int optname, const void *optval, socklen_t optlen);

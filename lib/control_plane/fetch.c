@@ -60,7 +60,7 @@ int scion_fetch_paths(struct scion_network *network, scion_ia dst, uint opt, str
 	if (src == dst) {
 		struct scion_path *empty_path = malloc(sizeof(*empty_path));
 		if (empty_path == NULL) {
-			return SCION_MALLOC_FAIL;
+			return SCION_MEM_ALLOC_FAIL;
 		}
 		empty_path->src = 0;
 		empty_path->dst = 0;

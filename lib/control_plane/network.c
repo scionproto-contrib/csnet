@@ -37,7 +37,7 @@ static int determine_source_addr(struct scion_topology *topology, struct sockadd
 		addr_in->sin_port = htons(first_br->port);
 		ret = inet_pton(AF_INET, first_br->ip, &addr_in->sin_addr);
 		if (ret != 1) {
-			return SCION_CORRUPT_TOPOLOGY;
+			return SCION_TOPOLOGY_INVALID;
 		}
 		first_br_addr_len = sizeof(struct sockaddr_in);
 	} else if (address_family == SCION_AF_IPV6) {
@@ -46,7 +46,7 @@ static int determine_source_addr(struct scion_topology *topology, struct sockadd
 		addr_in6->sin6_port = htons(first_br->port);
 		ret = inet_pton(AF_INET6, first_br->ip, &addr_in6->sin6_addr);
 		if (ret != 1) {
-			return SCION_CORRUPT_TOPOLOGY;
+			return SCION_TOPOLOGY_INVALID;
 		}
 		first_br_addr_len = sizeof(struct sockaddr_in6);
 	} else {
@@ -86,7 +86,7 @@ int scion_network(struct scion_network **net, struct scion_topology *topology)
 
 	struct scion_network *new_net = malloc(sizeof(struct scion_network));
 	if (new_net == NULL) {
-		return SCION_MALLOC_FAIL;
+		return SCION_MEM_ALLOC_FAIL;
 	}
 
 	new_net->topology = topology;
@@ -111,7 +111,7 @@ int scion_network_set_addr(struct scion_network *net, const struct sockaddr *add
 	assert(addr);
 
 	if (addr_len > sizeof(net->src_addr)) {
-		return SCION_INVALID_ADDR;
+		return SCION_ADDR_INVALID;
 	}
 
 	(void)memcpy(&net->src_addr, addr, addr_len);

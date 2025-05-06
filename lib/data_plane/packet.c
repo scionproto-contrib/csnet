@@ -144,18 +144,12 @@ int scion_packet_serialize(struct scion_packet *packet, uint8_t *buf, size_t *bu
 	offset += SCION_IA_BYTES;
 
 	uint16_t dst_addr_bytes = scion_packet_addr_type_len(packet->dst_addr_type);
-	if (dst_addr_bytes != (uint16_t)packet->raw_dst_addr_length) {
-		// length mismatch on raw destination address
-		return SCION_LEN_MISMATCH;
-	}
+	assert(dst_addr_bytes == (uint16_t)packet->raw_dst_addr_length);
 	(void)memcpy(buf + offset, packet->raw_dst_addr, dst_addr_bytes);
 	offset += dst_addr_bytes;
 
 	uint16_t src_addr_bytes = scion_packet_addr_type_len(packet->src_addr_type);
-	if (src_addr_bytes != (uint16_t)packet->raw_src_addr_length) {
-		// length mismatch on raw source address
-		return SCION_LEN_MISMATCH;
-	}
+	assert(src_addr_bytes == (uint16_t)packet->raw_src_addr_length);
 	(void)memcpy(buf + offset, packet->raw_src_addr, src_addr_bytes);
 	offset += src_addr_bytes; // COMMENT: this line varies from the go implementation, could be source of problem?
 
@@ -240,7 +234,7 @@ int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_pa
 
 	if (hdr_bytes_without_path > hdr_bytes) {
 		// packet hdr_len invalid
-		return SCION_INVALID_FIELD;
+		return SCION_PACKET_FIELD_INVALID;
 	}
 
 	uint16_t path_hdr_len = hdr_bytes - hdr_bytes_without_path;
@@ -253,7 +247,7 @@ int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_pa
 	// TODO: move this logic to path.c
 	packet->path = malloc(sizeof(*packet->path));
 	if (packet->path == NULL) {
-		return SCION_MALLOC_FAIL;
+		return SCION_MEM_ALLOC_FAIL;
 	}
 	packet->path->dst = packet->dst_ia;
 	packet->path->src = packet->src_ia;
@@ -267,7 +261,7 @@ int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_pa
 	} else {
 		packet->path->raw_path = malloc(sizeof(*packet->path->raw_path));
 		if (packet->path->raw_path == NULL) {
-			ret = SCION_MALLOC_FAIL;
+			ret = SCION_MEM_ALLOC_FAIL;
 			goto cleanup_path;
 		}
 		packet->path->raw_path->length = path_hdr_len;
@@ -278,7 +272,7 @@ int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_pa
 
 	packet->payload = (uint8_t *)malloc(packet->payload_len);
 	if (packet->payload == NULL) {
-		ret = SCION_MALLOC_FAIL;
+		ret = SCION_MEM_ALLOC_FAIL;
 		goto cleanup_raw_path;
 	}
 	(void)memcpy(packet->payload, buf + current_offset, packet->payload_len);
