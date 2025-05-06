@@ -98,7 +98,7 @@ static int scion_recv_echo_reply(struct scion_socket *scion_socket, uint16_t seq
 			return (int)rcv_ret;
 		}
 
-		if (scion_scmp_get_type(buf, echo_length) != 129) {
+		if (scion_scmp_get_type(buf, echo_length) != SCION_ECHO_TYPE_REPLY) {
 			// Not an ECHO reply
 			continue;
 		}
@@ -176,7 +176,7 @@ int scion_ping(const struct sockaddr *addr, socklen_t addrlen, scion_ia ia, stru
 		payload = malloc(payload_len);
 
 		if (payload == NULL) {
-			ret = SCION_MALLOC_FAIL;
+			ret = SCION_MEM_ALLOC_FAIL;
 			goto cleanup_socket;
 		}
 

@@ -24,13 +24,13 @@ int scion_path_collection_init(struct scion_path_collection **paths)
 {
 	struct scion_path_collection *new_paths = malloc(sizeof(*paths));
 	if (new_paths == NULL) {
-		return SCION_MALLOC_FAIL;
+		return SCION_MEM_ALLOC_FAIL;
 	}
 
 	new_paths->list = scion_list_create();
 	if (new_paths->list == NULL) {
 		free(new_paths);
-		return SCION_MALLOC_FAIL;
+		return SCION_MEM_ALLOC_FAIL;
 	}
 
 	*paths = new_paths;

@@ -111,20 +111,18 @@ static int bind_if_unbound(struct scion_socket *scion_sock)
 	struct sockaddr_storage addr;
 	socklen_t addr_len;
 
-	if (scion_sock->local_addr_family == AF_INET) {
+	if (scion_sock->local_addr_family == SCION_AF_IPV4) {
 		struct sockaddr_in *addr_in = (struct sockaddr_in *)&addr;
 		addr_in->sin_family = AF_INET;
 		addr_in->sin_addr.s_addr = htonl(INADDR_ANY);
 		addr_in->sin_port = htons(0);
 		addr_len = sizeof(struct sockaddr_in);
-	} else if (scion_sock->local_addr_family == AF_INET6) {
+	} else {
 		struct sockaddr_in6 *addr_in6 = (struct sockaddr_in6 *)&addr;
 		addr_in6->sin6_family = AF_INET6;
 		addr_in6->sin6_addr = in6addr_any;
 		addr_in6->sin6_port = htons(0);
 		addr_len = sizeof(struct sockaddr_in6);
-	} else {
-		return SCION_UNKNOWN_PROTO;
 	}
 
 	ret = scion_bind(scion_sock, (struct sockaddr *)&addr, addr_len);
@@ -134,7 +132,7 @@ static int bind_if_unbound(struct scion_socket *scion_sock)
 
 	// When binding to the "any address" we need to overwrite the source address with an address that is reachable from
 	// the border routers
-	if (scion_sock->local_addr_family == AF_INET) {
+	if (scion_sock->local_addr_family == SCION_AF_IPV4) {
 		(void)memcpy(&((struct sockaddr_in *)&scion_sock->src_addr)->sin_addr,
 			&((struct sockaddr_in *)&scion_sock->network->src_addr)->sin_addr, sizeof(struct in_addr));
 	} else {
@@ -176,23 +174,33 @@ int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_f
 	struct scion_socket *scion_sock_storage = calloc(1, sizeof(struct scion_socket));
 
 	if (scion_sock_storage == NULL) {
-		return SCION_MALLOC_FAIL;
+		return SCION_MEM_ALLOC_FAIL;
 	}
 
-	scion_sock_storage->protocol = protocol;
 	scion_sock_storage->network = network;
 
 	if (network && network->topology->local_addr_family != addr_family) {
-		ret = SCION_IP_VERSION_MISMATCH;
+		ret = SCION_NETWORK_ADDR_FAMILY_MISMATCH;
 		goto cleanup_socket_storage;
 	}
 
+	if (addr_family != SCION_AF_IPV4 && addr_family != SCION_AF_IPV6) {
+		ret = SCION_ADDR_FAMILY_UNKNOWN;
+		goto cleanup_socket_storage;
+	}
 	scion_sock_storage->local_addr_family = addr_family;
+
+	if (protocol != SCION_PROTO_UDP && protocol != SCION_PROTO_SCMP) {
+		ret = SCION_PROTO_UNKNOWN;
+		goto cleanup_socket_storage;
+	}
+	scion_sock_storage->protocol = protocol;
+
 	scion_sock_storage->socket_fd = socket((int)addr_family, SOCK_DGRAM, 0);
 
 	if (scion_sock_storage->socket_fd == -1) {
 		(void)fprintf(stderr, "ERROR: encountered an unexpected error when creating the socket (code: %d)\n", errno);
-		ret = SCION_SOCKET_ERR;
+		ret = SCION_GENERIC_ERR;
 		goto cleanup_socket_storage;
 	}
 
@@ -243,6 +251,7 @@ int scion_connect(struct scion_socket *scion_sock, const struct sockaddr *addr, 
 static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *buf, size_t size, int flags,
 	const struct sockaddr *dst_addr, socklen_t dst_addr_len, struct scion_path *path)
 {
+	assert(scion_sock->protocol == SCION_PROTO_UDP || scion_sock->protocol == SCION_PROTO_SCMP);
 	ssize_t ret;
 
 	if (path->metadata != NULL && path->metadata->expiry <= time(NULL) + PATH_EXPIRATION_THRESHOLD_IN_SECONDS) {
@@ -277,7 +286,7 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 		(void)memcpy(packet.raw_dst_addr, dst_sockaddr->sin6_addr.s6_addr, packet.raw_dst_addr_length);
 	} else {
 		// Unsupported destination address type
-		ret = SCION_UNKNOWN_ADDR_TYPE;
+		ret = SCION_ADDR_FAMILY_UNKNOWN;
 		goto cleanup_packet;
 	}
 
@@ -298,7 +307,7 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 		(void)memcpy(packet.raw_src_addr, src_sockaddr->sin6_addr.s6_addr, packet.raw_src_addr_length);
 	} else {
 		// Unsupported source address type
-		ret = SCION_UNKNOWN_ADDR_TYPE;
+		ret = SCION_ADDR_FAMILY_UNKNOWN;
 		goto cleanup_packet;
 	}
 
@@ -359,16 +368,12 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 		} else {
 			packet.payload = NULL;
 		}
-
-	} else {
-		ret = SCION_UNKNOWN_PROTO;
-		goto cleanup_packet;
 	}
 
 	size_t packet_length = scion_packet_len(&packet);
 	uint8_t *packet_buf = malloc(packet_length);
 	if (packet_buf == NULL) {
-		ret = SCION_MALLOC_FAIL;
+		ret = SCION_MEM_ALLOC_FAIL;
 		goto cleanup_packet;
 	}
 
@@ -386,7 +391,7 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 		next_hop_addr = dst_addr;
 		next_hop_addr_length = dst_addr_len;
 	} else {
-		ret = SCION_INVALID_PATH_TYPE;
+		ret = SCION_PATH_TYPE_INVALID;
 		goto cleanup_packet_buf;
 	}
 
@@ -398,15 +403,13 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 		if (errno == EAGAIN || errno == EWOULDBLOCK) {
 			ret = SCION_WOULD_BLOCK;
 		} else if (errno == EACCES) {
-			ret = SCION_INVALID_ADDR;
+			ret = SCION_ADDR_INVALID;
 		} else if (errno == EOPNOTSUPP) {
 			ret = SCION_FLAG_NOT_SUPPORTED;
 		} else if (errno == ENOMEM) {
-			ret = SCION_NO_MEM;
+			ret = SCION_MEM_ALLOC_FAIL;
 		} else if (errno == ENOBUFS) {
 			ret = SCION_OUTPUT_QUEUE_FULL;
-		} else if (errno == EFAULT) {
-			ret = SCION_INVALID_BUFFER;
 		} else {
 			(void)fprintf(stderr, "ERROR: encountered an unexpected error when sending packets (code: %d)\n", errno);
 			ret = SCION_SEND_ERR;
@@ -562,8 +565,6 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
 		if (ret < 0) {
 			if (errno == EAGAIN || errno == EWOULDBLOCK) {
 				ret = SCION_WOULD_BLOCK;
-			} else if (errno == ECONNREFUSED) {
-				ret = SCION_INVALID_NEXT_HOP;
 			} else {
 				(void)fprintf(
 					stderr, "ERROR: encountered an unexpected error when receiving packets (code: %d)\n", errno);
@@ -589,6 +590,8 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
 			struct scion_udp udp = { 0 };
 			ret = scion_udp_deserialize(packet.payload, packet.payload_len, &udp);
 			if (ret != 0) {
+				// Ignore packet
+				ret = 0;
 				goto cleanup_packet;
 			}
 
@@ -697,7 +700,7 @@ int scion_getsockopt(struct scion_socket *scion_sock, int level, int optname, vo
 
 	if (level == SOL_SOCKET && optname == SCION_SO_DEBUG) {
 		if (*optlen < sizeof(bool)) {
-			return SCION_INVALID_BUFFER;
+			return SCION_BUFFER_SIZE_ERR;
 		}
 
 		*(bool *)optval = scion_sock->debug;
@@ -705,13 +708,13 @@ int scion_getsockopt(struct scion_socket *scion_sock, int level, int optname, vo
 		ret = getsockopt(scion_sock->socket_fd, level, optname, optval, optlen);
 		if (ret == -1) {
 			if (errno == EFAULT) {
-				ret = SCION_INVALID_BUFFER;
+				ret = SCION_BUFFER_SIZE_ERR;
 			} else if (errno == EINVAL || errno == ENOPROTOOPT) {
-				ret = SCION_INVALID_SOCK_OPT;
+				ret = SCION_SOCK_OPT_INVALID;
 			} else {
 				(void)fprintf(
 					stderr, "ERROR: encountered an unexpected error when getting socket option (code: %d)\n", errno);
-				ret = SCION_SOCK_OPT_ERR;
+				ret = SCION_GENERIC_ERR;
 			}
 		}
 	}
@@ -725,23 +728,19 @@ int scion_setsockopt(struct scion_socket *scion_sock, int level, int optname, co
 	assert(optval);
 	int ret = 0;
 
-	if (scion_sock->socket_fd == -1) {
-		return SCION_INVALID_SOCKET_FD;
-	}
-
 	if (level == SOL_SOCKET && optname == SCION_SO_DEBUG) {
 		scion_sock->debug = *(bool *)optval;
 	} else {
 		ret = setsockopt(scion_sock->socket_fd, level, optname, optval, optlen);
 		if (ret == -1) {
 			if (errno == EFAULT) {
-				ret = SCION_INVALID_BUFFER;
+				ret = SCION_BUFFER_SIZE_ERR;
 			} else if (errno == EINVAL || errno == ENOPROTOOPT) {
-				ret = SCION_INVALID_SOCK_OPT;
+				ret = SCION_SOCK_OPT_INVALID;
 			} else {
 				(void)fprintf(
 					stderr, "ERROR: encountered an unexpected error when setting socket option (code: %d)\n", errno);
-				ret = SCION_SOCK_OPT_ERR;
+				ret = SCION_GENERIC_ERR;
 			}
 		}
 	}
@@ -760,11 +759,11 @@ int scion_bind(struct scion_socket *scion_sock, const struct sockaddr *addr, soc
 	}
 
 	if (!(addr->sa_family == SCION_AF_IPV4 || addr->sa_family == SCION_AF_IPV6)) {
-		return SCION_UNKNOWN_ADDR_TYPE;
+		return SCION_ADDR_FAMILY_UNKNOWN;
 	}
 
 	if (addr->sa_family != scion_sock->local_addr_family) {
-		return SCION_IP_VERSION_MISMATCH;
+		return SCION_ADDR_FAMILY_MISMATCH;
 	}
 
 	ret = bind(scion_sock->socket_fd, addr, addrlen);
@@ -778,14 +777,14 @@ int scion_bind(struct scion_socket *scion_sock, const struct sockaddr *addr, soc
 		}
 
 		(void)fprintf(stderr, "ERROR: encountered an unexpected error when binding (code: %d)\n", errno);
-		return SCION_BIND_ERR;
+		return SCION_GENERIC_ERR;
 	}
 
 	scion_sock->src_addr_len = sizeof(struct sockaddr_storage);
 	ret = getsockname(scion_sock->socket_fd, (struct sockaddr *)&scion_sock->src_addr, &scion_sock->src_addr_len);
 	if (ret != 0) {
 		(void)fprintf(stderr, "ERROR: encountered an unexpected error after binding (code: %d)\n", errno);
-		return SCION_BIND_ERR;
+		return SCION_GENERIC_ERR;
 	}
 
 	scion_sock->is_bound = true;
@@ -830,7 +829,7 @@ int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, so
 
 			*addrlen = sizeof(struct sockaddr_in6);
 		} else {
-			return SCION_UNKNOWN_ADDR_TYPE;
+			return SCION_ADDR_FAMILY_UNKNOWN;
 		}
 
 		(void)memcpy(addr, &scion_sock->src_addr, *addrlen);
