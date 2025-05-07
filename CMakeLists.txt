@@ -8,6 +8,7 @@ include(ExternalProject)
 include(CTest)
 include(ExtractValidFlags)
 
+option(BUILD_LIB "build lib" ON)
 option(BUILD_TESTS "build tests" OFF)
 option(BUILD_EXAMPLES "build examples" OFF)
 option(BUILD_DOCS "build docs" OFF)
@@ -17,8 +18,9 @@ set(ALLOW_DUPLICATE_CUSTOM_TARGETS TRUE)
 set(CMAKE_MAKEFILE true)
 set(BUILD_TESTING ${BUILD_TESTS})
 
-# Add subdirectories
-add_subdirectory(lib)
+if (BUILD_LIB OR BUILD_TESTS OR BUILD_EXAMPLES)
+    add_subdirectory(lib)
+endif ()
 
 if (BUILD_EXAMPLES OR BUILD_TESTING)
     add_subdirectory(examples)
@@ -35,13 +37,18 @@ if (BUILD_DOCS)
     find_package(Doxygen REQUIRED doxygen)
 
     set(DOXYGEN_SORT_MEMBER_DOCS NO)
-    set(DOXYGEN_HTML_OUTPUT ${CMAKE_SOURCE_DIR}/docs)
+    set(DOXYGEN_HTML_OUTPUT ${CMAKE_SOURCE_DIR}/docs/api)
     set(DOXYGEN_GENERATE_LATEX NO)
+    set(DOXYGEN_USE_MDFILE_AS_MAINPAGE ${CMAKE_SOURCE_DIR}/README.md)
+    set(DOXYGEN_OPTIMIZE_OUTPUT_FOR_C YES)
+    set(DOXYGEN_INCLUDE_GRAPH NO)
+    set(DOXYGEN_SHOW_INCLUDE_FILES NO)
 
     doxygen_add_docs(doxygen
             lib/include/scion/scion.h
             README.md
             esp32/README.md
             examples/README.md
+            ALL
     )
 endif ()
