@@ -3,7 +3,7 @@
 /cmake-build-*
 /examples/topology.json
 /dist
-/docs
+/docs/api
 /network
 
 /esp32/spiffs_partition/*
