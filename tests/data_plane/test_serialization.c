@@ -20,11 +20,10 @@
 #include "common/as_entry.h"
 #include "common/info_field.h"
 #include "data_plane/packet.h"
-#include "data_plane/ping.h"
 #include "data_plane/scmp.h"
 #include "data_plane/udp.h"
-#include "util/linked_list.h"
 #include "test_serialization.h"
+#include "util/linked_list.h"
 
 int scion_test_serialize_udp(void)
 {
