@@ -8,6 +8,7 @@ include(ExternalProject)
 include(CTest)
 include(ExtractValidFlags)
 
+option(BUILD_LIB "build lib" ON)
 option(BUILD_TESTS "build tests" OFF)
 option(BUILD_EXAMPLES "build examples" OFF)
 option(BUILD_DOCS "build docs" OFF)
@@ -17,8 +18,9 @@ set(ALLOW_DUPLICATE_CUSTOM_TARGETS TRUE)
 set(CMAKE_MAKEFILE true)
 set(BUILD_TESTING ${BUILD_TESTS})
 
-# Add subdirectories
-add_subdirectory(lib)
+if (BUILD_LIB OR BUILD_TESTS OR BUILD_EXAMPLES)
+    add_subdirectory(lib)
+endif ()
 
 if (BUILD_EXAMPLES OR BUILD_TESTING)
     add_subdirectory(examples)
@@ -45,5 +47,6 @@ if (BUILD_DOCS)
             esp32/README.md
             examples/README.md
             docs/design/source_address_determination.md
+            ALL
     )
 endif ()
