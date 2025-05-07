@@ -243,7 +243,11 @@ int scion_ia_parse(const char *str, size_t len, scion_ia *ia);
 void scion_ia_print(scion_ia ia);
 
 /**
- * A struct containing information about how to reach the SCION infrastructure.
+ * @struct scion_topology
+ *
+ * @brief A topology context in SCION.
+ *
+ * Contains information about how to reach the SCION infrastructure.
  */
 struct scion_topology;
 
@@ -269,9 +273,12 @@ scion_ia scion_topology_get_local_ia(struct scion_topology *topo);
 void scion_topology_free(struct scion_topology *topo);
 
 /**
- * A struct containing information about the local SCION network.
+ * @struct scion_network
  *
- * It can be used to open a new SCION socket or to fetch paths.
+ * @brief A network context in SCION.
+ *
+ * Contains information about the local SCION network. It can be used to open a new SCION socket or to fetch
+ * paths.
  */
 struct scion_network;
 
@@ -290,7 +297,9 @@ int scion_network(struct scion_network **net, struct scion_topology *topology);
 void scion_network_free(struct scion_network *net);
 
 /**
- * A SCION path.
+ * @struct scion_path
+ *
+ * @brief A SCION path.
  */
 struct scion_path;
 
@@ -328,7 +337,9 @@ void scion_path_free(struct scion_path *path);
 void scion_path_print(const struct scion_path *path);
 
 /**
- * A SCION path collection.
+ * @struct scion_path_collection
+ *
+ * @brief A collection of SCION paths.
  */
 struct scion_path_collection;
 
@@ -379,7 +390,9 @@ void scion_path_collection_print(struct scion_path_collection *paths);
 int scion_fetch_paths(struct scion_network *network, scion_ia dst, uint opt, struct scion_path_collection **paths);
 
 /**
- * A SCION socket.
+ * @struct scion_socket
+ *
+ * @brief A SCION socket.
  */
 struct scion_socket;
 
