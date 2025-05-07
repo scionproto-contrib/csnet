@@ -62,8 +62,8 @@ int scion_fetch_paths(struct scion_network *network, scion_ia dst, uint opt, str
 		if (empty_path == NULL) {
 			return SCION_MEM_ALLOC_FAIL;
 		}
-		empty_path->src = 0;
-		empty_path->dst = 0;
+		empty_path->src = src;
+		empty_path->dst = dst;
 		empty_path->path_type = SCION_PATH_TYPE_EMPTY;
 		empty_path->raw_path = NULL;
 		empty_path->metadata = NULL;

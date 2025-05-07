@@ -43,7 +43,6 @@ add_library(scion STATIC
         control_plane/network.c
         data_plane/packet.c
         data_plane/path.c
-        data_plane/ping.c
         data_plane/socket.c
         data_plane/udp.c
         data_plane/scmp.c
@@ -76,7 +75,6 @@ target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libprotobuf-c.
 
 # Set compiler flags
 extract_valid_c_compiler_flags(COMPILER_FLAGS
-        -O2
         -Wall
         -Wextra
         -Wformat
@@ -111,6 +109,11 @@ extract_valid_c_linker_flags(LINKER_FLAGS
         -Wl,-z,now
 )
 target_link_options(scion PRIVATE ${LINKER_FLAGS})
+
+# enable additional flags in Release builds
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    target_compile_options(scion PRIVATE -O2)
+endif ()
 
 # enable additional flags in Debug builds
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")

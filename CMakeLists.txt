@@ -8,6 +8,7 @@ include(ExternalProject)
 include(CTest)
 include(ExtractValidFlags)
 
+option(BUILD_CMD "build command line tools" ON)
 option(BUILD_TESTS "build tests" OFF)
 option(BUILD_EXAMPLES "build examples" OFF)
 option(BUILD_DOCS "build docs" OFF)
@@ -19,6 +20,10 @@ set(BUILD_TESTING ${BUILD_TESTS})
 
 # Add subdirectories
 add_subdirectory(lib)
+
+if (BUILD_CMD)
+    add_subdirectory(cmd)
+endif ()
 
 if (BUILD_EXAMPLES OR BUILD_TESTING)
     add_subdirectory(examples)

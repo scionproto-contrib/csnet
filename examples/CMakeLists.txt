@@ -13,11 +13,6 @@ target_link_libraries(paths_example PRIVATE scion)
 add_test(NAME fetch_paths COMMAND paths_example)
 set_tests_properties(fetch_paths PROPERTIES LABELS "e2e")
 
-add_executable(ping_example ping.c)
-target_link_libraries(ping_example PRIVATE scion)
-add_test(NAME ping COMMAND ping_example)
-set_tests_properties(ping PROPERTIES LABELS "e2e")
-
 add_executable(choose_path_example choose_path.c)
 target_link_libraries(choose_path_example PRIVATE scion)
 add_test(NAME choose_path COMMAND choose_path_example)
