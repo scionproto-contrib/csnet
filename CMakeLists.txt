@@ -40,6 +40,9 @@ if (BUILD_DOCS)
     set(DOXYGEN_HTML_OUTPUT ${CMAKE_SOURCE_DIR}/docs/api)
     set(DOXYGEN_GENERATE_LATEX NO)
     set(DOXYGEN_USE_MDFILE_AS_MAINPAGE ${CMAKE_SOURCE_DIR}/README.md)
+    set(DOXYGEN_OPTIMIZE_OUTPUT_FOR_C YES)
+    set(DOXYGEN_INCLUDE_GRAPH NO)
+    set(DOXYGEN_SHOW_INCLUDE_FILES NO)
 
     doxygen_add_docs(doxygen
             lib/include/scion/scion.h
