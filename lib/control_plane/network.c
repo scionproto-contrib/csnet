@@ -34,9 +34,6 @@ int scion_network(struct scion_network **net, struct scion_topology *topology)
 
 	new_net->topology = topology;
 
-	new_net->src_addr_len = sizeof(struct sockaddr_storage);
-	new_net->src_addr_known = false;
-
 	*net = new_net;
 
 	return 0;

@@ -148,18 +148,12 @@ static void set_source_address(struct scion_socket *socket, struct sockaddr *add
 		sockaddr_copy_port((struct sockaddr *)&socket->src_addr, &socket->src_addr_len, addr, addr_len);
 	}
 
+	// Only set the address if it is not the wildcard address
 	if (!sockaddr_is_any(addr)) {
 		socket->src_addr_len = sizeof(socket->src_addr);
 		sockaddr_copy_address((struct sockaddr *)&socket->src_addr, &socket->src_addr_len, addr, addr_len);
 
 		socket->is_src_addr_set = true;
-
-		// Set source address of network if not known yet
-		if (socket->network != NULL && !socket->network->src_addr_known) {
-			socket->network->src_addr_len = sizeof(socket->network->src_addr);
-			sockaddr_copy_address(
-				(struct sockaddr *)&socket->network->src_addr, &socket->network->src_addr_len, addr, addr_len);
-		}
 	}
 }
 
@@ -280,29 +274,24 @@ int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_f
 
 	scion_sock_storage->src_addr_len = sizeof(scion_sock_storage->src_addr);
 
-	if (scion_sock_storage->network != NULL) {
-		if (scion_sock_storage->network->src_addr_known) {
-			set_source_address(scion_sock_storage, (struct sockaddr *)&scion_sock_storage->network->src_addr,
-				scion_sock_storage->network->src_addr_len, /* with_port */ false);
-		} else {
-			struct scion_underlay probe_underlay;
+	if (network != NULL) {
+		struct scion_underlay probe_underlay;
 
-			// get arbitrary border router
-			ret = scion_topology_next_underlay_hop(
-				scion_sock_storage->network->topology, SCION_INTERFACE_ANY, &probe_underlay);
-			if (ret != 0) {
-				return ret;
-			}
-
-			struct sockaddr_storage src_addr;
-			socklen_t src_addr_len = sizeof(src_addr);
-			ret = scion_underlay_probe(&probe_underlay, (struct sockaddr *)&src_addr, &src_addr_len);
-			if (ret != 0) {
-				return ret;
-			}
-
-			set_source_address(scion_sock_storage, (struct sockaddr *)&src_addr, src_addr_len, /* with_port */ false);
+		// get arbitrary border router
+		ret = scion_topology_next_underlay_hop(network->topology, SCION_INTERFACE_ANY, &probe_underlay);
+		if (ret != 0) {
+			return ret;
 		}
+
+		struct sockaddr_storage src_addr;
+		socklen_t src_addr_len = sizeof(src_addr);
+		// determine the source address by connecting to the border router
+		ret = scion_underlay_probe(&probe_underlay, (struct sockaddr *)&src_addr, &src_addr_len);
+		if (ret != 0) {
+			return ret;
+		}
+
+		set_source_address(scion_sock_storage, (struct sockaddr *)&src_addr, src_addr_len, /* with_port */ false);
 	}
 
 	*scion_sock = scion_sock_storage;

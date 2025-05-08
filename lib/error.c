@@ -83,8 +83,6 @@ char *scion_strerror(int err)
 		return "address buffer error";
 	case SCION_PATH_EXPIRED:
 		return "path expired";
-	case SCION_NETWORK_SOURCE_ADDR_ERR:
-		return "could not determine network source address";
 	case SCION_NOT_BOUND:
 		return "socket is not bound";
 	case SCION_NETWORK_UNKNOWN:

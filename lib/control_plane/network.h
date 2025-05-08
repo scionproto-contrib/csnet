@@ -19,9 +19,6 @@
 
 struct scion_network {
 	struct scion_topology *topology;
-	struct sockaddr_storage src_addr;
-	socklen_t src_addr_len;
-	bool src_addr_known;
 };
 
 int scion_network(struct scion_network **net, struct scion_topology *topology);

@@ -176,8 +176,6 @@ enum scion_error {
 	 * @see [Source Address Determination](docs/design/source_address_determination.md)
 	 */
 	SCION_SRC_ADDR_UNKNOWN = -31,
-	// TODO document me or remove me
-	SCION_NETWORK_SOURCE_ADDR_ERR = -32,
 	// Internal errors
 	SCION_NOT_ENOUGH_DATA = -201,
 	SCION_PACKET_FIELD_INVALID = -202,
