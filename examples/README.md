@@ -16,8 +16,6 @@ The following examples are available:
 - `server.c`: Shows how to implement a simple server that receives incoming packets. Run `scripts/run-testclient.sh` to
   receive a packet.
 
-- `ping.c`: Shows how to ping a host in the network.
-
 - `simple_quic_client.c`: Shows how to implement a simple QUIC client that uses UDP over SCION with the
   help of ngtcp2. Requires a running `scripts/run-quic-server.sh`.
 
