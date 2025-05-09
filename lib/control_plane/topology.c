@@ -400,7 +400,7 @@ cleanup_topo_file:
 
 cleanup_topology:
 	if (ret < 0) {
-		free(topology_storage);
+		scion_topology_free(topology_storage);
 	} else {
 		*topology = topology_storage;
 	}
