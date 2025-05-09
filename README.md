@@ -4,8 +4,8 @@
 
 ## Requirements
 
-Building and installing the library and examples requires CMake 3.22 or newer (
-download [here](https://cmake.org/download/)).
+Building and installing the library and examples requires CMake 3.22 or newer
+(download [here](https://cmake.org/download/)).
 
 All the requirements for building the library and examples are fetched automatically with CMake and installed in the
 workspace build directory, ensuring the rest of the system remains unaffected.
@@ -25,15 +25,18 @@ Building the documentation (in `./docs`) requires:
 Setup the CMake build directory in `./dist` with
 
 ```bash
-cmake -DBUILD_EXAMPLES=ON -DBUILD_TESTS=OFF -DBUILD_DOCS=OFF -B dist
+cmake -DBUILD_CMD=ON -DBUILD_EXAMPLES=ON -DBUILD_TESTS=OFF -DBUILD_DOCS=OFF -B dist
 ```
 
 The following options exist:
 
+- `BUILD_CMD`: additionally build the command line tools in `./cmd`
 - `BUILD_EXAMPLES`: additionally build the examples in `./examples`.
-- `BUILD_TESTS`: additionally build the tests in `./tests` and some of the examples in `./examples` that serve as E2E
-  tests. This means that even if `BUILD_EXAMPLES` is `OFF` some examples may still be built if `BUILD_TESTS` is `ON`.
-- `BUILD_DOCS`: additionally build the docs which are output to `./docs`.
+- `BUILD_TESTS`: additionally build the tests in `./tests`, the cmd tools in `./cmd` and some of the examples in
+  `./examples` that serve
+  as E2E tests. This means that even if `BUILD_EXAMPLES` is `OFF` some examples may still be built if `BUILD_TESTS` is
+  `ON`. The same holds for `BUILD_CMD`.
+- `BUILD_DOCS`: additionally build the docs which are output to `./docs/api`.
 
 Build everything with
 
@@ -47,9 +50,9 @@ To install the library execute:
  cmake --install dist --prefix "your installation directory"
 ```
 
-This will produce the static libraries `lib/libscion.a`, `lib/libnghttp2.a`, `lib/libprotobuf.a` and the header
-file `include/scion/scion.h` in your installation directory. When using the library make sure to link against all the
-libraries produced by the installation.
+This will produce the static libraries `lib/libscion.a`, `lib/libnghttp2.a`, `lib/libprotobuf.a`, the header
+file `include/scion/scion.h` and the cmd binary `bin/ping` in your installation directory. When using the library make
+sure to link against all the static libraries produced by the installation.
 
 ## Local SCION Network Setup
 
