@@ -285,6 +285,9 @@ static void print_help()
 	printf("Usage:\n");
 	printf(" ping [options] <remote> <topology>\n");
 	printf("\n");
+	printf("Examples:\n");
+	printf(" ping -c 3 2-ff00:0:222,fd00:f00d:cafe::7f00:55 topology.json\n");
+	printf("\n");
 	printf("Options:\n");
 	printf(" -c, --count uint16            total number of packets to send\n");
 	printf(" -h, --help                    help for ping\n");
