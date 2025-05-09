@@ -24,3 +24,5 @@ struct scion_network {
 int scion_network(struct scion_network **net, struct scion_topology *topology);
 
 void scion_network_free(struct scion_network *net);
+
+enum scion_addr_family scion_network_get_local_addr_family(struct scion_network *net);

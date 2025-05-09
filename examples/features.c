@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
 	int ret;
 
 	struct scion_topology *topology;
-	ret = scion_topology_from_file(&topology, "topology.json");
+	ret = scion_topology_from_file(&topology, "../topology/topology.json");
 	if (ret != 0) {
 		printf("ERROR: Topology init failed with error code: %d\n", ret);
 		return EXIT_FAILURE;

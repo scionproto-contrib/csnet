@@ -91,7 +91,7 @@ static bool sockaddr_is_any(struct sockaddr *addr)
 }
 
 static void sockaddr_copy_port(
-	struct sockaddr *dst_addr, socklen_t *dst_addr_len, struct sockaddr *src_addr, socklen_t src_addr_len)
+	struct sockaddr *dst_addr, socklen_t *dst_addr_len, const struct sockaddr *src_addr, socklen_t src_addr_len)
 {
 	assert(*dst_addr_len >= src_addr_len);
 
@@ -102,14 +102,14 @@ static void sockaddr_copy_port(
 		struct sockaddr_in *dst_addr_in = (struct sockaddr_in *)dst_addr;
 		dst_addr_in->sin_port = src_addr_in->sin_port;
 	} else if (src_addr->sa_family == AF_INET6) {
-		struct sockaddr_in6 *src_addr_in = (struct sockaddr_in6 *)src_addr;
-		struct sockaddr_in6 *dst_addr_in = (struct sockaddr_in6 *)dst_addr;
-		dst_addr_in->sin6_port = src_addr_in->sin6_port;
+		struct sockaddr_in6 *src_addr_in6 = (struct sockaddr_in6 *)src_addr;
+		struct sockaddr_in6 *dst_addr_in6 = (struct sockaddr_in6 *)dst_addr;
+		dst_addr_in6->sin6_port = src_addr_in6->sin6_port;
 	}
 }
 
 static void sockaddr_copy_address(
-	struct sockaddr *dst_addr, socklen_t *dst_addr_len, struct sockaddr *src_addr, socklen_t src_addr_len)
+	struct sockaddr *dst_addr, socklen_t *dst_addr_len, const struct sockaddr *src_addr, socklen_t src_addr_len)
 {
 	assert(*dst_addr_len >= src_addr_len);
 
@@ -267,7 +267,8 @@ int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_f
 	scion_sock_storage->socket_fd = socket((int)addr_family, SOCK_DGRAM, 0);
 
 	if (scion_sock_storage->socket_fd == -1) {
-		(void)fprintf(stderr, "ERROR: encountered an unexpected error when creating the socket (code: %d)\n", errno);
+		(void)fprintf(stderr, "ERROR: encountered an unexpected error when creating the socket (%s, code %d)\n",
+			strerror(errno), errno);
 		ret = SCION_GENERIC_ERR;
 		goto cleanup_socket_storage;
 	}
@@ -306,7 +307,17 @@ cleanup_socket_storage:
 
 static int refresh_connected_path(struct scion_socket *scion_sock)
 {
-	return fetch_path(scion_sock, scion_sock->dst_ia, &scion_sock->path);
+	int ret = fetch_path(scion_sock, scion_sock->dst_ia, &scion_sock->path);
+	if (ret != 0) {
+		return ret;
+	}
+
+	if (scion_sock->path->path_type == SCION_PATH_TYPE_EMPTY
+		&& scion_sock->dst_addr.ss_family != scion_sock->local_addr_family) {
+		return SCION_ADDR_FAMILY_MISMATCH;
+	}
+
+	return 0;
 }
 
 int scion_connect(struct scion_socket *scion_sock, const struct sockaddr *addr, socklen_t addrlen, scion_ia ia)
@@ -493,6 +504,11 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 		goto cleanup_packet_buf;
 	}
 
+	if (next_hop_addr->sa_family != scion_sock->local_addr_family) {
+		ret = SCION_ADDR_FAMILY_MISMATCH;
+		goto cleanup_packet_buf;
+	}
+
 	do {
 		ret = sendto(scion_sock->socket_fd, packet_buf, packet_length, flags, next_hop_addr, next_hop_addr_length);
 	} while (ret == -1 && errno == EINTR);
@@ -509,7 +525,8 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 		} else if (errno == ENOBUFS) {
 			ret = SCION_OUTPUT_QUEUE_FULL;
 		} else {
-			(void)fprintf(stderr, "ERROR: encountered an unexpected error when sending packets (code: %d)\n", errno);
+			(void)fprintf(stderr, "ERROR: encountered an unexpected error when sending packets (%s, code %d)\n",
+				strerror(errno), errno);
 			ret = SCION_SEND_ERR;
 		}
 
@@ -664,8 +681,8 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
 			if (errno == EAGAIN || errno == EWOULDBLOCK) {
 				ret = SCION_WOULD_BLOCK;
 			} else {
-				(void)fprintf(
-					stderr, "ERROR: encountered an unexpected error when receiving packets (code: %d)\n", errno);
+				(void)fprintf(stderr, "ERROR: encountered an unexpected error when receiving packets (%s, code %d)\n",
+					strerror(errno), errno);
 				ret = SCION_RECV_ERR;
 			}
 
@@ -830,8 +847,9 @@ int scion_getsockopt(struct scion_socket *scion_sock, int level, int optname, vo
 			} else if (errno == EINVAL || errno == ENOPROTOOPT) {
 				ret = SCION_SOCK_OPT_INVALID;
 			} else {
-				(void)fprintf(
-					stderr, "ERROR: encountered an unexpected error when getting socket option (code: %d)\n", errno);
+				(void)fprintf(stderr,
+					"ERROR: encountered an unexpected error when getting socket option (%s, code %d)\n",
+					strerror(errno), errno);
 				ret = SCION_GENERIC_ERR;
 			}
 		}
@@ -856,8 +874,9 @@ int scion_setsockopt(struct scion_socket *scion_sock, int level, int optname, co
 			} else if (errno == EINVAL || errno == ENOPROTOOPT) {
 				ret = SCION_SOCK_OPT_INVALID;
 			} else {
-				(void)fprintf(
-					stderr, "ERROR: encountered an unexpected error when setting socket option (code: %d)\n", errno);
+				(void)fprintf(stderr,
+					"ERROR: encountered an unexpected error when setting socket option (%s, code %d)\n",
+					strerror(errno), errno);
 				ret = SCION_GENERIC_ERR;
 			}
 		}

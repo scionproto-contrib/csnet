@@ -1,22 +1,9 @@
 set(DEPENDENCY_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/dependencies)
 
-# Copy topology file
-if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/topology.json")
-    configure_file(topology.json ${CMAKE_CURRENT_BINARY_DIR}/topology.json COPYONLY)
-else ()
-    configure_file(topology.default.json ${CMAKE_CURRENT_BINARY_DIR}/topology.json COPYONLY)
-endif ()
-
-
 add_executable(paths_example paths.c)
 target_link_libraries(paths_example PRIVATE scion)
 add_test(NAME fetch_paths COMMAND paths_example)
 set_tests_properties(fetch_paths PROPERTIES LABELS "e2e")
-
-add_executable(ping_example ping.c)
-target_link_libraries(ping_example PRIVATE scion)
-add_test(NAME ping COMMAND ping_example)
-set_tests_properties(ping PROPERTIES LABELS "e2e")
 
 add_executable(choose_path_example choose_path.c)
 target_link_libraries(choose_path_example PRIVATE scion)

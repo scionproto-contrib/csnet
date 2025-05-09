@@ -1,10 +1,12 @@
 /.vscode
 /.idea
 /cmake-build-*
-/examples/topology.json
 /dist
 /docs/api
 /network
+
+/topology
+!/topology/topology.default.json
 
 /esp32/spiffs_partition/*
 !/esp32/spiffs_partition/.gitkeep

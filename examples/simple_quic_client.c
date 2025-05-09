@@ -57,7 +57,7 @@
 #define REMOTE_AF SCION_AF_IPV6
 #define ALPN "\xahello-quic"
 #define MESSAGE "Hello QUIC"
-#define SCION_TOPO_PATH "topology.json"
+#define SCION_TOPO_PATH "../topology/topology.json"
 
 static uint64_t timestamp(void)
 {
