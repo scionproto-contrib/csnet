@@ -216,7 +216,7 @@ static int ping(struct scion_socket *socket, struct sockaddr *addr, socklen_t ad
 	for (uint16_t i = 0; i < count; i++) {
 		ret = scion_send_echo_request(socket, i, payload, payload_size, &start);
 		if (ret != 0) {
-			(void)printf("SEND ERROR: seqno=%" PRIu16 "\n", i);
+			(void)printf("SEND ERROR: seqno=%" PRIu16 ", code=%d\n", i, ret);
 			continue;
 		}
 		packets_sent += 1;
