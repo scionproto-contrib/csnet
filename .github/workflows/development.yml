@@ -31,7 +31,7 @@ jobs:
 
       - name: Copy topology file
         run:
-          cp examples/topology.default.json examples/topology.json
+          cp topology/topology.default.json topology/topology.json
 
       - name: Set reusable strings
         # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.

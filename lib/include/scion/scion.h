@@ -74,7 +74,9 @@ enum scion_error {
 	 */
 	SCION_TOPOLOGY_INVALID = -8,
 	/**
-	 * The provided address has a different address family than the socket.
+	 * The provided address has an incompatible address family.
+	 * This can happen when binding an address that has a different address family than the socket, or when
+	 * sending/connecting to a host in the same AS that has a different address family than the socket.
 	 */
 	SCION_ADDR_FAMILY_MISMATCH = -9,
 	/**

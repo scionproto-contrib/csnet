@@ -307,7 +307,17 @@ cleanup_socket_storage:
 
 static int refresh_connected_path(struct scion_socket *scion_sock)
 {
-	return fetch_path(scion_sock, scion_sock->dst_ia, &scion_sock->path);
+	int ret = fetch_path(scion_sock, scion_sock->dst_ia, &scion_sock->path);
+	if (ret != 0) {
+		return ret;
+	}
+
+	if (scion_sock->path->path_type == SCION_PATH_TYPE_EMPTY
+		&& scion_sock->dst_addr.ss_family != scion_sock->local_addr_family) {
+		return SCION_ADDR_FAMILY_MISMATCH;
+	}
+
+	return 0;
 }
 
 int scion_connect(struct scion_socket *scion_sock, const struct sockaddr *addr, socklen_t addrlen, scion_ia ia)
@@ -491,6 +501,11 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 		next_hop_addr_length = dst_addr_len;
 	} else {
 		ret = SCION_PATH_TYPE_INVALID;
+		goto cleanup_packet_buf;
+	}
+
+	if (next_hop_addr->sa_family != scion_sock->local_addr_family) {
+		ret = SCION_ADDR_FAMILY_MISMATCH;
 		goto cleanup_packet_buf;
 	}
 

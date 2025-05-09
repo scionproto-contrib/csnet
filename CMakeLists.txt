@@ -13,6 +13,13 @@ option(BUILD_TESTS "build tests" OFF)
 option(BUILD_EXAMPLES "build examples" OFF)
 option(BUILD_DOCS "build docs" OFF)
 
+# Copy topology file
+if (EXISTS "${CMAKE_SOURCE_DIR}/topology/topology.json")
+    configure_file(topology/topology.json ${CMAKE_CURRENT_BINARY_DIR}/topology/topology.json COPYONLY)
+else ()
+    configure_file(topology/topology.default.json ${CMAKE_CURRENT_BINARY_DIR}/topology/topology.json COPYONLY)
+endif ()
+
 set(CMAKE_C_STANDARD 11)
 set(ALLOW_DUPLICATE_CUSTOM_TARGETS TRUE)
 set(CMAKE_MAKEFILE true)
@@ -21,7 +28,7 @@ set(BUILD_TESTING ${BUILD_TESTS})
 # Add subdirectories
 add_subdirectory(lib)
 
-if (BUILD_CMD)
+if (BUILD_CMD OR BUILD_TESTING)
     add_subdirectory(cmd)
 endif ()
 
