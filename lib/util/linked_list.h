@@ -23,40 +23,67 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#define SCION_LIST_CUSTOM_FREE(free_fn) \
+	((struct scion_list_value_free){ .fn = (scion_list_value_free_fn)scion_list_value_free_wrapper, .ctx = (free_fn) })
+#define SCION_LIST_CUSTOM_FREE_WITH_CTX(free_fn, ctx_arg) \
+	((struct scion_list_value_free){ .fn = (scion_list_value_free_fn)(free_fn), .ctx = (ctx_arg) })
+
+#define SCION_LIST_NO_FREE_VALUES SCION_LIST_CUSTOM_FREE(NULL)
+#define SCION_LIST_SIMPLE_FREE SCION_LIST_CUSTOM_FREE(free)
+
 struct scion_linked_list_node {
 	void *value;
 	struct scion_linked_list_node *next;
+};
+
+typedef void (*scion_list_value_free_fn)(void *value, void *ctx);
+
+struct scion_list_value_free {
+	scion_list_value_free_fn fn;
+	void *ctx;
 };
 
 struct scion_linked_list {
 	size_t size;
 	struct scion_linked_list_node *first;
 	struct scion_linked_list_node *last;
+
+	struct scion_list_value_free free_value;
 };
 
-typedef void (*scion_list_value_free)(void *value);
+void scion_list_value_free_wrapper(void *value, void (*free_fn)(void *));
 
-typedef bool scion_list_predicate(void *value);
+typedef bool (*scion_list_predicate_fn)(void *value, void *ctx);
 
-typedef int scion_list_comparator(void *value_one, void *value_two);
+struct scion_list_predicate {
+	scion_list_predicate_fn fn;
+	void *ctx;
+};
 
+typedef int (*scion_list_comparator_fn)(void *value_one, void *value_two, void *ctx);
+
+struct scion_list_comparator {
+	scion_list_comparator_fn fn;
+	void *ctx;
+
+	bool ascending;
+};
+
+// TODO adjust my documentation
 /**
  * Frees a linked list.
  * @param[in] list The linked list.
- * @param[in] free_value The freeing function used to free the values of the nodes. If NULL, the values of the nodes are
- * not freed.
+ * @param[in] free_value The value freer to use. The following macros are available:
+ * - SCION_LIST_NO_FREE_VALUES: a value freer that does not free the value
+ * - SCION_LIST_SIMPLE_FREE: a value freer that uses the c lib free function to free the value
+ * - SCION_LIST_CUSTOM_FREE(free_fn): a value freer that uses the custom free_fn to free the value
+ * - SCION_LIST_CUSTOM_FREE_WITH_CTX(free_fn, ctx): a value freer that uses the custom free_fn and context ctx to free
+ * the value
  */
-void scion_list_free(struct scion_linked_list *list, scion_list_value_free free_value);
+void scion_list_free(struct scion_linked_list *list);
 
-/*
- * FUNCTION: scion_list_create
- * -----------------
- * Creates and initializes an empty scion_linked_list.
- *
- * Returns:
- *      - struct scion_linked_list *list: Pointer to a scion_linked_list struct.
- */
-struct scion_linked_list *scion_list_create(void);
+// TODO document me
+struct scion_linked_list *scion_list_create(struct scion_list_value_free free_value);
 
 /*
  * FUNCTION: scion_list_append
@@ -103,9 +130,13 @@ void *scion_list_pop(struct scion_linked_list *list);
  */
 void scion_list_reverse(struct scion_linked_list *list);
 
-void scion_list_sort(struct scion_linked_list *list, scion_list_comparator compare, bool ascending);
+void scion_list_sort(struct scion_linked_list *list, struct scion_list_comparator compare);
 
 void scion_list_filter(
-	struct scion_linked_list *list, scion_list_predicate predicate, scion_list_value_free free_value);
+	struct scion_linked_list *list, struct scion_list_predicate predicate, struct scion_list_value_free free_value);
 
-void *scion_list_get(struct scion_linked_list *list, uint32_t n);
+void *scion_list_get(struct scion_linked_list *list, size_t n);
+
+void *scion_list_find(struct scion_linked_list *list, struct scion_list_predicate predicate);
+
+size_t scion_list_size(struct scion_linked_list *list);

@@ -74,7 +74,7 @@ void scion_topology_free(struct scion_topology *topo)
 		topo->cs_ip = NULL;
 	}
 	if (topo->border_routers != NULL) {
-		scion_list_free(topo->border_routers, (scion_list_value_free)scion_free_border_router);
+		scion_list_free(topo->border_routers);
 		topo->border_routers = NULL;
 	}
 	topo->cs_port = 0;
@@ -110,7 +110,7 @@ int scion_topology_from_file(struct scion_topology **topology, const char *path)
 	topology_storage->local_core = false;
 	topology_storage->cs_ip = NULL;
 	topology_storage->cs_port = 0;
-	topology_storage->border_routers = scion_list_create();
+	topology_storage->border_routers = scion_list_create(SCION_LIST_CUSTOM_FREE(scion_free_border_router));
 
 	// populate topology using topology.json
 	FILE *f = fopen(path, "r");
@@ -378,7 +378,7 @@ int scion_topology_from_file(struct scion_topology **topology, const char *path)
 						char ifid[len + 1];
 						(void)memcpy(ifid, raw_json + t.start, len);
 						ifid[len] = 0x00;
-						br->ifid = (uint16_t)strtoul(ifid, NULL, 10);
+						br->ifid = strtoul(ifid, NULL, 10);
 
 						scion_list_append(topology_storage->border_routers, br);
 
@@ -408,7 +408,7 @@ cleanup_topology:
 	return ret;
 }
 
-int scion_topology_next_underlay_hop(struct scion_topology *t, scion_interface ifid, struct scion_underlay *underlay)
+int scion_topology_next_underlay_hop(struct scion_topology *t, scion_interface_id ifid, struct scion_underlay *underlay)
 {
 	assert(t);
 	assert(t->border_routers);

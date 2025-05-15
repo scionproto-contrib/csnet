@@ -74,18 +74,6 @@ void scion_path_raw_free(struct scion_path_raw *raw_path)
 	free(raw_path);
 }
 
-void scion_path_metadata_free(struct scion_path_metadata *path_meta)
-{
-	if (path_meta == NULL) {
-		return;
-	}
-	if (path_meta->interfaces != NULL) {
-		scion_list_free(path_meta->interfaces, free);
-		path_meta->interfaces = NULL;
-	}
-	free(path_meta);
-}
-
 void scion_path_free(struct scion_path *path)
 {
 	if (path == NULL) {
@@ -118,8 +106,8 @@ int scion_path_raw_reverse(struct scion_path_raw *path)
 	assert(path->raw);
 
 	struct scion_path_meta_hdr hdr;
-	struct scion_linked_list *info_fields = scion_list_create();
-	struct scion_linked_list *hop_fields = scion_list_create();
+	struct scion_linked_list *info_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
+	struct scion_linked_list *hop_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
 
 	ret = scion_path_deserialize(path->raw, &hdr, info_fields, hop_fields);
 	if (ret != 0) {
@@ -158,8 +146,8 @@ int scion_path_raw_reverse(struct scion_path_raw *path)
 	ret = scion_path_serialize(&hdr, info_fields, hop_fields, path->raw);
 
 cleanup_info_and_hop_fields:
-	scion_list_free(info_fields, free);
-	scion_list_free(hop_fields, free);
+	scion_list_free(info_fields);
+	scion_list_free(hop_fields);
 
 	return ret;
 }
@@ -208,7 +196,7 @@ void scion_path_print_interfaces(struct scion_linked_list *interfaces)
 	// Print first AS
 	struct scion_path_interface *intf = (struct scion_path_interface *)curr->value;
 	scion_ia_print(intf->ia);
-	(void)printf(" %" PRIu16 ">", intf->id);
+	(void)printf(" %" PRIu64 ">", intf->id);
 
 	// Print Intermediate ASes
 	curr = curr->next;
@@ -216,15 +204,15 @@ void scion_path_print_interfaces(struct scion_linked_list *interfaces)
 	while (curr != interfaces->last && curr != NULL) {
 		struct scion_path_interface *in_intf = (struct scion_path_interface *)curr->value;
 		struct scion_path_interface *out_intf = (struct scion_path_interface *)curr->next->value;
-		(void)printf("%" PRIu16 " ", in_intf->id);
+		(void)printf("%" PRIu64 " ", in_intf->id);
 		scion_ia_print(in_intf->ia);
-		(void)printf(" %" PRIu16 ">", out_intf->id);
+		(void)printf(" %" PRIu64 ">", out_intf->id);
 		curr = curr->next->next;
 	}
 
 	// Print last AS
 	intf = (struct scion_path_interface *)interfaces->last->value;
-	(void)printf("%" PRIu16 " ", intf->id);
+	(void)printf("%" PRIu64 " ", intf->id);
 	scion_ia_print(intf->ia);
 }
 
@@ -467,4 +455,9 @@ int scion_path_deserialize(uint8_t *buf, struct scion_path_meta_hdr *hdr, struct
 		offset += (uint16_t)SCION_HOP_LEN;
 	}
 	return 0;
+}
+
+void scion_path_print_metadata(struct scion_path *path)
+{
+	scion_path_metadata_print(path->metadata);
 }

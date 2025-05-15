@@ -19,15 +19,15 @@
 
 #include <assert.h>
 
-static void scion_list_node_free(struct scion_linked_list_node *node, scion_list_value_free free_value)
+static void scion_list_node_free(struct scion_linked_list_node *node, struct scion_list_value_free free_value)
 {
 	if (node == NULL) {
 		return;
 	}
 
 	// Free node value of freeing function is provided
-	if (free_value != NULL) {
-		free_value(node->value);
+	if (free_value.fn != NULL) {
+		free_value.fn(node->value, free_value.ctx);
 	}
 
 	node->value = NULL;
@@ -35,7 +35,7 @@ static void scion_list_node_free(struct scion_linked_list_node *node, scion_list
 	free(node);
 }
 
-void scion_list_free(struct scion_linked_list *list, scion_list_value_free free_value)
+void scion_list_free(struct scion_linked_list *list)
 {
 	if (list == NULL) {
 		return;
@@ -46,7 +46,7 @@ void scion_list_free(struct scion_linked_list *list, scion_list_value_free free_
 		curr = next;
 		next = curr->next;
 
-		scion_list_node_free(curr, free_value);
+		scion_list_node_free(curr, list->free_value);
 	}
 	list->size = 0;
 	list->first = NULL;
@@ -54,7 +54,7 @@ void scion_list_free(struct scion_linked_list *list, scion_list_value_free free_
 	free(list);
 }
 
-struct scion_linked_list *scion_list_create(void)
+struct scion_linked_list *scion_list_create(struct scion_list_value_free free_value)
 {
 	struct scion_linked_list *list = malloc(sizeof(*list));
 	if (list == NULL) {
@@ -63,6 +63,9 @@ struct scion_linked_list *scion_list_create(void)
 	list->size = 0;
 	list->first = NULL;
 	list->last = NULL;
+
+	list->free_value = free_value;
+
 	return list;
 }
 
@@ -118,7 +121,7 @@ void *scion_list_pop(struct scion_linked_list *list)
 
 	first_node->value = NULL;
 	first_node->next = NULL;
-	scion_list_node_free(first_node, NULL);
+	scion_list_node_free(first_node, SCION_LIST_NO_FREE_VALUES);
 
 	return value_ptr;
 }
@@ -169,28 +172,28 @@ static void update_list(struct scion_linked_list *list, struct scion_linked_list
 	list->size = count;
 }
 
-static struct scion_linked_list_node *merge(struct scion_linked_list_node *left, struct scion_linked_list_node *right,
-	scion_list_comparator compare, bool ascending)
+static struct scion_linked_list_node *merge(
+	struct scion_linked_list_node *left, struct scion_linked_list_node *right, struct scion_list_comparator comparator)
 {
 	if (left == NULL)
 		return right;
 	if (right == NULL)
 		return left;
 
-	int compare_result = compare(left->value, right->value);
+	int compare_result = comparator.fn(left->value, right->value, comparator.ctx);
 
 	// if left < right and ascending or left > right and descending
-	if ((compare_result < 0 && ascending) || (compare_result > 0 && !ascending)) {
-		left->next = merge(left->next, right, compare, ascending);
+	if ((compare_result < 0 && comparator.ascending) || (compare_result > 0 && !comparator.ascending)) {
+		left->next = merge(left->next, right, comparator);
 		return left;
 	} else {
-		right->next = merge(left, right->next, compare, ascending);
+		right->next = merge(left, right->next, comparator);
 		return right;
 	}
 }
 
 static struct scion_linked_list_node *merge_sort(
-	struct scion_linked_list_node *head, scion_list_comparator compare, bool ascending)
+	struct scion_linked_list_node *head, struct scion_list_comparator comparator)
 {
 	if (head == NULL || head->next == NULL) {
 		return head;
@@ -207,23 +210,23 @@ static struct scion_linked_list_node *merge_sort(
 	struct scion_linked_list_node *mid = slow->next;
 	slow->next = NULL;
 
-	struct scion_linked_list_node *left = merge_sort(head, compare, ascending);
-	struct scion_linked_list_node *right = merge_sort(mid, compare, ascending);
+	struct scion_linked_list_node *left = merge_sort(head, comparator);
+	struct scion_linked_list_node *right = merge_sort(mid, comparator);
 
-	return merge(left, right, compare, ascending);
+	return merge(left, right, comparator);
 }
 
-void scion_list_sort(struct scion_linked_list *list, scion_list_comparator compare, bool ascending)
+void scion_list_sort(struct scion_linked_list *list, struct scion_list_comparator comparator)
 {
 	size_t old_size = list->size;
-	struct scion_linked_list_node *new_head = merge_sort(list->first, compare, ascending);
+	struct scion_linked_list_node *new_head = merge_sort(list->first, comparator);
 
 	update_list(list, new_head);
 	assert(old_size == list->size);
 }
 
 static struct scion_linked_list_node *filter(
-	struct scion_linked_list_node *head, scion_list_predicate predicate, scion_list_value_free free_value)
+	struct scion_linked_list_node *head, struct scion_list_predicate predicate, struct scion_list_value_free free_value)
 {
 	if (head == NULL) {
 		return NULL;
@@ -231,7 +234,7 @@ static struct scion_linked_list_node *filter(
 
 	struct scion_linked_list_node *filtered_next = filter(head->next, predicate, free_value);
 
-	if (predicate(head->value)) {
+	if (predicate.fn(head->value, predicate.ctx)) {
 		head->next = filtered_next;
 		return head;
 	} else {
@@ -241,14 +244,15 @@ static struct scion_linked_list_node *filter(
 	}
 }
 
-void scion_list_filter(struct scion_linked_list *list, scion_list_predicate predicate, scion_list_value_free free_value)
+void scion_list_filter(
+	struct scion_linked_list *list, struct scion_list_predicate predicate, struct scion_list_value_free free_value)
 {
 	struct scion_linked_list_node *new_head = filter(list->first, predicate, free_value);
 
 	update_list(list, new_head);
 }
 
-void *scion_list_get(struct scion_linked_list *list, uint32_t n)
+void *scion_list_get(struct scion_linked_list *list, size_t n)
 {
 	if (list == NULL) {
 		return NULL;
@@ -258,7 +262,7 @@ void *scion_list_get(struct scion_linked_list *list, uint32_t n)
 	}
 
 	struct scion_linked_list_node *node = list->first;
-	for (uint32_t i = 0; i < n; i++) {
+	for (size_t i = 0; i < n; i++) {
 		if (node == NULL) {
 			// Handle corrupt list
 			return NULL;
@@ -266,4 +270,33 @@ void *scion_list_get(struct scion_linked_list *list, uint32_t n)
 		node = node->next;
 	}
 	return node->value;
+}
+
+void *scion_list_find(struct scion_linked_list *list, struct scion_list_predicate predicate)
+{
+	struct scion_linked_list_node *node = list->first;
+	while (node != NULL) {
+		if (predicate.fn(node->value, predicate.ctx)) {
+			return node->value;
+		}
+
+		node = node->next;
+	}
+
+	return NULL;
+}
+
+size_t scion_list_size(struct scion_linked_list *list)
+{
+	assert(list);
+	return list->size;
+}
+
+void scion_list_value_free_wrapper(void *value, void (*free_fn)(void *))
+{
+	if (free_fn == NULL) {
+		return;
+	}
+
+	free_fn(value);
 }

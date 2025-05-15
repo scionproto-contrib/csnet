@@ -19,9 +19,10 @@
 #include <sys/socket.h>
 
 #include "common/isd_as.h"
+#include "control_plane/path_metadata.h"
+#include "data_plane/underlay.h"
 #include "scion/scion.h"
 #include "util/linked_list.h"
-#include "data_plane/underlay.h"
 
 #define SCION_MAX_INFS 3
 #define SCION_MAX_HOPS 64
@@ -32,19 +33,6 @@ enum scion_path_type { SCION_PATH_TYPE_EMPTY = 0, SCION_PATH_TYPE_SCION = 1 };
 struct scion_path_raw {
 	uint16_t length;
 	uint8_t *raw;
-};
-
-struct scion_path_interface {
-	uint16_t id;
-	scion_ia ia;
-};
-
-struct scion_path_metadata {
-	uint32_t mtu;
-	int64_t expiry;
-	struct scion_linked_list *interfaces;
-	// TODO: Add additional metadata fields.
-	// https://github.com/scionproto/scion/blob/master/pkg/snet/path.go#L71
 };
 
 struct scion_path {
@@ -217,3 +205,5 @@ int scion_path_deserialize(uint8_t *buf, struct scion_path_meta_hdr *hdr, struct
 	struct scion_linked_list *hop_fields);
 
 int scion_path_meta_hdr_deserialize(const uint8_t *buf, struct scion_path_meta_hdr *hdr);
+
+void scion_path_print_metadata(struct scion_path *path);

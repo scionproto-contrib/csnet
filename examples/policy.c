@@ -20,7 +20,7 @@
 
 #include <scion/scion.h>
 
-static bool has_nine_hops(struct scion_path *path)
+static bool has_nine_hops(struct scion_path *path, void *ctx)
 {
 	return scion_path_get_hops(path) == 9;
 }
@@ -36,9 +36,10 @@ static int compare_mtu(struct scion_path *path_one, struct scion_path *path_two)
 static void policy_filter(struct scion_path_collection *paths)
 {
 	// only use paths that have exactly nine hops
-	scion_path_collection_filter(paths, has_nine_hops);
+	scion_path_collection_filter(paths, (struct scion_path_predicate){ .fn = (scion_path_predicate_fn)has_nine_hops });
 	// sort paths with descending MTU
-	scion_path_collection_sort(paths, compare_mtu, /* ascending */ false);
+	scion_path_collection_sort(
+		paths, (struct scion_path_comparator){ .fn = (scion_path_comparator_fn)compare_mtu, .ascending = false });
 }
 
 int main(int argc, char *argv[])
@@ -48,7 +49,7 @@ int main(int argc, char *argv[])
 	printf("\nHello SCION on Linux\n\n");
 
 	struct scion_topology *topology;
-	ret = scion_topology_from_file(&topology, "topology.json");
+	ret = scion_topology_from_file(&topology, "../topology/topology.json");
 	if (ret != 0) {
 		printf("ERROR: Topology init failed with error code: %d\n", ret);
 		return EXIT_FAILURE;
