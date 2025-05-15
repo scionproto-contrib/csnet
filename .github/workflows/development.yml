@@ -182,7 +182,7 @@ jobs:
           sleep 10
           
           cd ${{ needs.build.outputs.build-dir }}
-          ctest --build-config Debug -L e2e
+          ctest --output-on-failure --build-config Debug -L e2e
           
           cd ${{ steps.scion-repos.outputs.scion-testnet-path }}
           kill -SIGINT $(cat testserver.pid)

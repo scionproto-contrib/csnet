@@ -13,10 +13,9 @@
 // limitations under the License.
 
 #include <arpa/inet.h>
+#include <scion/scion.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#include <scion/scion.h>
 
 int main(int argc, char *argv[])
 {

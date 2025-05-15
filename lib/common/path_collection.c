@@ -35,7 +35,7 @@ int scion_path_collection_init(struct scion_path_collection **paths)
 {
 	assert(paths);
 
-	struct scion_linked_list *list = scion_list_create();
+	struct scion_linked_list *list = scion_list_create(SCION_LIST_CUSTOM_FREE(scion_path_free));
 	struct scion_path_collection *new_paths = scion_path_collection_from_list(list);
 
 	if (new_paths == NULL) {
@@ -53,25 +53,18 @@ void scion_path_collection_free(struct scion_path_collection *paths)
 		return;
 	}
 
-	scion_list_free(paths->list, (scion_list_value_free)scion_path_free);
+	scion_list_free(paths->list);
 	free(paths);
 }
 
-struct scion_path *scion_path_collection_find(struct scion_path_collection *paths, scion_path_predicate predicate)
+struct scion_path *scion_path_collection_find(
+	struct scion_path_collection *paths, struct scion_path_predicate predicate)
 {
 	assert(paths);
 	assert(paths->list);
 
-	struct scion_linked_list_node *node = paths->list->first;
-	while (node != NULL) {
-		if (predicate(node->value)) {
-			return node->value;
-		}
-
-		node = node->next;
-	}
-
-	return NULL;
+	return scion_list_find(paths->list,
+		(struct scion_list_predicate){ .fn = (scion_list_predicate_fn)predicate.fn, .ctx = predicate.ctx });
 }
 
 struct scion_path *scion_path_collection_pop(struct scion_path_collection *paths)
@@ -95,20 +88,22 @@ struct scion_path *scion_path_collection_first(struct scion_path_collection *pat
 	return first->value;
 }
 
-void scion_path_collection_sort(struct scion_path_collection *paths, scion_path_comparator comparator, bool ascending)
+void scion_path_collection_sort(struct scion_path_collection *paths, struct scion_path_comparator comparator)
 {
 	assert(paths);
-	assert(comparator);
 
-	return scion_list_sort(paths->list, (scion_list_comparator *)comparator, ascending);
+	return scion_list_sort(paths->list,
+		(struct scion_list_comparator){
+			.fn = (scion_list_comparator_fn)comparator.fn, .ctx = comparator.ctx, .ascending = comparator.ascending });
 }
 
-void scion_path_collection_filter(struct scion_path_collection *paths, scion_path_predicate predicate)
+void scion_path_collection_filter(struct scion_path_collection *paths, struct scion_path_predicate predicate)
 {
 	assert(paths);
-	assert(predicate);
 
-	return scion_list_filter(paths->list, (scion_list_predicate *)predicate, (scion_list_value_free)scion_path_free);
+	return scion_list_filter(paths->list,
+		(struct scion_list_predicate){ .fn = (scion_list_predicate_fn)predicate.fn, .ctx = predicate.ctx },
+		SCION_LIST_CUSTOM_FREE(scion_path_free));
 }
 
 size_t scion_path_collection_size(struct scion_path_collection *paths)

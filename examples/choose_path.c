@@ -19,7 +19,7 @@
 
 #include <scion/scion.h>
 
-static bool select_path(struct scion_path *path)
+static bool select_path(struct scion_path *path, void *ctx)
 {
 	return scion_path_get_hops(path) == 8 && scion_path_get_mtu(path) == 1400;
 }
@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
 		goto cleanup_socket;
 	}
 
-	struct scion_path *path = scion_path_collection_find(paths, select_path);
+	struct scion_path *path = scion_path_collection_find(paths, (struct scion_path_predicate){ .fn = select_path });
 	if (path == NULL) {
 		printf("ERROR: Failed to find path meeting criteria\n");
 		ret = EXIT_FAILURE;

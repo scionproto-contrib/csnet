@@ -345,6 +345,9 @@ void scion_path_free(struct scion_path *path);
  */
 void scion_path_print(const struct scion_path *path);
 
+// TODO document me
+void scion_path_print_metadata(struct scion_path *path);
+
 /**
  * @struct scion_path_collection
  *
@@ -359,10 +362,22 @@ struct scion_path_collection;
  *
  * @note See @link scion_path_collection_find @endlink.
  */
-typedef bool scion_path_predicate(struct scion_path *path);
+// TODO adjust docs
+typedef bool (*scion_path_predicate_fn)(struct scion_path *path, void *ctx);
+
+struct scion_path_predicate {
+	scion_path_predicate_fn fn;
+	void *ctx;
+};
 
 // TODO: docs
-typedef int scion_path_comparator(struct scion_path *path_one, struct scion_path *path_two);
+typedef int (*scion_path_comparator_fn)(struct scion_path *path_one, struct scion_path *path_two, void *ctx);
+
+struct scion_path_comparator {
+	scion_path_comparator_fn fn;
+	void *ctx;
+	bool ascending;
+};
 
 /**
  * Frees a collection of paths, including the paths themselves.
@@ -376,7 +391,9 @@ void scion_path_collection_free(struct scion_path_collection *paths);
  * @param predicate The predicate function that implements the custom criteria.
  * @return The first path that matches, or NULL if no path matched.
  */
-struct scion_path *scion_path_collection_find(struct scion_path_collection *paths, scion_path_predicate predicate);
+// TODO update docs
+struct scion_path *scion_path_collection_find(
+	struct scion_path_collection *paths, struct scion_path_predicate predicate);
 
 /**
  * Pop the first element of a path collection.
@@ -389,10 +406,10 @@ struct scion_path *scion_path_collection_pop(struct scion_path_collection *paths
 struct scion_path *scion_path_collection_first(struct scion_path_collection *paths);
 
 // TODO: docs
-void scion_path_collection_sort(struct scion_path_collection *paths, scion_path_comparator comparator, bool ascending);
+void scion_path_collection_sort(struct scion_path_collection *paths, struct scion_path_comparator comparator);
 
 // TODO: docs
-void scion_path_collection_filter(struct scion_path_collection *paths, scion_path_predicate predicate);
+void scion_path_collection_filter(struct scion_path_collection *paths, struct scion_path_predicate predicate);
 
 // TODO: docs
 size_t scion_path_collection_size(struct scion_path_collection *paths);
@@ -432,6 +449,12 @@ extern const struct scion_policy scion_policy_highest_mtu;
  * A policy that prefers paths with few hops.
  */
 extern const struct scion_policy scion_policy_least_hops;
+
+// TODO document me
+extern const struct scion_policy scion_policy_lowest_latency;
+
+// TODO document me
+extern const struct scion_policy scion_policy_highest_bandwidth;
 
 /**
  * @struct scion_socket

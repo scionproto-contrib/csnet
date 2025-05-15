@@ -24,6 +24,8 @@
 #include "proto/control_plane/v1/seg.pb-c.h"
 #include "util/http2_rpc.h"
 
+#include <util/map.h>
+
 #define SEGMENTS_PATH "/proto.control_plane.v1.SegmentLookupService/Segments"
 #define INITIAL_RPC_OUTPUT_BUFFER_SIZE (2 << 15)
 
@@ -198,7 +200,7 @@ static int protobuf_to_path_segments(
 			Proto__ControlPlane__V1__ASEntrySignedBody *pb_as_entry
 				= proto__control_plane__v1__asentry_signed_body__unpack(NULL, hb->body.len, hb->body.data);
 
-			struct scion_as_entry *curr_as_entry = malloc(sizeof(*curr_as_entry));
+			struct scion_as_entry *curr_as_entry = calloc(1, sizeof(*curr_as_entry));
 			pathseg->as_entries[j] = curr_as_entry;
 			// local IA
 			curr_as_entry->local = pb_as_entry->isd_as;
@@ -234,6 +236,113 @@ static int protobuf_to_path_segments(
 			}
 			// MTU
 			curr_as_entry->mtu = (uint16_t)pb_as_entry->mtu;
+
+			if (pb_as_entry->extensions != NULL) {
+				Proto__ControlPlane__V1__StaticInfoExtension *pb_static_info = pb_as_entry->extensions->static_info;
+
+				if (pb_static_info != NULL) {
+					curr_as_entry->extensions.static_info = calloc(1, sizeof(*curr_as_entry->extensions.static_info));
+
+					if (pb_static_info->latency != NULL) {
+						struct scion_map *intra_latency = scion_map_create(
+							sizeof(scion_interface_id), SCION_MAP_SIMPLE_FREE);
+						for (size_t k = 0; k < pb_static_info->latency->n_intra; k++) {
+							struct timeval *latency = malloc(sizeof(*latency));
+							time_t seconds = pb_static_info->latency->intra[k]->value / 1000000;
+							suseconds_t microseconds = pb_static_info->latency->intra[k]->value % 1000000;
+							*latency = (struct timeval){ .tv_sec = seconds, .tv_usec = microseconds };
+							scion_map_put(intra_latency, &pb_static_info->latency->intra[k]->key, latency);
+						}
+
+						struct scion_map *inter_latency = scion_map_create(
+							sizeof(scion_interface_id), SCION_MAP_SIMPLE_FREE);
+
+						for (size_t k = 0; k < pb_static_info->latency->n_inter; k++) {
+							struct timeval *latency = malloc(sizeof(*latency));
+							time_t seconds = pb_static_info->latency->inter[k]->value / 1000000;
+							suseconds_t microseconds = pb_static_info->latency->inter[k]->value % 1000000;
+							*latency = (struct timeval){ .tv_sec = seconds, .tv_usec = microseconds };
+							scion_map_put(inter_latency, &pb_static_info->latency->inter[k]->key, latency);
+						}
+
+						curr_as_entry->extensions.static_info->latency = malloc(
+							sizeof(*curr_as_entry->extensions.static_info->latency));
+						curr_as_entry->extensions.static_info->latency->intra = intra_latency;
+						curr_as_entry->extensions.static_info->latency->inter = inter_latency;
+					}
+
+					if (pb_static_info->bandwidth != NULL) {
+						struct scion_map *intra_bandwidth = scion_map_create(
+							sizeof(scion_interface_id), SCION_MAP_SIMPLE_FREE);
+						for (size_t k = 0; k < pb_static_info->bandwidth->n_intra; k++) {
+							uint64_t *bandwidth = malloc(sizeof(*bandwidth));
+							*bandwidth = pb_static_info->bandwidth->intra[k]->value;
+							scion_map_put(intra_bandwidth, &pb_static_info->bandwidth->intra[k]->key, bandwidth);
+						}
+
+						struct scion_map *inter_bandwidth = scion_map_create(
+							sizeof(scion_interface_id), SCION_MAP_SIMPLE_FREE);
+
+						for (size_t k = 0; k < pb_static_info->bandwidth->n_inter; k++) {
+							uint64_t *bandwidth = malloc(sizeof(*bandwidth));
+							*bandwidth = pb_static_info->bandwidth->inter[k]->value;
+							scion_map_put(inter_bandwidth, &pb_static_info->bandwidth->inter[k]->key, bandwidth);
+						}
+
+						curr_as_entry->extensions.static_info->bandwidth = malloc(
+							sizeof(*curr_as_entry->extensions.static_info->bandwidth));
+						curr_as_entry->extensions.static_info->bandwidth->intra = intra_bandwidth;
+						curr_as_entry->extensions.static_info->bandwidth->inter = inter_bandwidth;
+					}
+
+					if (pb_static_info->geo != NULL) {
+						struct scion_map *geo = scion_map_create(
+							sizeof(scion_interface_id), SCION_MAP_CUSTOM_FREE(scion_geo_coordinates_free));
+						for (size_t k = 0; k < pb_static_info->n_geo; k++) {
+							struct scion_geo_coordinates *curr_geo = malloc(sizeof(*curr_geo));
+							curr_geo->latitude = pb_static_info->geo[k]->value->latitude;
+							curr_geo->longitude = pb_static_info->geo[k]->value->longitude;
+
+							char *address = pb_static_info->geo[k]->value->address;
+							curr_geo->address = address == NULL ? NULL : strdup(address);
+
+							scion_map_put(geo, &pb_static_info->geo[k]->key, curr_geo);
+						}
+
+						curr_as_entry->extensions.static_info->geo = geo;
+					}
+
+					if (pb_static_info->link_type != NULL) {
+						struct scion_map *link_type = scion_map_create(
+							sizeof(scion_interface_id), SCION_MAP_SIMPLE_FREE);
+						for (size_t k = 0; k < pb_static_info->n_link_type; k++) {
+							enum scion_link_type *curr_link_type = malloc(sizeof(*curr_link_type));
+							*curr_link_type = (enum scion_link_type)pb_static_info->link_type[k]->value;
+
+							scion_map_put(link_type, &pb_static_info->link_type[k]->key, curr_link_type);
+						}
+
+						curr_as_entry->extensions.static_info->link_type = link_type;
+					}
+
+					if (pb_static_info->internal_hops != NULL) {
+						struct scion_map *internal_hops = scion_map_create(
+							sizeof(scion_interface_id), SCION_MAP_SIMPLE_FREE);
+						for (size_t k = 0; k < pb_static_info->n_internal_hops; k++) {
+							uint32_t *curr_internal_hops = malloc(sizeof(*curr_internal_hops));
+							*curr_internal_hops = pb_static_info->internal_hops[k]->value;
+
+							scion_map_put(internal_hops, &pb_static_info->internal_hops[k]->key, curr_internal_hops);
+						}
+
+						curr_as_entry->extensions.static_info->internal_hops = internal_hops;
+					}
+
+					if (pb_static_info->note != NULL) {
+						curr_as_entry->extensions.static_info->note = strdup(pb_static_info->note);
+					}
+				}
+			}
 
 			proto__crypto__v1__header_and_body_internal__free_unpacked(hb, NULL);
 			proto__control_plane__v1__asentry_signed_body__free_unpacked(pb_as_entry, NULL);
