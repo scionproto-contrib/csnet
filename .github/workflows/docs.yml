@@ -52,6 +52,7 @@ jobs:
           cmake
           -DBUILD_DOCS=ON
           -DBUILD_LIB=OFF
+          -DBUILD_CMD=OFF
           -DBUILD_TESTS=OFF
           -DBUILD_EXAMPLES=OFF
           -DCMAKE_BUILD_TYPE=Debug
