@@ -151,7 +151,7 @@ int scion_test_serialize_path(void)
 	hdr.seg_len[1] = 2;
 	hdr.seg_len[2] = 2;
 
-	struct scion_linked_list *info_fields = scion_list_create();
+	struct scion_linked_list *info_fields = scion_list_create(SCION_LIST_NO_FREE_VALUES);
 
 	struct scion_info_field info_field_0;
 	info_field_0.peer = false;
@@ -175,7 +175,7 @@ int scion_test_serialize_path(void)
 	scion_list_append(info_fields, &info_field_1);
 	scion_list_append(info_fields, &info_field_2);
 
-	struct scion_linked_list *hop_fields = scion_list_create();
+	struct scion_linked_list *hop_fields = scion_list_create(SCION_LIST_NO_FREE_VALUES);
 
 	struct scion_hop_field hop_field_0;
 	hop_field_0.ingress_router_alert = false;
@@ -265,8 +265,8 @@ int scion_test_serialize_path(void)
 	uint8_t buf[100];
 	int ret = scion_path_serialize(&hdr, info_fields, hop_fields, buf);
 
-	scion_list_free(info_fields, NULL);
-	scion_list_free(hop_fields, NULL);
+	scion_list_free(info_fields);
+	scion_list_free(hop_fields);
 
 	if (ret != 0) {
 		return ret;

@@ -60,9 +60,9 @@ static void configure_led(void)
 	led_strip_clear(led_strip);
 }
 
-static bool select_path(struct scion_path *path)
+static bool select_path(struct scion_path *path, void *ctx)
 {
-	return scion_path_get_weight(path) == 8 && scion_path_get_mtu(path) == 1400;
+	return scion_path_get_hops(path) == 8 && scion_path_get_mtu(path) == 1400;
 }
 
 static void example_task(void *args)
@@ -187,7 +187,7 @@ static void example_task(void *args)
 	rx_buf[ret] = '\0';
 
 	// ### Set Path (and resent UDP) ###
-	struct scion_path *path = scion_path_collection_find(paths, select_path);
+	struct scion_path *path = scion_path_collection_find(paths, (struct scion_path_predicate){ .fn = select_path });
 	if (path == NULL) {
 		printf("ERROR: Failed to find path meeting criteria\n");
 		goto cleanup_paths;

@@ -17,8 +17,8 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
-#include "util/linked_list.h"
 #include "test_linked_list.h"
+#include "util/linked_list.h"
 
 #include <unistd.h>
 
@@ -30,8 +30,7 @@ int scion_test_example(void)
 int scion_test_list_create(void)
 {
 	int ret = 0;
-	struct scion_linked_list *list = NULL;
-	list = scion_list_create();
+	struct scion_linked_list *list = scion_list_create(SCION_LIST_NO_FREE_VALUES);
 
 	if (list == NULL) {
 		return 1;
@@ -51,7 +50,7 @@ int scion_test_list_create(void)
 
 int scion_test_list_append(void)
 {
-	struct scion_linked_list *list = scion_list_create();
+	struct scion_linked_list *list = scion_list_create(SCION_LIST_NO_FREE_VALUES);
 
 	int a = 1001;
 
@@ -115,18 +114,18 @@ int scion_test_list_append(void)
 		goto cleanup_list;
 	}
 
-	scion_list_free(list, NULL);
+	scion_list_free(list);
 	return 0;
 
 cleanup_list:
-	scion_list_free(list, NULL);
+	scion_list_free(list);
 	return 1;
 }
 
 int scion_test_list_append_all_null(void)
 {
 	int ret = 0;
-	struct scion_linked_list *list = scion_list_create();
+	struct scion_linked_list *list = scion_list_create(SCION_LIST_NO_FREE_VALUES);
 
 	int a = 1;
 	int b = 2;
@@ -140,7 +139,7 @@ int scion_test_list_append_all_null(void)
 		ret = 1;
 	}
 
-	scion_list_free(list, NULL);
+	scion_list_free(list);
 	return ret;
 }
 
@@ -148,8 +147,8 @@ int scion_test_list_append_all(void)
 {
 	int ret = 0;
 
-	struct scion_linked_list *list_1 = scion_list_create();
-	struct scion_linked_list *list_2 = scion_list_create();
+	struct scion_linked_list *list_1 = scion_list_create(SCION_LIST_NO_FREE_VALUES);
+	struct scion_linked_list *list_2 = scion_list_create(SCION_LIST_NO_FREE_VALUES);
 
 	int a = 1;
 	int b = 2;
@@ -166,8 +165,8 @@ int scion_test_list_append_all(void)
 	scion_list_append_all(list_1, list_2);
 
 	if (list_1->size != 4) {
-		scion_list_free(list_1, NULL);
-		scion_list_free(list_2, NULL);
+		scion_list_free(list_1);
+		scion_list_free(list_2);
 		return 1;
 	}
 
@@ -190,8 +189,8 @@ int scion_test_list_append_all(void)
 	}
 
 	if (list_2->size != 2) {
-		scion_list_free(list_1, NULL);
-		scion_list_free(list_2, NULL);
+		scion_list_free(list_1);
+		scion_list_free(list_2);
 		return 1;
 	}
 
@@ -205,8 +204,8 @@ int scion_test_list_append_all(void)
 		ret = 1;
 	}
 
-	scion_list_free(list_1, NULL);
-	scion_list_free(list_2, NULL);
+	scion_list_free(list_1);
+	scion_list_free(list_2);
 	return ret;
 }
 
@@ -218,7 +217,7 @@ int scion_test_list_pop(void)
 		ret = 1;
 	}
 
-	struct scion_linked_list *list = scion_list_create();
+	struct scion_linked_list *list = scion_list_create(SCION_LIST_NO_FREE_VALUES);
 
 	if (scion_list_pop(list) != NULL) {
 		ret = 1;
@@ -250,7 +249,7 @@ int scion_test_list_pop(void)
 		ret = 1;
 	}
 
-	scion_list_free(list, NULL);
+	scion_list_free(list);
 	return ret;
 }
 
@@ -258,12 +257,12 @@ int scion_test_list_reverse(void)
 {
 	int ret = 0;
 
-	struct scion_linked_list *list = scion_list_create();
+	struct scion_linked_list *list = scion_list_create(SCION_LIST_NO_FREE_VALUES);
 	struct scion_linked_list_node *curr;
 
 	scion_list_reverse(list);
 	if (list->size != 0) {
-		scion_list_free(list, NULL);
+		scion_list_free(list);
 		return 1;
 	}
 
@@ -276,7 +275,7 @@ int scion_test_list_reverse(void)
 	scion_list_append(list, &a);
 	scion_list_reverse(list);
 	if (list->size != 1) {
-		scion_list_free(list, NULL);
+		scion_list_free(list);
 		return 1;
 	}
 	if (*((int *)list->first->value) != 1) {
@@ -287,7 +286,7 @@ int scion_test_list_reverse(void)
 	scion_list_append(list, &b);
 	scion_list_reverse(list);
 	if (list->size != 2) {
-		scion_list_free(list, NULL);
+		scion_list_free(list);
 		return 1;
 	}
 	curr = list->first;
@@ -301,7 +300,7 @@ int scion_test_list_reverse(void)
 
 	scion_list_reverse(list);
 	if (list->size != 2) {
-		scion_list_free(list, NULL);
+		scion_list_free(list);
 		return 1;
 	}
 	curr = list->first;
@@ -317,7 +316,7 @@ int scion_test_list_reverse(void)
 	scion_list_append(list, &c);
 	scion_list_reverse(list);
 	if (list->size != 3) {
-		scion_list_free(list, NULL);
+		scion_list_free(list);
 		return 1;
 	}
 	curr = list->first;
@@ -335,7 +334,7 @@ int scion_test_list_reverse(void)
 
 	scion_list_reverse(list);
 	if (list->size != 3) {
-		scion_list_free(list, NULL);
+		scion_list_free(list);
 		return 1;
 	}
 	curr = list->first;
@@ -355,7 +354,7 @@ int scion_test_list_reverse(void)
 	scion_list_append(list, &d);
 	scion_list_reverse(list);
 	if (list->size != 4) {
-		scion_list_free(list, NULL);
+		scion_list_free(list);
 		return 1;
 	}
 	curr = list->first;
@@ -377,7 +376,7 @@ int scion_test_list_reverse(void)
 
 	scion_list_reverse(list);
 	if (list->size != 4) {
-		scion_list_free(list, NULL);
+		scion_list_free(list);
 		return 1;
 	}
 	curr = list->first;
@@ -397,7 +396,7 @@ int scion_test_list_reverse(void)
 		ret = 1;
 	}
 
-	scion_list_free(list, NULL);
+	scion_list_free(list);
 	return ret;
 }
 
@@ -405,14 +404,14 @@ int scion_test_list_reverse(void)
 int scion_test_list_free(void)
 {
 	int ret = 0;
-	struct scion_linked_list *list = scion_list_create();
+	struct scion_linked_list *list = scion_list_create(SCION_LIST_NO_FREE_VALUES);
 
 	uint64_t random_val = ((uint64_t)rand() << 32) | ((uint64_t)rand());
 	uint64_t *heap_memory = malloc(sizeof(*heap_memory));
 	*heap_memory = random_val;
 	scion_list_append(list, heap_memory);
 
-	scion_list_free(list, NULL);
+	scion_list_free(list);
 
 	// Check that heap_memory is not freed
 	pid_t pid = fork();
@@ -449,14 +448,14 @@ exit:
 int scion_test_list_free_value(void)
 {
 	int ret = 0;
-	struct scion_linked_list *list = scion_list_create();
+	struct scion_linked_list *list = scion_list_create(SCION_LIST_SIMPLE_FREE);
 
 	uint64_t random_val = ((uint64_t)rand() << 32) | ((uint64_t)rand());
 	uint64_t *heap_memory = malloc(sizeof(*heap_memory));
 	*heap_memory = random_val;
 	scion_list_append(list, heap_memory);
 
-	scion_list_free(list, free);
+	scion_list_free(list);
 
 	// Check that heap_memory is freed
 	pid_t pid = fork();
@@ -505,7 +504,7 @@ static void custom_free(struct custom_struct *custom)
 int scion_test_list_free_value_custom(void)
 {
 	int ret = 0;
-	struct scion_linked_list *list = scion_list_create();
+	struct scion_linked_list *list = scion_list_create(SCION_LIST_CUSTOM_FREE(custom_free));
 
 	uint64_t random_val = ((uint64_t)rand() << 32) | ((uint64_t)rand());
 	uint64_t *heap_memory = malloc(sizeof(*heap_memory));
@@ -515,7 +514,7 @@ int scion_test_list_free_value_custom(void)
 
 	scion_list_append(list, custom);
 
-	scion_list_free(list, (scion_list_value_free)custom_free);
+	scion_list_free(list);
 
 	// Check that heap_memory is freed with custom freeing function
 	pid_t pid = fork();

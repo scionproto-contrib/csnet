@@ -19,6 +19,31 @@
 #include "common/hop_field.h"
 #include "common/isd_as.h"
 
+struct scion_latency_info {
+	struct scion_map *intra;
+	struct scion_map *inter;
+};
+
+struct scion_bandwidth_info {
+	struct scion_map *intra;
+	struct scion_map *inter;
+};
+
+struct scion_static_info_extension {
+	struct scion_latency_info *latency;
+	struct scion_bandwidth_info *bandwidth;
+	struct scion_map *geo;
+	struct scion_map *link_type;
+	struct scion_map *internal_hops;
+	char *note;
+};
+
+struct scion_path_segment_extensions {
+	struct scion_static_info_extension *static_info;
+
+	// TODO add other extensions
+};
+
 struct scion_hop_entry {
 	// hop_field contains the necessary information to create a data-plane hop.
 	struct scion_hop_field hop_field;
@@ -52,7 +77,9 @@ struct scion_as_entry {
 	struct scion_peer_entry **peer_entries;
 	// mtu is the AS internal MTU.
 	uint16_t mtu;
-	// TODO add extensions
+
+	// Optional extensions.
+	struct scion_path_segment_extensions extensions;
 	// TODO add unsigned extensions
 };
 

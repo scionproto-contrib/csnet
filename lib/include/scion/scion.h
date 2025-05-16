@@ -320,11 +320,11 @@ struct scion_path;
 int scion_path_reverse(struct scion_path *path);
 
 /**
- * Gets the weight of a path.
+ * Gets the hops of a path.
  * @param[in] path The path.
- * @return The weight of the path.
+ * @return The hops of the path.
  */
-uint32_t scion_path_get_weight(const struct scion_path *path);
+size_t scion_path_get_hops(const struct scion_path *path);
 
 /**
  * Gets the MTU of a path.
@@ -345,6 +345,9 @@ void scion_path_free(struct scion_path *path);
  */
 void scion_path_print(const struct scion_path *path);
 
+// TODO document me
+void scion_path_print_metadata(struct scion_path *path);
+
 /**
  * @struct scion_path_collection
  *
@@ -359,7 +362,22 @@ struct scion_path_collection;
  *
  * @note See @link scion_path_collection_find @endlink.
  */
-typedef bool scion_path_selector(struct scion_path *path);
+// TODO adjust docs
+typedef bool (*scion_path_predicate_fn)(struct scion_path *path, void *ctx);
+
+struct scion_path_predicate {
+	scion_path_predicate_fn fn;
+	void *ctx;
+};
+
+// TODO: docs
+typedef int (*scion_path_comparator_fn)(struct scion_path *path_one, struct scion_path *path_two, void *ctx);
+
+struct scion_path_comparator {
+	scion_path_comparator_fn fn;
+	void *ctx;
+	bool ascending;
+};
 
 /**
  * Frees a collection of paths, including the paths themselves.
@@ -370,10 +388,12 @@ void scion_path_collection_free(struct scion_path_collection *paths);
 /**
  * Finds the first path that matches a custom criteria.
  * @param[in] paths The path collection.
- * @param selector The selector function that implements the custom criteria.
+ * @param predicate The predicate function that implements the custom criteria.
  * @return The first path that matches, or NULL if no path matched.
  */
-struct scion_path *scion_path_collection_find(struct scion_path_collection *paths, scion_path_selector selector);
+// TODO update docs
+struct scion_path *scion_path_collection_find(
+	struct scion_path_collection *paths, struct scion_path_predicate predicate);
 
 /**
  * Pop the first element of a path collection.
@@ -381,6 +401,18 @@ struct scion_path *scion_path_collection_find(struct scion_path_collection *path
  * @return The first element of the path collection, or NULL if the path collection is empty.
  */
 struct scion_path *scion_path_collection_pop(struct scion_path_collection *paths);
+
+// TODO: docs
+struct scion_path *scion_path_collection_first(struct scion_path_collection *paths);
+
+// TODO: docs
+void scion_path_collection_sort(struct scion_path_collection *paths, struct scion_path_comparator comparator);
+
+// TODO: docs
+void scion_path_collection_filter(struct scion_path_collection *paths, struct scion_path_predicate predicate);
+
+// TODO: docs
+size_t scion_path_collection_size(struct scion_path_collection *paths);
 
 /**
  * Prints a path collection to stdout.
@@ -397,6 +429,32 @@ void scion_path_collection_print(struct scion_path_collection *paths);
  * @return 0 on success, a negative error code on failure.
  */
 int scion_fetch_paths(struct scion_network *network, scion_ia dst, uint opt, struct scion_path_collection **paths);
+
+/**
+ * A SCION path policy.
+ */
+struct scion_policy {
+	/**
+	 * TODO: add some details here
+	 */
+	void (*filter)(struct scion_path_collection *paths);
+};
+
+/**
+ * A policy that prefers paths with higher MTUs.
+ */
+extern const struct scion_policy scion_policy_highest_mtu;
+
+/**
+ * A policy that prefers paths with few hops.
+ */
+extern const struct scion_policy scion_policy_least_hops;
+
+// TODO document me
+extern const struct scion_policy scion_policy_lowest_latency;
+
+// TODO document me
+extern const struct scion_policy scion_policy_highest_bandwidth;
 
 /**
  * @struct scion_socket
@@ -562,14 +620,6 @@ int scion_setsockopt(struct scion_socket *scion_sock, int level, int optname, co
 int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, socklen_t *addrlen, scion_ia *ia);
 
 /**
- * Gets the current path of a connected socket.
- * @param[in] scion_sock The socket.
- * @param[out] path The current path.
- * @return 0 on success, a negative error code on failure.
- */
-int scion_getsockpath(struct scion_socket *scion_sock, struct scion_path **path);
-
-/**
  * Gets the file descriptor of the underlying system socket.
  * @param[in] scion_sock The socket.
  * @param[out] fd The file descriptor of the underlying system socket.
@@ -586,6 +636,9 @@ int scion_getsockfd(struct scion_socket *scion_sock, int *fd);
  * @return 0 on success, a negative error code on failure.
  */
 int scion_setsockerrcb(struct scion_socket *scion_sock, scion_socket_scmp_error_cb cb, void *ctx);
+
+// TODO: docs
+int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy policy);
 
 /**
  * Prints a SCION address pair to stdout.

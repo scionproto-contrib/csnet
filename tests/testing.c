@@ -20,6 +20,7 @@
 #include "data_plane/test_serialization.h"
 #include "testing.h"
 #include "util/test_linked_list.h"
+#include "util/test_map.h"
 
 #include <assert.h>
 #include <string.h>
@@ -29,23 +30,19 @@ struct test {
 	int (*func)(void);
 };
 
-static struct test tests[] = {
-	{ .name = "list_create", .func = scion_test_list_create },
+static struct test tests[] = { { .name = "list_create", .func = scion_test_list_create },
 	{ .name = "list_append", .func = scion_test_list_append },
 	{ .name = "list_append_all", .func = scion_test_list_append_all },
 	{ .name = "list_append_all_null", .func = scion_test_list_append_all_null },
-	{ .name = "list_pop", .func = scion_test_list_pop },
-	{ .name = "list_reverse", .func = scion_test_list_reverse },
+	{ .name = "list_pop", .func = scion_test_list_pop }, { .name = "list_reverse", .func = scion_test_list_reverse },
 	{ .name = "list_free", .func = scion_test_list_free },
 	{ .name = "list_free_value", .func = scion_test_list_free_value },
 	{ .name = "list_free_value_custom", .func = scion_test_list_free_value_custom },
 	{ .name = "ia_from_isd_as", .func = scion_test_ia_from_isd_as },
 	{ .name = "ia_from_isd_as_too_large_as", .func = scion_test_ia_from_isd_as_too_large_as },
-	{ .name = "get_isd", .func = scion_test_get_isd },
-	{ .name = "get_as", .func = scion_test_get_as },
+	{ .name = "get_isd", .func = scion_test_get_isd }, { .name = "get_as", .func = scion_test_get_as },
 	{ .name = "to_wildcard", .func = scion_test_to_wildcard },
-	{ .name = "is_wildcard", .func = scion_test_is_wildcard },
-	{ .name = "parse_ia", .func = scion_test_parse_ia },
+	{ .name = "is_wildcard", .func = scion_test_is_wildcard }, { .name = "parse_ia", .func = scion_test_parse_ia },
 	{ .name = "serialize_udp", .func = scion_test_serialize_udp },
 	{ .name = "serialize_meta_hdr", .func = scion_test_serialize_meta_hdr },
 	{ .name = "serialize_info_field", .func = scion_test_serialize_info_field },
@@ -61,7 +58,7 @@ static struct test tests[] = {
 	{ .name = "deserialize_scion_packet", .func = scion_test_deserialize_scion_packet },
 	{ .name = "init_raw_path", .func = scion_test_init_raw_path },
 	{ .name = "reverse_path", .func = scion_test_reverse_path },
-};
+	{ .name = "map_example", .func = scion_test_map_example } };
 
 int main(int argc, char *argv[])
 {

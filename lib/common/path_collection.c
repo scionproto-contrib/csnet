@@ -20,20 +20,30 @@
 
 #include "common/path_collection.h"
 
+static struct scion_path_collection *scion_path_collection_from_list(struct scion_linked_list *list)
+{
+	struct scion_path_collection *paths = malloc(sizeof(*paths));
+	if (paths == NULL) {
+		return NULL;
+	}
+
+	paths->list = list;
+	return paths;
+}
+
 int scion_path_collection_init(struct scion_path_collection **paths)
 {
-	struct scion_path_collection *new_paths = malloc(sizeof(*paths));
+	assert(paths);
+
+	struct scion_linked_list *list = scion_list_create(SCION_LIST_CUSTOM_FREE(scion_path_free));
+	struct scion_path_collection *new_paths = scion_path_collection_from_list(list);
+
 	if (new_paths == NULL) {
 		return SCION_MEM_ALLOC_FAIL;
 	}
 
-	new_paths->list = scion_list_create();
-	if (new_paths->list == NULL) {
-		free(new_paths);
-		return SCION_MEM_ALLOC_FAIL;
-	}
-
 	*paths = new_paths;
+
 	return 0;
 }
 
@@ -43,25 +53,18 @@ void scion_path_collection_free(struct scion_path_collection *paths)
 		return;
 	}
 
-	scion_list_free(paths->list, (scion_list_value_free)scion_path_free);
+	scion_list_free(paths->list);
 	free(paths);
 }
 
-struct scion_path *scion_path_collection_find(struct scion_path_collection *paths, scion_path_selector selector)
+struct scion_path *scion_path_collection_find(
+	struct scion_path_collection *paths, struct scion_path_predicate predicate)
 {
 	assert(paths);
 	assert(paths->list);
 
-	struct scion_linked_list_node *node = paths->list->first;
-	while (node != NULL) {
-		if (selector(node->value)) {
-			return node->value;
-		}
-
-		node = node->next;
-	}
-
-	return NULL;
+	return scion_list_find(paths->list,
+		(struct scion_list_predicate){ .fn = (scion_list_predicate_fn)predicate.fn, .ctx = predicate.ctx });
 }
 
 struct scion_path *scion_path_collection_pop(struct scion_path_collection *paths)
@@ -70,6 +73,44 @@ struct scion_path *scion_path_collection_pop(struct scion_path_collection *paths
 	assert(paths->list);
 
 	return scion_list_pop(paths->list);
+}
+
+struct scion_path *scion_path_collection_first(struct scion_path_collection *paths)
+{
+	assert(paths);
+
+	struct scion_linked_list_node *first = paths->list->first;
+
+	if (first == NULL) {
+		return NULL;
+	}
+
+	return first->value;
+}
+
+void scion_path_collection_sort(struct scion_path_collection *paths, struct scion_path_comparator comparator)
+{
+	assert(paths);
+
+	return scion_list_sort(paths->list,
+		(struct scion_list_comparator){
+			.fn = (scion_list_comparator_fn)comparator.fn, .ctx = comparator.ctx, .ascending = comparator.ascending });
+}
+
+void scion_path_collection_filter(struct scion_path_collection *paths, struct scion_path_predicate predicate)
+{
+	assert(paths);
+
+	return scion_list_filter(paths->list,
+		(struct scion_list_predicate){ .fn = (scion_list_predicate_fn)predicate.fn, .ctx = predicate.ctx },
+		SCION_LIST_CUSTOM_FREE(scion_path_free));
+}
+
+size_t scion_path_collection_size(struct scion_path_collection *paths)
+{
+	assert(paths);
+
+	return paths->list->size;
 }
 
 void scion_path_collection_print(struct scion_path_collection *paths)
@@ -81,7 +122,7 @@ void scion_path_collection_print(struct scion_path_collection *paths)
 	(void)printf("Available paths:\n");
 	uint16_t i = 0;
 	struct scion_linked_list_node *curr = list->first;
-	uint32_t length = 0;
+	size_t length = 0;
 	while (curr) {
 		struct scion_path *path = curr->value;
 
@@ -101,7 +142,7 @@ void scion_path_collection_print(struct scion_path_collection *paths)
 
 			if ((path->metadata->interfaces->size / 2 + 1) > length) {
 				length = (path->metadata->interfaces->size / 2 + 1);
-				(void)printf("%" PRIu32 " Hops:\n", length);
+				(void)printf("%zu Hops:\n", length);
 			}
 		}
 
