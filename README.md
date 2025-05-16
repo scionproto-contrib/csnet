@@ -25,18 +25,19 @@ Building the documentation (in `./docs`) requires:
 Setup the CMake build directory in `./dist` with
 
 ```bash
-cmake -DBUILD_CMD=ON -DBUILD_EXAMPLES=ON -DBUILD_TESTS=OFF -DBUILD_DOCS=OFF -B dist
+cmake -DBUILD_LIB=ON -DBUILD_CMD=ON -DBUILD_EXAMPLES=ON -DBUILD_TESTS=OFF -DBUILD_DOCS=OFF -B dist
 ```
 
 The following options exist:
 
-- `BUILD_CMD`: additionally build the command line tools in `./cmd`
-- `BUILD_EXAMPLES`: additionally build the examples in `./examples`.
-- `BUILD_TESTS`: additionally build the tests in `./tests`, the cmd tools in `./cmd` and some of the examples in
-  `./examples` that serve
-  as E2E tests. This means that even if `BUILD_EXAMPLES` is `OFF` some examples may still be built if `BUILD_TESTS` is
+- `BUILD_LIB`: build the library in `./lib`
+- `BUILD_CMD`: build the command line tools in `./cmd`
+- `BUILD_EXAMPLES`: build the examples in `./examples`.
+- `BUILD_TESTS`: build the tests in `./tests`, the cmd tools in `./cmd` and some of the examples in
+  `./examples` that serve as E2E tests. This means that even if `BUILD_EXAMPLES` is `OFF` some examples may still be
+  built if `BUILD_TESTS` is
   `ON`. The same holds for `BUILD_CMD`.
-- `BUILD_DOCS`: additionally build the docs which are output to `./docs/api`.
+- `BUILD_DOCS`: build the docs which are output to `./docs/api`.
 
 Build everything with
 
