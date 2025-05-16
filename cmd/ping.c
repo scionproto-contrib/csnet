@@ -289,20 +289,20 @@ static void print_help()
 	printf(" ping -c 3 2-ff00:0:222,fd00:f00d:cafe::7f00:55 topology.json\n");
 	printf("\n");
 	printf("Options:\n");
-	printf(" -c, --count uint16            total number of packets to send\n");
+	printf(" -c, --count uint16            total number of packets to send (default is 3)\n");
 	printf(" -h, --help                    help for ping\n");
 	printf(" -l, --local ip                local IP address to listen to\n");
 	printf(" -s, --payload-size uint16     number of bytes to be sent in addition to the SCION Header and SCMP echo "
-		   "header\n");
+		   "header (default is 0)\n");
 	printf("     --timeout seconds         timeout per packet in seconds (default is 1)\n");
-	printf("     --dispatcher-network      network still uses dispatchers\n");
+	printf("     --dispatcher-network      network still requires dispatchers (ensures ping uses local port 30041)\n");
 }
 
 int main(int argc, char **argv)
 {
 	int ret = EXIT_SUCCESS;
 
-	uint16_t count = 0;
+	uint16_t count = 3;
 	char *local_ip = NULL;
 	uint16_t payload_size = 0;
 	struct timeval timeout = { .tv_sec = 1, .tv_usec = 0 };
