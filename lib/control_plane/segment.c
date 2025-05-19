@@ -29,6 +29,8 @@
 #define SEGMENTS_PATH "/proto.control_plane.v1.SegmentLookupService/Segments"
 #define INITIAL_RPC_OUTPUT_BUFFER_SIZE (2 << 15)
 
+#define INTERFACE_KEY_SIZE 8
+
 static int set_split_seg(struct scion_split_segments *split_seg, bool has_up, scion_ia up_src, scion_ia up_dst,
 	bool has_core, scion_ia core_src, scion_ia core_dst, bool has_down, scion_ia down_src, scion_ia down_dst)
 {
@@ -245,7 +247,8 @@ static int protobuf_to_path_segments(
 
 					if (pb_static_info->latency != NULL) {
 						struct scion_map *intra_latency = scion_map_create(
-							sizeof(scion_interface_id), SCION_MAP_SIMPLE_FREE);
+							(struct scion_map_key_config){ .size = INTERFACE_KEY_SIZE, .serialize = NULL },
+							SCION_MAP_SIMPLE_FREE);
 						for (size_t k = 0; k < pb_static_info->latency->n_intra; k++) {
 							struct timeval *latency = malloc(sizeof(*latency));
 							time_t seconds = pb_static_info->latency->intra[k]->value / 1000000;
@@ -255,7 +258,8 @@ static int protobuf_to_path_segments(
 						}
 
 						struct scion_map *inter_latency = scion_map_create(
-							sizeof(scion_interface_id), SCION_MAP_SIMPLE_FREE);
+							(struct scion_map_key_config){ .size = INTERFACE_KEY_SIZE, .serialize = NULL },
+							SCION_MAP_SIMPLE_FREE);
 
 						for (size_t k = 0; k < pb_static_info->latency->n_inter; k++) {
 							struct timeval *latency = malloc(sizeof(*latency));
@@ -273,7 +277,8 @@ static int protobuf_to_path_segments(
 
 					if (pb_static_info->bandwidth != NULL) {
 						struct scion_map *intra_bandwidth = scion_map_create(
-							sizeof(scion_interface_id), SCION_MAP_SIMPLE_FREE);
+							(struct scion_map_key_config){ .size = INTERFACE_KEY_SIZE, .serialize = NULL },
+							SCION_MAP_SIMPLE_FREE);
 						for (size_t k = 0; k < pb_static_info->bandwidth->n_intra; k++) {
 							uint64_t *bandwidth = malloc(sizeof(*bandwidth));
 							*bandwidth = pb_static_info->bandwidth->intra[k]->value;
@@ -281,7 +286,8 @@ static int protobuf_to_path_segments(
 						}
 
 						struct scion_map *inter_bandwidth = scion_map_create(
-							sizeof(scion_interface_id), SCION_MAP_SIMPLE_FREE);
+							(struct scion_map_key_config){ .size = INTERFACE_KEY_SIZE, .serialize = NULL },
+							SCION_MAP_SIMPLE_FREE);
 
 						for (size_t k = 0; k < pb_static_info->bandwidth->n_inter; k++) {
 							uint64_t *bandwidth = malloc(sizeof(*bandwidth));
@@ -297,7 +303,8 @@ static int protobuf_to_path_segments(
 
 					if (pb_static_info->geo != NULL) {
 						struct scion_map *geo = scion_map_create(
-							sizeof(scion_interface_id), SCION_MAP_CUSTOM_FREE(scion_geo_coordinates_free));
+							(struct scion_map_key_config){ .size = INTERFACE_KEY_SIZE, .serialize = NULL },
+							SCION_MAP_CUSTOM_FREE(scion_geo_coordinates_free));
 						for (size_t k = 0; k < pb_static_info->n_geo; k++) {
 							struct scion_geo_coordinates *curr_geo = malloc(sizeof(*curr_geo));
 							curr_geo->latitude = pb_static_info->geo[k]->value->latitude;
@@ -314,7 +321,8 @@ static int protobuf_to_path_segments(
 
 					if (pb_static_info->link_type != NULL) {
 						struct scion_map *link_type = scion_map_create(
-							sizeof(scion_interface_id), SCION_MAP_SIMPLE_FREE);
+							(struct scion_map_key_config){ .size = INTERFACE_KEY_SIZE, .serialize = NULL },
+							SCION_MAP_SIMPLE_FREE);
 						for (size_t k = 0; k < pb_static_info->n_link_type; k++) {
 							enum scion_link_type *curr_link_type = malloc(sizeof(*curr_link_type));
 							*curr_link_type = (enum scion_link_type)pb_static_info->link_type[k]->value;
@@ -327,7 +335,8 @@ static int protobuf_to_path_segments(
 
 					if (pb_static_info->internal_hops != NULL) {
 						struct scion_map *internal_hops = scion_map_create(
-							sizeof(scion_interface_id), SCION_MAP_SIMPLE_FREE);
+							(struct scion_map_key_config){ .size = INTERFACE_KEY_SIZE, .serialize = NULL },
+							SCION_MAP_SIMPLE_FREE);
 						for (size_t k = 0; k < pb_static_info->n_internal_hops; k++) {
 							uint32_t *curr_internal_hops = malloc(sizeof(*curr_internal_hops));
 							*curr_internal_hops = pb_static_info->internal_hops[k]->value;

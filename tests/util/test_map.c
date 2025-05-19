@@ -21,7 +21,8 @@ int scion_test_map_example(void)
 {
 	int ret = 0;
 
-	struct scion_map *map = scion_map_create(sizeof(uint32_t), SCION_MAP_NO_FREE_VALUES);
+	struct scion_map *map = scion_map_create(
+		(struct scion_map_key_config){ .size = sizeof(uint32_t), .serialize = NULL }, SCION_MAP_NO_FREE_VALUES);
 
 	int values[] = { 100, -1, 3, 16 };
 
