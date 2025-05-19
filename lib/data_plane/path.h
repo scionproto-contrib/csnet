@@ -123,18 +123,7 @@ void scion_path_free(struct scion_path *path);
  */
 int scion_path_raw_reverse(struct scion_path_raw *path);
 
-/*
- * FUNCTION: scion_path_print_interfaces
- * -------------------
- * Prints the hops (ASes and interfaces) of a given path from the interface list of the path.
- * Example: "1ff0000000111 41>1 1ff0000000110 3>51 1ff0000000112"
- * Important: Does not print newline character.
- *
- * Arguments:
- *      - struct scion_linked_list *interfaces: Pointer to a scion_linked_list which contains scion_path_interface
- * structs.
- */
-void scion_path_print_interfaces(struct scion_linked_list *interfaces);
+void scion_path_print_interfaces(struct scion_path_interface *interfaces, size_t interfaces_len);
 
 /*
  * FUNCTION: scion_path_print
@@ -153,8 +142,6 @@ uint32_t scion_path_byte_size(struct scion_path *path, bool print_details);
 int scion_path_reverse(struct scion_path *path);
 
 size_t scion_path_get_hops(const struct scion_path *path);
-
-uint32_t scion_path_get_mtu(const struct scion_path *path);
 
 /*
  * FUNCTION: scion_path_serialize
@@ -205,5 +192,7 @@ int scion_path_deserialize(uint8_t *buf, struct scion_path_meta_hdr *hdr, struct
 	struct scion_linked_list *hop_fields);
 
 int scion_path_meta_hdr_deserialize(const uint8_t *buf, struct scion_path_meta_hdr *hdr);
+
+struct scion_path_metadata *scion_path_get_metadata(struct scion_path *path);
 
 void scion_path_print_metadata(struct scion_path *path);

@@ -1427,9 +1427,6 @@ static int scion_path_solution_to_path(
 
 	// Create scion_path_metadata
 	struct scion_path_metadata *metadata = scion_path_metadata_collect(all_interfaces, all_as_entries, mtu, expiry);
-	metadata->mtu = mtu;
-	metadata->expiry = expiry;
-	metadata->interfaces = all_interfaces;
 
 	// Create raw path
 	struct scion_path_raw *raw = malloc(sizeof(*raw));
@@ -1447,6 +1444,7 @@ static int scion_path_solution_to_path(
 exit:
 	scion_list_free(segments);
 	scion_list_free(all_as_entries);
+	scion_list_free(all_interfaces);
 
 	return ret;
 
@@ -1463,29 +1461,27 @@ static bool scion_contains_loop(struct scion_path *path)
 		return false;
 	}
 
-	if (path->metadata->interfaces->size < 2) {
+	if (path->metadata->interfaces_len < 2) {
 		return false;
 	}
 
-	struct scion_linked_list_node *inner;
-	struct scion_linked_list_node *outer = path->metadata->interfaces->first->next;
+	for (size_t i_outer = 1; i_outer < path->metadata->interfaces_len; i_outer++) {
+		struct scion_path_interface *curr_intf = &path->metadata->interfaces[i_outer];
 
-	while (outer != NULL) {
-		struct scion_path_interface *curr_intf = (struct scion_path_interface *)outer->value;
-		inner = path->metadata->interfaces->first;
-		uint8_t i = 0;
-		while (inner != outer) {
-			struct scion_path_interface *test_intf = (struct scion_path_interface *)inner->value;
+		bool duplicate_seen = false;
+		for (size_t i_inner = 0; i_inner < i_outer; i_inner++) {
+			struct scion_path_interface *test_intf = &path->metadata->interfaces[i_inner];
+
 			if (test_intf->ia == curr_intf->ia) {
-				i += 1;
+				if (duplicate_seen) {
+					return true;
+				}
+
+				duplicate_seen = true;
 			}
-			if (i > 1) {
-				return true;
-			}
-			inner = inner->next;
 		}
-		outer = outer->next;
 	}
+
 	return false;
 }
 
@@ -1545,16 +1541,14 @@ static int scion_path_solution_list_to_path_list(struct scion_linked_list *path_
 			path->src = src;
 
 			// Generate ifids array to check duplicate paths.
-			scion_interface_id *ifids = malloc((path->metadata->interfaces->size + 1) * sizeof(scion_interface_id));
-			ifids[0] = (scion_interface_id)(path->metadata->interfaces->size + 1);
-			struct scion_linked_list_node *curr_intf_node = path->metadata->interfaces->first;
-			int i = 1;
-			while (curr_intf_node) {
-				struct scion_path_interface *curr_intf = (struct scion_path_interface *)curr_intf_node->value;
-				ifids[i] = curr_intf->id;
-				i++;
-				curr_intf_node = curr_intf_node->next;
+			scion_interface_id *ifids = malloc((path->metadata->interfaces_len + 1) * sizeof(scion_interface_id));
+			ifids[0] = (scion_interface_id)(path->metadata->interfaces_len + 1);
+
+			for (size_t i = 0; i < path->metadata->interfaces_len; i++) {
+				struct scion_path_interface *curr_intf = &path->metadata->interfaces[i];
+				ifids[i + 1] = curr_intf->id;
 			}
+
 			// Check duplicate
 			duplicate = scion_check_duplicate_path(ifids_list, ifids);
 

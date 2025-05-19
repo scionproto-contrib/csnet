@@ -113,6 +113,26 @@ size_t scion_path_collection_size(struct scion_path_collection *paths)
 	return paths->list->size;
 }
 
+struct scion_path **scion_path_collection_as_array(struct scion_path_collection *paths, size_t *len)
+{
+	assert(paths);
+	assert(len);
+
+	struct scion_path **path_array = calloc(paths->list->size, sizeof(*path_array));
+	struct scion_linked_list_node *current = paths->list->first;
+
+	size_t i = 0;
+	while (current) {
+		path_array[i++] = current->value;
+
+		current = current->next;
+	}
+
+	*len = i;
+
+	return path_array;
+}
+
 void scion_path_collection_print(struct scion_path_collection *paths)
 {
 	struct scion_linked_list *list = paths->list;
@@ -132,16 +152,16 @@ void scion_path_collection_print(struct scion_path_collection *paths)
 			}
 		} else {
 			if (path->metadata->interfaces == NULL) {
-				(void)printf(
-					"[%" PRIu16
-					"]: Path priniting unavailable due to missing metadata; Enable DEBUG MODE during path generation. "
-					"(IMPORTANT: deserialized paths can never be printed as the metadata is never present)\n",
+				(void)printf("[%" PRIu16 "]: Path priniting unavailable due to missing metadata."
+							 "(IMPORTANT: deserialized paths can never be printed as the metadata is never present)\n",
 					i);
 				continue;
 			}
 
-			if ((path->metadata->interfaces->size / 2 + 1) > length) {
-				length = (path->metadata->interfaces->size / 2 + 1);
+			size_t current_length = scion_path_get_hops(path);
+
+			if (current_length > length) {
+				length = current_length;
 				(void)printf("%zu Hops:\n", length);
 			}
 		}

@@ -40,8 +40,8 @@ const struct scion_policy scion_policy_least_hops = { .filter = least_hops_filte
 static int compare_mtu(struct scion_path *path_one, struct scion_path *path_two, void *ctx)
 {
 	(void)ctx;
-	uint32_t mtu_one = scion_path_get_mtu(path_one);
-	uint32_t mtu_two = scion_path_get_mtu(path_two);
+	uint32_t mtu_one = scion_path_get_metadata(path_one)->mtu;
+	uint32_t mtu_two = scion_path_get_metadata(path_two)->mtu;
 
 	int ret = (mtu_one > mtu_two) - (mtu_one < mtu_two);
 
@@ -88,20 +88,23 @@ static int compare_latencies(
 	return compare_hops(path_one, path_two, NULL);
 }
 
-static void lowest_latency_filter(struct scion_path_collection *paths)
+static void lowest_latency_filter(struct scion_path_collection *path_collection)
 {
 	struct scion_map *path_total_latencies = scion_map_create(
 		(struct scion_map_key_config){ .size = PATH_KEY_SIZE, .serialize = NULL }, SCION_MAP_SIMPLE_FREE);
 
-	struct scion_linked_list_node *current = paths->list->first;
-	while (current) {
-		struct scion_path *path = current->value;
+	size_t paths_len;
+	struct scion_path **paths = scion_path_collection_as_array(path_collection, &paths_len);
 
-		if (path->metadata != NULL && path->metadata->latencies != NULL) {
+	for (size_t i = 0; i < paths_len; i++) {
+		struct scion_path *path = paths[i];
+		struct scion_path_metadata *metadata = path->metadata;
+
+		if (metadata != NULL && metadata->latencies != NULL) {
 			struct timeval *total_latency = calloc(1, sizeof(*total_latency));
 
-			for (size_t i = 0; i < scion_list_size(path->metadata->interfaces); i++) {
-				struct timeval latency = path->metadata->latencies[i];
+			for (size_t j = 0; j < metadata->interfaces_len; j++) {
+				struct timeval latency = metadata->latencies[j];
 
 				// Set total latency to unknown if entry is missing
 				if (SCION_PATH_METADATA_LATENCY_IS_UNSET(latency)) {
@@ -118,14 +121,13 @@ static void lowest_latency_filter(struct scion_path_collection *paths)
 				free(total_latency);
 			}
 		}
-
-		current = current->next;
 	}
 
-	scion_path_collection_sort(
-		paths, (struct scion_path_comparator){
-				   .fn = (scion_path_comparator_fn)compare_latencies, .ctx = path_total_latencies, .ascending = true });
+	scion_path_collection_sort(path_collection,
+		(struct scion_path_comparator){
+			.fn = (scion_path_comparator_fn)compare_latencies, .ctx = path_total_latencies, .ascending = true });
 
+	free(paths);
 	scion_map_free(path_total_latencies);
 }
 const struct scion_policy scion_policy_lowest_latency = { .filter = lowest_latency_filter };
@@ -156,21 +158,24 @@ static int compare_bandwidths(
 	return -compare_hops(path_one, path_two, NULL);
 }
 
-static void highest_bandwidth_filter(struct scion_path_collection *paths)
+static void highest_bandwidth_filter(struct scion_path_collection *path_collection)
 {
 	struct scion_map *path_bandwidths = scion_map_create(
 		(struct scion_map_key_config){ .size = PATH_KEY_SIZE, .serialize = NULL }, SCION_MAP_SIMPLE_FREE);
 
-	struct scion_linked_list_node *current = paths->list->first;
-	while (current) {
-		struct scion_path *path = current->value;
+	size_t paths_len;
+	struct scion_path **paths = scion_path_collection_as_array(path_collection, &paths_len);
 
-		if (path->metadata != NULL && path->metadata->bandwidths != NULL) {
+	for (size_t i = 0; i < paths_len; i++) {
+		struct scion_path *path = paths[i];
+		struct scion_path_metadata *metadata = path->metadata;
+
+		if (metadata != NULL && metadata->bandwidths != NULL) {
 			uint64_t *min_bandwidth = malloc(sizeof(*min_bandwidth));
 			*min_bandwidth = UINT64_MAX;
 
-			for (size_t i = 0; i < scion_list_size(path->metadata->interfaces); i++) {
-				uint64_t bandwidth = path->metadata->bandwidths[i];
+			for (size_t j = 0; j < metadata->interfaces_len; j++) {
+				uint64_t bandwidth = metadata->bandwidths[j];
 
 				// Set min bandwidth to 0 if entry is missing
 				if (SCION_PATH_METADATA_BANDWIDTH_IS_UNSET(bandwidth)) {
@@ -189,14 +194,13 @@ static void highest_bandwidth_filter(struct scion_path_collection *paths)
 				free(min_bandwidth);
 			}
 		}
-
-		current = current->next;
 	}
 
-	scion_path_collection_sort(
-		paths, (struct scion_path_comparator){
-				   .fn = (scion_path_comparator_fn)compare_bandwidths, .ctx = path_bandwidths, .ascending = false });
+	scion_path_collection_sort(path_collection,
+		(struct scion_path_comparator){
+			.fn = (scion_path_comparator_fn)compare_bandwidths, .ctx = path_bandwidths, .ascending = false });
 
+	free(paths);
 	scion_map_free(path_bandwidths);
 }
 const struct scion_policy scion_policy_highest_bandwidth = { .filter = highest_bandwidth_filter };
