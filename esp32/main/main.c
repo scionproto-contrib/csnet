@@ -62,7 +62,8 @@ static void configure_led(void)
 
 static bool select_path(struct scion_path *path, void *ctx)
 {
-	return scion_path_get_hops(path) == 8 && scion_path_get_mtu(path) == 1400;
+	struct scion_path_metadata *metadata = scion_path_get_metadata(path);
+	return scion_path_get_hops(path) == 8 && metadata->mtu == 1400;
 }
 
 static void example_task(void *args)

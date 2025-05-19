@@ -171,9 +171,9 @@ int scion_path_reverse(struct scion_path *path)
 			return ret;
 		}
 
-		if (path->metadata != NULL) {
-			scion_list_reverse(path->metadata->interfaces);
-		}
+		// TODO: implement reversing metadata
+		scion_path_metadata_free(path->metadata);
+		path->metadata = NULL;
 		return 0;
 	}
 
@@ -185,33 +185,28 @@ int scion_path_reverse(struct scion_path *path)
  * ######################## Print Functions #########################
  * ##################################################################
  */
-void scion_path_print_interfaces(struct scion_linked_list *interfaces)
+void scion_path_print_interfaces(struct scion_path_interface *interfaces, size_t interfaces_len)
 {
-	if (!interfaces || interfaces->size == 0) {
+	if (!interfaces || interfaces_len == 0) {
 		return;
 	}
 
-	struct scion_linked_list_node *curr = interfaces->first;
-
 	// Print first AS
-	struct scion_path_interface *intf = (struct scion_path_interface *)curr->value;
+	struct scion_path_interface *intf = &interfaces[0];
 	scion_ia_print(intf->ia);
 	(void)printf(" %" PRIu64 ">", intf->id);
 
 	// Print Intermediate ASes
-	curr = curr->next;
-
-	while (curr != interfaces->last && curr != NULL) {
-		struct scion_path_interface *in_intf = (struct scion_path_interface *)curr->value;
-		struct scion_path_interface *out_intf = (struct scion_path_interface *)curr->next->value;
+	for (size_t i = 0; i < (interfaces_len - 2) / 2; i++) {
+		struct scion_path_interface *in_intf = &interfaces[i * 2 + 1];
+		struct scion_path_interface *out_intf = &interfaces[i * 2 + 2];
 		(void)printf("%" PRIu64 " ", in_intf->id);
 		scion_ia_print(in_intf->ia);
 		(void)printf(" %" PRIu64 ">", out_intf->id);
-		curr = curr->next->next;
 	}
 
 	// Print last AS
-	intf = (struct scion_path_interface *)interfaces->last->value;
+	intf = &interfaces[interfaces_len - 1];
 	(void)printf("%" PRIu64 " ", intf->id);
 	scion_ia_print(intf->ia);
 }
@@ -226,71 +221,9 @@ void scion_path_print(const struct scion_path *path)
 		(void)printf("Hops: Empty Path\n");
 	} else if (path->path_type == SCION_PATH_TYPE_SCION) {
 		(void)printf("Hops: [");
-		scion_path_print_interfaces(path->metadata->interfaces);
+		scion_path_print_interfaces(path->metadata->interfaces, path->metadata->interfaces_len);
 		(void)printf("] MTU: %" PRIu32 "\n", path->metadata->mtu);
 	}
-}
-
-uint32_t scion_path_byte_size(struct scion_path *path, bool print_details)
-{
-	if (path == NULL) {
-		return 0;
-	}
-
-	uint32_t size = sizeof(struct scion_path);
-	if (print_details) {
-		(void)printf("		-- scion_path struct itself takes: %" PRIu32 " bytes\n", size);
-	}
-
-	if (path->raw_path != NULL) {
-		uint32_t raw_path_size = sizeof(struct scion_path_raw);
-		raw_path_size += path->raw_path->length;
-		if (print_details) {
-			(void)printf("		-- raw path size (struct + path buffer): %" PRIu32 " bytes\n", raw_path_size);
-			(void)printf("			          path->raw_path->length: %" PRIu16 " bytes\n", path->raw_path->length);
-			(void)printf(
-				"			          sizeof(struct scion_path_raw): %zu bytes\n", sizeof(struct scion_path_raw));
-		}
-		size += raw_path_size;
-	}
-	if (path->metadata != NULL) {
-		uint32_t meta_size = sizeof(struct scion_path_metadata);
-
-		uint32_t intf_size = 0;
-		if (path->metadata->interfaces != NULL) {
-			intf_size += sizeof(struct scion_linked_list);
-			struct scion_linked_list_node *curr = path->metadata->interfaces->first;
-			while (curr) {
-				intf_size += sizeof(struct scion_linked_list_node);
-				if (curr->value != NULL) {
-					intf_size += sizeof(struct scion_path_interface);
-				}
-				curr = curr->next;
-			}
-			meta_size += intf_size;
-		}
-		if (print_details) {
-			(void)printf("		-- total metadata size: %" PRIu32 " bytes\n", meta_size);
-			if (path->metadata->interfaces != NULL) {
-				(void)printf("			of which: %zu interfaces size: %" PRIu32 " bytes\n",
-					path->metadata->interfaces->size, intf_size);
-			} else {
-				(void)printf("			of which: interfaces size: %" PRIu32 " bytes\n", intf_size);
-			}
-
-			(void)printf(
-				"			          sizeof(struct scion_linked_list): %zu bytes\n", sizeof(struct scion_linked_list));
-			(void)printf("			          sizeof(struct scion_linked_list_node): %zu bytes\n",
-				sizeof(struct scion_linked_list_node));
-			(void)printf("			          sizeof(struct scion_path_interface): %zu bytes\n",
-				sizeof(struct scion_path_interface));
-		}
-		size += meta_size;
-	}
-	if (print_details) {
-		(void)printf("	-- Total size: %" PRIu32 " bytes\n", size);
-	}
-	return size;
 }
 
 size_t scion_path_get_hops(const struct scion_path *path)
@@ -300,15 +233,15 @@ size_t scion_path_get_hops(const struct scion_path *path)
 	if (path->path_type == SCION_PATH_TYPE_EMPTY) {
 		return 0;
 	} else {
-		return (path->metadata->interfaces->size / 2) + 1;
+		return (path->metadata->interfaces_len / 2) + 1;
 	}
 }
 
-uint32_t scion_path_get_mtu(const struct scion_path *path)
+struct scion_path_metadata *scion_path_get_metadata(struct scion_path *path)
 {
-	assert(path != NULL);
+	assert(path);
 
-	return path->metadata->mtu;
+	return path->metadata;
 }
 
 /*

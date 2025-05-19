@@ -40,6 +40,8 @@ void scion_path_collection_filter(struct scion_path_collection *paths, struct sc
 
 size_t scion_path_collection_size(struct scion_path_collection *paths);
 
+struct scion_path **scion_path_collection_as_array(struct scion_path_collection *paths, size_t *len);
+
 /*
  * FUNCTION: scion_path_collection_print
  * -------------------

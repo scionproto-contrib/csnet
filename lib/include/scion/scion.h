@@ -327,17 +327,134 @@ int scion_path_reverse(struct scion_path *path);
 size_t scion_path_get_hops(const struct scion_path *path);
 
 /**
- * Gets the MTU of a path.
- * @param[in] path The path.
- * @return The MTU of the path.
- */
-uint32_t scion_path_get_mtu(const struct scion_path *path);
-
-/**
  * Frees a path.
  * @param[in] path The path to free.
  */
 void scion_path_free(struct scion_path *path);
+
+// TODO: docs
+#define SCION_PATH_METADATA_LATENCY_IS_UNSET(latency) (latency.tv_sec == 0 && latency.tv_usec == -1)
+#define SCION_PATH_METADATA_BANDWIDTH_IS_UNSET(bandwidth) (bandwidth == 0)
+#define SCION_PATH_METADATA_GEO_IS_UNSET(geo) (geo.latitude == NAN && geo.longitude == NAN && geo.address == NULL)
+#define SCION_PATH_METADATA_INTERNAL_HOPS_IS_UNSET(internal_hops) (internal_hops == 0)
+
+// TODO: docs
+typedef uint64_t scion_interface_id;
+
+// TODO: docs
+struct scion_path_interface {
+	scion_interface_id id;
+	scion_ia ia;
+};
+
+// TODO: docs
+struct scion_geo_coordinates {
+	/**
+	 * Latitude of the geographic coordinate, in the WGS 84 datum.
+	 */
+	float latitude;
+	/**
+	 * Longitude of the geographic coordinate, in the WGS 84 datum.
+	 */
+	float longitude;
+	/**
+	 * Civic address of the location.
+	 */
+	char *address;
+};
+
+// TODO: docs
+enum scion_link_type {
+	/**
+	 * Unspecified link type.
+	 */
+	SCION_LINK_TYPE_UNSPECIFIED = 0,
+	/**
+	 * Direct physical connection.
+	 */
+	SCION_LINK_TYPE_DIRECT = 1,
+	/**
+	 * Connection with local routing/switching.
+	 */
+	SCION_LINK_TYPE_MULTI_HOP = 2,
+	/**
+	 * Connection overlaid over publicly routed Internet.
+	 */
+	SCION_LINK_TYPE_OPEN_NET = 3
+};
+
+// TODO: docs
+struct scion_path_metadata {
+	/**
+	 * All ASes on the path.
+	 */
+	scion_ia *ases;
+	size_t ases_len;
+
+	/**
+	 * All interfaces on the path.
+	 */
+	struct scion_path_interface *interfaces;
+	size_t interfaces_len;
+
+	/**
+	 * Maximum transmission unit for the path, in bytes.
+	 */
+	uint32_t mtu;
+	/**
+	 * Expiration time of the path.
+	 */
+	int64_t expiry;
+
+	/**
+	 * List of latencies between any two consecutive interfaces.
+	 * Entry i describes the latency between interface i and i+1.
+	 * Consequently, there are N-1 entries for N interfaces.
+	 * SCION_PATH_METADATA_LATENCY_IS_UNSET can be used to check whether an entry is set or not.
+	 */
+	struct timeval *latencies;
+
+	/**
+	 * List of bandwidths between any two consecutive interfaces, in Kbit/s.
+	 * Entry i describes the bandwidth between interfaces i and i+1.
+	 * A 0-value indicates that the AS did not announce a bandwidth for this hop.
+	 * SCION_PATH_METADATA_BANDWIDTH_IS_UNSET can be used to check whether an entry is set or not.
+	 */
+	uint64_t *bandwidths;
+
+	/**
+	 * Geographical positions of the border routers along the path.
+	 * Entry i describes the position of the router for interface i.
+	 * A 0-value indicates that the AS did not announce a position for this router.
+	 * SCION_PATH_METADATA_GEO_IS_UNSET can be used to check whether an entry is set or not.
+	 */
+	struct scion_geo_coordinates *geo;
+
+	/**
+	 * Link types of inter-domain links.
+	 * Entry i describes the link between interfaces 2*i and 2*i+1.
+	 */
+	enum scion_link_type *link_types;
+
+	//
+	/**
+	 * Numbers of AS internal hops for the ASes on path.
+	 * Entry i describes the hop between interfaces 2*i+1 and 2*i+2 in the same AS.
+	 * Consequently, there are no entries for the first and last ASes, as these
+	 * are not traversed completely by the path.
+	 * SCION_PATH_METADATA_INTERNAL_HOPS_IS_UNSET can be used to check whether an entry is set or not.
+	 */
+	uint32_t *internal_hops;
+
+	/**
+	 * Notes added by ASes on the path, in the order of occurrence.
+	 * Entry i is the note of AS i on the path.
+	 */
+	char **notes;
+};
+
+// TODO: docs
+struct scion_path_metadata *scion_path_get_metadata(struct scion_path *path);
 
 /**
  * Prints a path to stdout.
@@ -413,6 +530,9 @@ void scion_path_collection_filter(struct scion_path_collection *paths, struct sc
 
 // TODO: docs
 size_t scion_path_collection_size(struct scion_path_collection *paths);
+
+// TODO: docs
+struct scion_path **scion_path_collection_as_array(struct scion_path_collection *paths, size_t *len);
 
 /**
  * Prints a path collection to stdout.
