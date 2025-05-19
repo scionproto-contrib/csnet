@@ -19,6 +19,8 @@
 #include <time.h>
 #include <util/map.h>
 
+#define PATH_KEY_SIZE 8
+
 static int compare_hops(struct scion_path *path_one, struct scion_path *path_two, void *ctx)
 {
 	(void)ctx;
@@ -88,15 +90,16 @@ static int compare_latencies(
 
 static void lowest_latency_filter(struct scion_path_collection *paths)
 {
-	struct scion_map *path_total_latencies = scion_map_create(sizeof(struct scion_path *), SCION_MAP_SIMPLE_FREE);
+	struct scion_map *path_total_latencies = scion_map_create(
+		(struct scion_map_key_config){ .size = PATH_KEY_SIZE, .serialize = NULL }, SCION_MAP_SIMPLE_FREE);
 
 	struct scion_linked_list_node *current = paths->list->first;
 	while (current) {
 		struct scion_path *path = current->value;
 
-		struct timeval *total_latency = calloc(1, sizeof(*total_latency));
-
 		if (path->metadata != NULL && path->metadata->latencies != NULL) {
+			struct timeval *total_latency = calloc(1, sizeof(*total_latency));
+
 			for (size_t i = 0; i < scion_list_size(path->metadata->interfaces); i++) {
 				struct timeval latency = path->metadata->latencies[i];
 
@@ -111,6 +114,8 @@ static void lowest_latency_filter(struct scion_path_collection *paths)
 
 			if (total_latency->tv_usec != -1) {
 				scion_map_put(path_total_latencies, &path, total_latency);
+			} else {
+				free(total_latency);
 			}
 		}
 
@@ -153,16 +158,17 @@ static int compare_bandwidths(
 
 static void highest_bandwidth_filter(struct scion_path_collection *paths)
 {
-	struct scion_map *path_bandwidths = scion_map_create(sizeof(struct scion_path *), SCION_MAP_SIMPLE_FREE);
+	struct scion_map *path_bandwidths = scion_map_create(
+		(struct scion_map_key_config){ .size = PATH_KEY_SIZE, .serialize = NULL }, SCION_MAP_SIMPLE_FREE);
 
 	struct scion_linked_list_node *current = paths->list->first;
 	while (current) {
 		struct scion_path *path = current->value;
 
-		uint64_t *min_bandwidth = malloc(sizeof(*min_bandwidth));
-		*min_bandwidth = UINT64_MAX;
-
 		if (path->metadata != NULL && path->metadata->bandwidths != NULL) {
+			uint64_t *min_bandwidth = malloc(sizeof(*min_bandwidth));
+			*min_bandwidth = UINT64_MAX;
+
 			for (size_t i = 0; i < scion_list_size(path->metadata->interfaces); i++) {
 				uint64_t bandwidth = path->metadata->bandwidths[i];
 
@@ -179,6 +185,8 @@ static void highest_bandwidth_filter(struct scion_path_collection *paths)
 
 			if (*min_bandwidth != UINT64_MAX) {
 				scion_map_put(path_bandwidths, &path, min_bandwidth);
+			} else {
+				free(min_bandwidth);
 			}
 		}
 

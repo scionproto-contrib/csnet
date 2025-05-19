@@ -33,8 +33,15 @@ struct scion_map_value_free {
 	void *ctx;
 };
 
+typedef void (*scion_map_serialize_key)(void *key, void *buffer);
+
+struct scion_map_key_config {
+	size_t size;
+	scion_map_serialize_key serialize;
+};
+
 struct scion_map {
-	size_t key_size;
+	struct scion_map_key_config key_config;
 
 	struct scion_linked_list *key_value_pairs;
 
@@ -48,7 +55,7 @@ struct scion_map_key_value_pair {
 
 void scion_map_value_free_wrapper(void *value, void (*free_fn)(void *));
 
-struct scion_map *scion_map_create(size_t key_size, struct scion_map_value_free free_value);
+struct scion_map *scion_map_create(struct scion_map_key_config key_config, struct scion_map_value_free free_value);
 
 void scion_map_put(struct scion_map *map, void *key, void *value);
 
