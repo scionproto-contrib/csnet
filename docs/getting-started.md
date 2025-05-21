@@ -77,7 +77,7 @@ Some of the key differences between SCION sockets and BSD sockets are:
 
 - SCION sockets require topology information (via the `scion_network` object).
 - Sending packets requires not only the destination IP address and port but also the destination IA (`scion_ia`). The IA
-  is a combination of the ISD identifier and the AS number of an AS (e.g. `2-ff00:0:222`). The IA can be found in the
+  is a combination of the ISD identifier and the AS number (e.g. `2-ff00:0:222`). The IA can be found in the
   `isd_as` field of the `topology.json` of an AS.
 - When sending data to a destination host, the path the packet should take through the SCION network can be
   explicitly defined. Available paths to a specific destination AS can be retrieved with `scion_fetch_paths()`.

@@ -13,8 +13,8 @@ and
 - Linux, MacOS and ESP32 support
 - UDP over SCION
 - SCMP (ICMP for SCION)
-- Choose the path a packet takes over the network
-- Ping Tool
+- Explicit SCION path selection
+- SCION ping tool
 
 To get started with CSNET follow the building and installation instructions below and afterward continue with
 the [Getting Started Guide](./docs/getting-started.md).
@@ -71,8 +71,8 @@ To install the library execute:
 Depending on the installation directory you might need to run the command with `sudo`.
 
 The installation will produce the static libraries `lib/libscion.a`, `lib/libnghttp2.a`, `lib/libprotobuf.a`, the header
-file `include/scion/scion.h` and the cmd binary `bin/ping` in your installation directory. When using the library make
-sure to link against all the static libraries produced by the installation.
+file `include/scion/scion.h` and the command-line tool `bin/ping` in your installation directory. When using the library
+make sure to link against all the static libraries produced by the installation.
 
 ### Known Issues
 
