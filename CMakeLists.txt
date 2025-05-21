@@ -59,8 +59,9 @@ if (BUILD_DOCS)
     doxygen_add_docs(doxygen
             lib/include/scion/scion.h
             README.md
-            esp32/README.md
+            docs/getting-started.md
             examples/README.md
+            esp32/README.md
             docs/design/source_address_determination.md
             ALL
     )
