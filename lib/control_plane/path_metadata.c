@@ -550,6 +550,10 @@ char **collect_notes(struct scion_list *as_entries, scion_ia *ases, size_t ases_
 	return notes;
 }
 
+/**
+ * This is a slightly modified version of the path metadata collection algorithm used in the Go implementation here:
+ * https://github.com/scionproto/scion/blob/87e8ab847cda6343c83f22b653c77c94867c92c4/private/path/combinator/staticinfo_accumulator.go
+ */
 struct scion_path_metadata *scion_path_metadata_collect(
 	struct scion_list *interfaces, struct scion_list *as_entries, uint32_t mtu, int64_t expiry)
 {
