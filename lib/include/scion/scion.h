@@ -332,22 +332,53 @@ size_t scion_path_get_hops(const struct scion_path *path);
  */
 void scion_path_free(struct scion_path *path);
 
-// TODO: docs
+/**
+ * Returns true if the latency is unknown.
+ * @param latency The latency.
+ */
 #define SCION_PATH_METADATA_LATENCY_IS_UNSET(latency) (latency.tv_sec == 0 && latency.tv_usec == -1)
+/**
+ * Returns true if the bandwidth is unknown.
+ * @param bandwidth The bandwidth.
+ */
 #define SCION_PATH_METADATA_BANDWIDTH_IS_UNSET(bandwidth) (bandwidth == 0)
+/**
+ * Returns true if the geographical location is unknown.
+ * @param geo The geographical location.
+ */
 #define SCION_PATH_METADATA_GEO_IS_UNSET(geo) (geo.latitude == NAN && geo.longitude == NAN && geo.address == NULL)
+/**
+ * Returns true if the number of internal hops is unknown.
+ * @param internal_hops The number of internal hops.
+ */
 #define SCION_PATH_METADATA_INTERNAL_HOPS_IS_UNSET(internal_hops) (internal_hops == 0)
 
-// TODO: docs
+/**
+ * An interface identifier.
+ */
 typedef uint64_t scion_interface_id;
 
-// TODO: docs
+/**
+ * @struct scion_path_interface
+ *
+ * @brief An interface of an AS in a SCION path.
+ */
 struct scion_path_interface {
+	/**
+	 * The identifier of the interface.
+	 */
 	scion_interface_id id;
+	/**
+	 * The AS identifier.
+	 */
 	scion_ia ia;
 };
 
-// TODO: docs
+/**
+ * @struct scion_geo_coordinates
+ *
+ * @brief The geographic location of an AS.
+ */
 struct scion_geo_coordinates {
 	/**
 	 * Latitude of the geographic coordinate, in the WGS 84 datum.
@@ -363,7 +394,9 @@ struct scion_geo_coordinates {
 	char *address;
 };
 
-// TODO: docs
+/**
+ * The linky type of a hop.
+ */
 enum scion_link_type {
 	/**
 	 * Unspecified link type.
@@ -383,7 +416,11 @@ enum scion_link_type {
 	SCION_LINK_TYPE_OPEN_NET = 3
 };
 
-// TODO: docs
+/**
+ * @struct scion_path_metadata
+ *
+ * @brief The metadata of a SCION path.
+ */
 struct scion_path_metadata {
 	/**
 	 * All ASes on the path.
@@ -453,7 +490,13 @@ struct scion_path_metadata {
 	char **notes;
 };
 
-// TODO: docs
+/**
+ * Gets the metadata of a path.
+ * @param[in] path The path.
+ * @return A reference to the metadata of the path.
+ *
+ * @note Do not modify the metadata.
+ */
 const struct scion_path_metadata *scion_path_get_metadata(const struct scion_path *path);
 
 /**
@@ -462,7 +505,10 @@ const struct scion_path_metadata *scion_path_get_metadata(const struct scion_pat
  */
 void scion_path_print(const struct scion_path *path);
 
-// TODO document me
+/**
+ * Prints the metadata of a path.
+ * @param[in] path The path.
+ */
 void scion_path_print_metadata(const struct scion_path *path);
 
 /**
@@ -473,26 +519,58 @@ void scion_path_print_metadata(const struct scion_path *path);
 struct scion_path_collection;
 
 /**
- * A function that matches SCION paths with custom criteria.
+ * A function that matches a path with a custom context.
  * @param path The candidate path.
- * @return Whether the path matches the custom criteria.
- *
- * @note See @link scion_path_collection_find @endlink.
+ * @param ctx The custom context.
+ * @return true, if the path matches the predicate
+ * @return false, if the path does not match the predicate
  */
-// TODO adjust docs
 typedef bool (*scion_path_predicate_fn)(struct scion_path *path, void *ctx);
 
+/**
+ * @struct scion_path_predicate
+ *
+ * @brief A path predicate.
+ */
 struct scion_path_predicate {
+	/**
+	 * The predicate function.
+	 */
 	scion_path_predicate_fn fn;
+	/**
+	 * The context that will be provided to the predicate function.
+	 */
 	void *ctx;
 };
 
-// TODO: docs
+/**
+ * A function that compares two paths with a custom context.
+ * @param path_one The first path.
+ * @param path_two The second path.
+ * @param ctx The custom context.
+ * @return 1, if path_one > path_two
+ * @return 0, if path_one == path_two
+ * @return -1, if path_one < path_two
+ */
 typedef int (*scion_path_comparator_fn)(struct scion_path *path_one, struct scion_path *path_two, void *ctx);
 
+/**
+ * @struct scion_path_comparator
+ *
+ * @brief A path comparator.
+ */
 struct scion_path_comparator {
+	/**
+	 * The comparator function.
+	 */
 	scion_path_comparator_fn fn;
+	/**
+	 * The context that will be provided to the comparator function.
+	 */
 	void *ctx;
+	/**
+	 * The sorting order.
+	 */
 	bool ascending;
 };
 
@@ -503,35 +581,67 @@ struct scion_path_comparator {
 void scion_path_collection_free(struct scion_path_collection *paths);
 
 /**
- * Finds the first path that matches a custom criteria.
+ * Finds the first path that matches the provided predicate.
  * @param[in] paths The path collection.
- * @param predicate The predicate function that implements the custom criteria.
+ * @param[in] predicate The predicate.
  * @return The first path that matches, or NULL if no path matched.
+ *
+ * @see @ref scion_path_predicate @endref
  */
-// TODO update docs
 struct scion_path *scion_path_collection_find(
 	struct scion_path_collection *paths, struct scion_path_predicate predicate);
 
 /**
- * Pop the first element of a path collection.
+ * Gets and removes the first element from a path collection.
  * @param[in] paths The path collection.
  * @return The first element of the path collection, or NULL if the path collection is empty.
+ *
+ * @note The returned element must be freed by the caller.
  */
 struct scion_path *scion_path_collection_pop(struct scion_path_collection *paths);
 
-// TODO: docs
+/**
+ * Gets the first element of a path collection.
+ * @param[in] paths The path collection.
+ * @return The first element of the path collection, or NULL if the path collection is empty.
+ *
+ * @note The returned element must not be freed by the caller.
+ */
 struct scion_path *scion_path_collection_first(struct scion_path_collection *paths);
 
-// TODO: docs
+/**
+ * Sorts a path collection in-place with the provided comparator.
+ * @param[in,out] paths The path collection.
+ * @param[in] comparator The comparator.
+ *
+ * @see @ref scion_path_comparator @endref
+ */
 void scion_path_collection_sort(struct scion_path_collection *paths, struct scion_path_comparator comparator);
 
-// TODO: docs
+/**
+ * Filters a path collection in-place with the provided predicate.
+ * @param[in,out] paths The path collection.
+ * @param[in] predicate The predicate.
+ *
+ * @see @ref scion_path_predicate @endref
+ */
 void scion_path_collection_filter(struct scion_path_collection *paths, struct scion_path_predicate predicate);
 
-// TODO: docs
+/**
+ * Gets the number of paths in a path collection.
+ * @param[in] paths The path collection.
+ * @return The number of paths in the path collection.
+ */
 size_t scion_path_collection_size(struct scion_path_collection *paths);
 
-// TODO: docs
+/**
+ * Creates an array representation of a path collection.
+ * @param[in] paths The path collection.
+ * @param[out] len The length of the array.
+ * @return The array representation of the path collection.
+ *
+ * @note The array must be freed by the caller. Do not free the path entries.
+ */
 struct scion_path **scion_path_collection_as_array(struct scion_path_collection *paths, size_t *len);
 
 /**
@@ -555,13 +665,17 @@ int scion_fetch_paths(struct scion_network *network, scion_ia dst, uint opt, str
  */
 struct scion_policy {
 	/**
-	 * TODO: add some details here
+	 * A function that implements the path selection policy by filtering and/or sorting the available paths contained
+	 * in the path collection. The function must modify the path collection in-place. When sorting the paths, the most
+	 * preferred path should be the first path.
+	 *
+	 * @see @ref scion_path_collection_filter @endref, @ref scion_path_collection_sort @endref
 	 */
 	void (*filter)(struct scion_path_collection *paths);
 };
 
 /**
- * A policy that prefers paths with higher MTUs.
+ * A policy that prefers paths with high MTU.
  */
 extern const struct scion_policy scion_policy_highest_mtu;
 
@@ -570,10 +684,14 @@ extern const struct scion_policy scion_policy_highest_mtu;
  */
 extern const struct scion_policy scion_policy_least_hops;
 
-// TODO document me
+/**
+ * A policy that prefers paths with low latency.
+ */
 extern const struct scion_policy scion_policy_lowest_latency;
 
-// TODO document me
+/**
+ * A policy that prefers paths with high bandwidth.
+ */
 extern const struct scion_policy scion_policy_highest_bandwidth;
 
 /**
@@ -757,7 +875,12 @@ int scion_getsockfd(struct scion_socket *scion_sock, int *fd);
  */
 int scion_setsockerrcb(struct scion_socket *scion_sock, scion_socket_scmp_error_cb cb, void *ctx);
 
-// TODO: docs
+/**
+ * Sets the path selection policy of a socket.
+ * @param scion_sock The socket.
+ * @param policy The path selection policy to use.
+ * @return 0 on success, a negative error code on failure.
+ */
 int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy policy);
 
 /**
