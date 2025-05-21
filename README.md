@@ -68,9 +68,17 @@ To install the library execute:
  cmake --install dist --prefix "your installation directory"
 ```
 
-This will produce the static libraries `lib/libscion.a`, `lib/libnghttp2.a`, `lib/libprotobuf.a`, the header
+Depending on the installation directory you might need to run the command with `sudo`.
+
+The installation will produce the static libraries `lib/libscion.a`, `lib/libnghttp2.a`, `lib/libprotobuf.a`, the header
 file `include/scion/scion.h` and the cmd binary `bin/ping` in your installation directory. When using the library make
 sure to link against all the static libraries produced by the installation.
+
+### Known Issues
+
+- On ARM you might get `clang++: error: unsupported option '-msse4.1' for target 'arm64-apple-darwin24.4.0` when
+  building. This is a known issue and we have to wait for a version bump in protobuf (
+  discussion [here](https://github.com/scionproto-contrib/csnet/pull/41#issuecomment-2895630253)).
 
 ## Local SCION Network Setup
 
@@ -80,7 +88,7 @@ Requirements:
 - Go 1.23 or newer (download [here](https://go.dev/dl/))
 
 To set up a local SCION Network execute the setup script in `scripts/setup-network.sh`. After successfully installing
-it, the network can be started with `scripts/run-testnet.sh`.
+it, the network can be started with `scripts/run-testnet.sh`. Press `Ctrl+C` to shut down the test network.
 
 ## ESP32
 

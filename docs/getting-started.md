@@ -4,7 +4,11 @@ This guide will help you get started using the CSNET library in your C applicati
 step-by-step walkthrough or refer to the example programs in the `./examples` directory. The complete API documentation
 is available [here](https://scionproto-contrib.github.io/csnet/scion_8h.html).
 
-> **Note**: Ensure that you have built and installed the CSNET library and that a local SCION network is running, as
+In this guide, we will show how to connect to the **locally running** test network in `./network/scion-testnet` that you
+should have already set up. In case you want to connect to a different SCION network, you have to provide your own
+`topology.json` in the instructions below.
+
+> **Note**: Ensure that you have built and installed the CSNET library and that a **local** SCION network is running, as
 > described in the [main README](../README.md#building-and-installation).
 
 ### Including the Header
@@ -24,10 +28,13 @@ struct scion_topology *topology;
 int ret = scion_topology_from_file(&topology, "path/to/your/topology.json");
 ```
 
-The `topology.json` file contains the topology information of your local AS. If you are running the local SCION network
-you can copy this file from `./network/scion-testnet/topos/default/ASXXX_X_XXX/topology.json` where `XXX_X_XXX` should
-be replaced with the AS number of the AS you want your application to be in. For example, the examples in `./examples`
-all use the local AS `ASff00_0_112`.
+The `topology.json` file should contain the topology information of your local AS. If you are running the local SCION
+network (locally running test network in `./network/scion-testnet`) you can copy this file from
+`./network/scion-testnet/topos/default/ASXXX_X_XXX/topology.json` where `XXX_X_XXX`
+should be replaced with the AS number of the AS you want your application to be in. For example, the examples in
+`./examples` all use the local AS `ASff00_0_112`. In case you want to connect to a different SCION network than the
+local test network you have to
+provide your own `topology.json`.
 
 Check the return code (`ret`) to ensure the topology was created successfully. A non-zero value indicates an error —
 refer to the API documentation for error code explanations.
@@ -60,7 +67,7 @@ Similarly to BSD sockets, SCION sockets can:
 
 - `scion_bind()` — bind the socket to a local address
 - `scion_connect()` — connect the socket to a remote address
-- `scion_send()`, `scion_recv` — send/receive data over a connected socket
+- `scion_send()`, `scion_recv()` — send/receive data over a connected socket
 - `scion_sendto()` — send data to a specific destination and path
 - `scion_recvfrom()` — receive data along with additional information such as sender and incoming path
 
