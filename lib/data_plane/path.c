@@ -26,7 +26,7 @@
 #include "control_plane/fetch.h"
 #include "data_plane/path.h"
 #include "util/endian.h"
-#include "util/linked_list.h"
+#include "util/list.h"
 
 int scion_path_meta_hdr_init(struct scion_path_meta_hdr *hdr)
 {
@@ -41,7 +41,7 @@ int scion_path_meta_hdr_init(struct scion_path_meta_hdr *hdr)
 }
 
 int scion_path_raw_init(struct scion_path_raw *raw_path, struct scion_path_meta_hdr *hdr,
-	struct scion_linked_list *info_fields, struct scion_linked_list *hop_fields)
+	struct scion_list *info_fields, struct scion_list *hop_fields)
 {
 	assert(raw_path);
 	assert(hdr);
@@ -106,8 +106,8 @@ int scion_path_raw_reverse(struct scion_path_raw *path)
 	assert(path->raw);
 
 	struct scion_path_meta_hdr hdr;
-	struct scion_linked_list *info_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
-	struct scion_linked_list *hop_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
+	struct scion_list *info_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
+	struct scion_list *hop_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
 
 	ret = scion_path_deserialize(path->raw, &hdr, info_fields, hop_fields);
 	if (ret != 0) {
@@ -128,7 +128,7 @@ int scion_path_raw_reverse(struct scion_path_raw *path)
 
 	// reverse cons dir flag
 	struct scion_info_field *info;
-	struct scion_linked_list_node *curr = info_fields->first;
+	struct scion_list_node *curr = info_fields->first;
 	while (curr) {
 		info = curr->value;
 		info->cons_dir = !(info->cons_dir);
@@ -271,8 +271,8 @@ int scion_path_meta_hdr_serialize(struct scion_path_meta_hdr *hdr, uint8_t *buf)
 	return 0;
 }
 
-int scion_path_serialize(struct scion_path_meta_hdr *hdr, struct scion_linked_list *info_fields,
-	struct scion_linked_list *hop_fields, uint8_t *buf)
+int scion_path_serialize(
+	struct scion_path_meta_hdr *hdr, struct scion_list *info_fields, struct scion_list *hop_fields, uint8_t *buf)
 {
 	assert(buf);
 	assert(hdr);
@@ -280,7 +280,7 @@ int scion_path_serialize(struct scion_path_meta_hdr *hdr, struct scion_linked_li
 	assert(hop_fields);
 	int ret;
 
-	struct scion_linked_list_node *curr;
+	struct scion_list_node *curr;
 	uint16_t offset = (uint16_t)SCION_META_LEN;
 
 	ret = scion_path_meta_hdr_serialize(hdr, buf);
@@ -332,8 +332,8 @@ int scion_path_meta_hdr_deserialize(const uint8_t *buf, struct scion_path_meta_h
 	return 0;
 }
 
-int scion_path_deserialize(uint8_t *buf, struct scion_path_meta_hdr *hdr, struct scion_linked_list *info_fields,
-	struct scion_linked_list *hop_fields)
+int scion_path_deserialize(
+	uint8_t *buf, struct scion_path_meta_hdr *hdr, struct scion_list *info_fields, struct scion_list *hop_fields)
 {
 	assert(buf);
 	assert(hdr);

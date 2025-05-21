@@ -205,8 +205,8 @@ int scion_test_deserialize_path(void)
 	// clang-format on
 
 	struct scion_path_meta_hdr hdr;
-	struct scion_linked_list *info_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
-	struct scion_linked_list *hop_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
+	struct scion_list *info_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
+	struct scion_list *hop_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
 
 	ret = scion_path_deserialize((uint8_t *)&buf, &hdr, info_fields, hop_fields);
 	if (ret != 0) {
@@ -238,7 +238,7 @@ int scion_test_deserialize_path(void)
 	}
 
 	// Info Fields
-	struct scion_linked_list_node *curr = info_fields->first;
+	struct scion_list_node *curr = info_fields->first;
 	struct scion_info_field *curr_if = (struct scion_info_field *)curr->value;
 
 	if (curr_if == NULL) {

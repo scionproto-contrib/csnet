@@ -22,7 +22,7 @@
 #include "control_plane/path_metadata.h"
 #include "data_plane/underlay.h"
 #include "scion/scion.h"
-#include "util/linked_list.h"
+#include "util/list.h"
 
 #define SCION_MAX_INFS 3
 #define SCION_MAX_HOPS 64
@@ -77,7 +77,7 @@ int scion_path_meta_hdr_init(struct scion_path_meta_hdr *hdr);
  *      - An integer status code, 0 for success or an error code as defined in error.h.
  */
 int scion_path_raw_init(struct scion_path_raw *raw_path, struct scion_path_meta_hdr *hdr,
-	struct scion_linked_list *info_fields, struct scion_linked_list *hop_fields);
+	struct scion_list *info_fields, struct scion_list *hop_fields);
 
 /*
  * FUNCTION: scion_path_raw_free
@@ -163,8 +163,8 @@ size_t scion_path_get_hops(const struct scion_path *path);
  * 			if >= 0: the length of the serialized SCION path.
  * 			if < an error code as defined in error.h.
  */
-int scion_path_serialize(struct scion_path_meta_hdr *hdr, struct scion_linked_list *info_fields,
-	struct scion_linked_list *hop_fields, uint8_t *buf);
+int scion_path_serialize(
+	struct scion_path_meta_hdr *hdr, struct scion_list *info_fields, struct scion_list *hop_fields, uint8_t *buf);
 
 int scion_path_meta_hdr_serialize(struct scion_path_meta_hdr *hdr, uint8_t *buf);
 
@@ -188,8 +188,8 @@ int scion_path_meta_hdr_serialize(struct scion_path_meta_hdr *hdr, uint8_t *buf)
  * Returns:
  *      - An integer status code, 0 for success or an error code as defined in error.h.
  */
-int scion_path_deserialize(uint8_t *buf, struct scion_path_meta_hdr *hdr, struct scion_linked_list *info_fields,
-	struct scion_linked_list *hop_fields);
+int scion_path_deserialize(
+	uint8_t *buf, struct scion_path_meta_hdr *hdr, struct scion_list *info_fields, struct scion_list *hop_fields);
 
 int scion_path_meta_hdr_deserialize(const uint8_t *buf, struct scion_path_meta_hdr *hdr);
 

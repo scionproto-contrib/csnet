@@ -21,7 +21,7 @@
 #include "common/isd_as.h"
 #include "data_plane/path.h"
 #include "scion/scion.h"
-#include "util/linked_list.h"
+#include "util/list.h"
 
 #define SCION_INTERFACE_ANY ((scion_interface_id)0)
 
@@ -31,7 +31,7 @@ struct scion_topology {
 	char *cs_ip;
 	uint16_t cs_port;
 	enum scion_addr_family local_addr_family;
-	struct scion_linked_list *border_routers;
+	struct scion_list *border_routers;
 };
 
 struct scion_border_router {

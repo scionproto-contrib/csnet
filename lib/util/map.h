@@ -43,7 +43,7 @@ struct scion_map_key_config {
 struct scion_map {
 	struct scion_map_key_config key_config;
 
-	struct scion_linked_list *key_value_pairs;
+	struct scion_list *key_value_pairs;
 
 	struct scion_map_value_free free_value;
 };

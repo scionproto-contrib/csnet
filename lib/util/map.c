@@ -14,7 +14,7 @@
 
 #include "map.h"
 
-#include "linked_list.h"
+#include "list.h"
 
 #include <stdlib.h>
 #include <string.h>
