@@ -193,6 +193,6 @@ int scion_path_deserialize(uint8_t *buf, struct scion_path_meta_hdr *hdr, struct
 
 int scion_path_meta_hdr_deserialize(const uint8_t *buf, struct scion_path_meta_hdr *hdr);
 
-struct scion_path_metadata *scion_path_get_metadata(struct scion_path *path);
+const struct scion_path_metadata *scion_path_get_metadata(const struct scion_path *path);
 
-void scion_path_print_metadata(struct scion_path *path);
+void scion_path_print_metadata(const struct scion_path *path);

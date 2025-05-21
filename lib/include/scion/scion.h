@@ -320,9 +320,9 @@ struct scion_path;
 int scion_path_reverse(struct scion_path *path);
 
 /**
- * Gets the hops of a path.
+ * Gets the number of hops of a path.
  * @param[in] path The path.
- * @return The hops of the path.
+ * @return The number of hops of the path.
  */
 size_t scion_path_get_hops(const struct scion_path *path);
 
@@ -454,7 +454,7 @@ struct scion_path_metadata {
 };
 
 // TODO: docs
-struct scion_path_metadata *scion_path_get_metadata(struct scion_path *path);
+const struct scion_path_metadata *scion_path_get_metadata(const struct scion_path *path);
 
 /**
  * Prints a path to stdout.
@@ -463,7 +463,7 @@ struct scion_path_metadata *scion_path_get_metadata(struct scion_path *path);
 void scion_path_print(const struct scion_path *path);
 
 // TODO document me
-void scion_path_print_metadata(struct scion_path *path);
+void scion_path_print_metadata(const struct scion_path *path);
 
 /**
  * @struct scion_path_collection

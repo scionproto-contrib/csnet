@@ -237,7 +237,7 @@ size_t scion_path_get_hops(const struct scion_path *path)
 	}
 }
 
-struct scion_path_metadata *scion_path_get_metadata(struct scion_path *path)
+const struct scion_path_metadata *scion_path_get_metadata(const struct scion_path *path)
 {
 	assert(path);
 
@@ -390,7 +390,7 @@ int scion_path_deserialize(uint8_t *buf, struct scion_path_meta_hdr *hdr, struct
 	return 0;
 }
 
-void scion_path_print_metadata(struct scion_path *path)
+void scion_path_print_metadata(const struct scion_path *path)
 {
 	scion_path_metadata_print(path->metadata);
 }
