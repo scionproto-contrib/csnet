@@ -22,7 +22,7 @@
 #include "control_plane/segment.h"
 #include "control_plane/topology.h"
 #include "data_plane/path.h"
-#include "util/linked_list.h"
+#include "util/list.h"
 
 /**
  * FUNCTION: scion_fetch_paths

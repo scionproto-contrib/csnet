@@ -109,11 +109,11 @@ void scion_path_metadata_free(struct scion_path_metadata *path_meta)
 }
 
 static void collect_interfaces(
-	struct scion_linked_list *interface_list, struct scion_path_interface **interfaces, size_t *interfaces_len)
+	struct scion_list *interface_list, struct scion_path_interface **interfaces, size_t *interfaces_len)
 {
 	size_t interface_list_size = scion_list_size(interface_list);
 	struct scion_path_interface *interface_array = calloc(interface_list_size, sizeof(*interface_array));
-	struct scion_linked_list_node *current = interface_list->first;
+	struct scion_list_node *current = interface_list->first;
 
 	size_t i = 0;
 	while (current) {
@@ -157,13 +157,13 @@ static void add_hop_latency(
 }
 
 static struct timeval *collect_latencies(struct scion_path_interface *interfaces, size_t interfaces_len,
-	struct scion_linked_list *as_entries, struct scion_map *remote_interfaces)
+	struct scion_list *as_entries, struct scion_map *remote_interfaces)
 {
 	struct scion_map *hop_latencies = scion_map_create(
 		(struct scion_map_key_config){ .size = HOP_KEY_SIZE, .serialize = (scion_map_serialize_key)serialize_hop_key },
 		SCION_MAP_NO_FREE_VALUES);
 
-	struct scion_linked_list_node *current = as_entries->first;
+	struct scion_list_node *current = as_entries->first;
 	while (current) {
 		struct scion_as_entry *as_entry = current->value;
 
@@ -172,7 +172,7 @@ static struct timeval *collect_latencies(struct scion_path_interface *interfaces
 
 		if (as_entry->extensions.static_info != NULL && as_entry->extensions.static_info->latency != NULL) {
 			// Egress to sibling child, core or peer interfaces
-			struct scion_linked_list_node *current_key_value
+			struct scion_list_node *current_key_value
 				= as_entry->extensions.static_info->latency->intra->key_value_pairs->first;
 
 			while (current_key_value) {
@@ -238,13 +238,13 @@ static void add_hop_bandwidth(
 }
 
 static uint64_t *collect_bandwidths(struct scion_path_interface *interfaces, size_t interfaces_len,
-	struct scion_linked_list *as_entries, struct scion_map *remote_interfaces)
+	struct scion_list *as_entries, struct scion_map *remote_interfaces)
 {
 	struct scion_map *hop_bandwidths = scion_map_create(
 		(struct scion_map_key_config){ .size = HOP_KEY_SIZE, .serialize = (scion_map_serialize_key)serialize_hop_key },
 		SCION_MAP_NO_FREE_VALUES);
 
-	struct scion_linked_list_node *current = as_entries->first;
+	struct scion_list_node *current = as_entries->first;
 	while (current) {
 		struct scion_as_entry *as_entry = current->value;
 
@@ -253,7 +253,7 @@ static uint64_t *collect_bandwidths(struct scion_path_interface *interfaces, siz
 
 		if (as_entry->extensions.static_info != NULL && as_entry->extensions.static_info->bandwidth != NULL) {
 			// Egress to sibling child, core or peer interfaces
-			struct scion_linked_list_node *current_key_value
+			struct scion_list_node *current_key_value
 				= as_entry->extensions.static_info->bandwidth->intra->key_value_pairs->first;
 
 			while (current_key_value) {
@@ -304,19 +304,18 @@ static uint64_t *collect_bandwidths(struct scion_path_interface *interfaces, siz
 }
 
 struct scion_geo_coordinates *collect_geo_coordinates(
-	struct scion_path_interface *interfaces, size_t interfaces_len, struct scion_linked_list *as_entries)
+	struct scion_path_interface *interfaces, size_t interfaces_len, struct scion_list *as_entries)
 {
 	struct scion_map *iface_geos = scion_map_create((struct scion_map_key_config){ .size = INTERFACE_KEY_SIZE,
 														.serialize = (scion_map_serialize_key)serialize_interface_key },
 		SCION_MAP_NO_FREE_VALUES);
 
-	struct scion_linked_list_node *current = as_entries->first;
+	struct scion_list_node *current = as_entries->first;
 	while (current) {
 		struct scion_as_entry *as_entry = current->value;
 
 		if (as_entry->extensions.static_info != NULL && as_entry->extensions.static_info->geo != NULL) {
-			struct scion_linked_list_node *current_key_value
-				= as_entry->extensions.static_info->geo->key_value_pairs->first;
+			struct scion_list_node *current_key_value = as_entry->extensions.static_info->geo->key_value_pairs->first;
 
 			while (current_key_value) {
 				struct scion_map_key_value_pair *kvp = current_key_value->value;
@@ -353,18 +352,18 @@ struct scion_geo_coordinates *collect_geo_coordinates(
 }
 
 enum scion_link_type *collect_link_types(struct scion_path_interface *interfaces, size_t interfaces_len,
-	struct scion_linked_list *as_entries, struct scion_map *remote_interfaces)
+	struct scion_list *as_entries, struct scion_map *remote_interfaces)
 {
 	struct scion_map *hop_link_types = scion_map_create(
 		(struct scion_map_key_config){ .size = HOP_KEY_SIZE, (scion_map_serialize_key)serialize_hop_key },
 		SCION_MAP_NO_FREE_VALUES);
 
-	struct scion_linked_list_node *current = as_entries->first;
+	struct scion_list_node *current = as_entries->first;
 	while (current) {
 		struct scion_as_entry *as_entry = current->value;
 
 		if (as_entry->extensions.static_info != NULL && as_entry->extensions.static_info->link_type != NULL) {
-			struct scion_linked_list_node *current_key_value
+			struct scion_list_node *current_key_value
 				= as_entry->extensions.static_info->link_type->key_value_pairs->first;
 
 			while (current_key_value) {
@@ -429,13 +428,13 @@ static void add_hop_internal_hops(
 }
 
 static uint32_t *collect_internal_hops(
-	struct scion_path_interface *interfaces, size_t interfaces_len, struct scion_linked_list *as_entries)
+	struct scion_path_interface *interfaces, size_t interfaces_len, struct scion_list *as_entries)
 {
 	struct scion_map *hop_internal_hops = scion_map_create(
 		(struct scion_map_key_config){ .size = HOP_KEY_SIZE, .serialize = (scion_map_serialize_key)serialize_hop_key },
 		SCION_MAP_NO_FREE_VALUES);
 
-	struct scion_linked_list_node *current = as_entries->first;
+	struct scion_list_node *current = as_entries->first;
 	while (current) {
 		struct scion_as_entry *as_entry = current->value;
 
@@ -443,7 +442,7 @@ static uint32_t *collect_internal_hops(
 			.id = as_entry->hop_entry.hop_field.cons_egress };
 
 		if (as_entry->extensions.static_info != NULL && as_entry->extensions.static_info->internal_hops != NULL) {
-			struct scion_linked_list_node *current_key_value
+			struct scion_list_node *current_key_value
 				= as_entry->extensions.static_info->internal_hops->key_value_pairs->first;
 
 			while (current_key_value) {
@@ -485,20 +484,20 @@ static bool match_string(char *str, char *search_str)
 	return strncmp(str, search_str, (str_len > search_str_len ? str_len : search_str_len) + 1) == 0;
 }
 
-char **collect_notes(struct scion_linked_list *as_entries, scion_ia *ases, size_t ases_len)
+char **collect_notes(struct scion_list *as_entries, scion_ia *ases, size_t ases_len)
 {
 	struct scion_map *as_notes = scion_map_create(
 		(struct scion_map_key_config){ .size = IA_KEY_SIZE, .serialize = NULL },
 		SCION_MAP_CUSTOM_FREE(scion_list_free));
 
-	struct scion_linked_list_node *current = as_entries->first;
+	struct scion_list_node *current = as_entries->first;
 	while (current) {
 		struct scion_as_entry *as_entry = current->value;
 
 		if (as_entry->extensions.static_info != NULL && as_entry->extensions.static_info->note != NULL) {
 			scion_ia ia = as_entry->local;
 
-			struct scion_linked_list *notes = scion_map_get(as_notes, &ia);
+			struct scion_list *notes = scion_map_get(as_notes, &ia);
 
 			if (notes == NULL) {
 				notes = scion_list_create(SCION_LIST_NO_FREE_VALUES);
@@ -523,7 +522,7 @@ char **collect_notes(struct scion_linked_list *as_entries, scion_ia *ases, size_
 		// allocate empty string
 		notes[i] = calloc(1, sizeof(char));
 
-		struct scion_linked_list *note_list = scion_map_get(as_notes, &ases[i]);
+		struct scion_list *note_list = scion_map_get(as_notes, &ases[i]);
 
 		if (note_list) {
 			current = note_list->first;
@@ -552,7 +551,7 @@ char **collect_notes(struct scion_linked_list *as_entries, scion_ia *ases, size_
 }
 
 struct scion_path_metadata *scion_path_metadata_collect(
-	struct scion_linked_list *interfaces, struct scion_linked_list *as_entries, uint32_t mtu, int64_t expiry)
+	struct scion_list *interfaces, struct scion_list *as_entries, uint32_t mtu, int64_t expiry)
 {
 	assert(scion_list_size(interfaces) % 2 == 0);
 	assert(scion_list_size(interfaces) > 0);
@@ -560,8 +559,8 @@ struct scion_path_metadata *scion_path_metadata_collect(
 	struct scion_map *remote_interface = scion_map_create(
 		(struct scion_map_key_config){ .size = INTERFACE_KEY_SIZE, (scion_map_serialize_key)serialize_interface_key },
 		SCION_MAP_NO_FREE_VALUES);
-	struct scion_linked_list_node *from = interfaces->first;
-	struct scion_linked_list_node *to = from->next;
+	struct scion_list_node *from = interfaces->first;
+	struct scion_list_node *to = from->next;
 
 	while (from) {
 		scion_map_put(remote_interface, from->value, to->value);

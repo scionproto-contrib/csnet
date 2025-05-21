@@ -22,7 +22,7 @@
 #include "common/isd_as.h"
 #include "data_plane/path.h"
 #include "test_path.h"
-#include "util/linked_list.h"
+#include "util/list.h"
 
 int scion_test_init_raw_path(void)
 {
@@ -33,7 +33,7 @@ int scion_test_init_raw_path(void)
 	hdr.seg_len[1] = 2;
 	hdr.seg_len[2] = 2;
 
-	struct scion_linked_list *info_fields = scion_list_create(SCION_LIST_NO_FREE_VALUES);
+	struct scion_list *info_fields = scion_list_create(SCION_LIST_NO_FREE_VALUES);
 
 	struct scion_info_field info_field_0;
 	info_field_0.peer = false;
@@ -57,7 +57,7 @@ int scion_test_init_raw_path(void)
 	scion_list_append(info_fields, &info_field_1);
 	scion_list_append(info_fields, &info_field_2);
 
-	struct scion_linked_list *hop_fields = scion_list_create(SCION_LIST_NO_FREE_VALUES);
+	struct scion_list *hop_fields = scion_list_create(SCION_LIST_NO_FREE_VALUES);
 
 	struct scion_hop_field hop_field_0;
 	hop_field_0.ingress_router_alert = false;

@@ -19,13 +19,13 @@
 
 #include "common/isd_as.h"
 #include "scion/scion.h"
-#include "util/linked_list.h"
+#include "util/list.h"
 
 void scion_geo_coordinates_free(struct scion_geo_coordinates *geo);
 
 void scion_path_metadata_free(struct scion_path_metadata *path_meta);
 
 struct scion_path_metadata *scion_path_metadata_collect(
-	struct scion_linked_list *interfaces, struct scion_linked_list *as_entries, uint32_t mtu, int64_t expiry);
+	struct scion_list *interfaces, struct scion_list *as_entries, uint32_t mtu, int64_t expiry);
 
 void scion_path_metadata_print(struct scion_path_metadata *path_meta);

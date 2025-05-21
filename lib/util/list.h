@@ -31,9 +31,9 @@
 #define SCION_LIST_NO_FREE_VALUES SCION_LIST_CUSTOM_FREE(NULL)
 #define SCION_LIST_SIMPLE_FREE SCION_LIST_CUSTOM_FREE(free)
 
-struct scion_linked_list_node {
+struct scion_list_node {
 	void *value;
-	struct scion_linked_list_node *next;
+	struct scion_list_node *next;
 };
 
 typedef void (*scion_list_value_free_fn)(void *value, void *ctx);
@@ -43,10 +43,10 @@ struct scion_list_value_free {
 	void *ctx;
 };
 
-struct scion_linked_list {
+struct scion_list {
 	size_t size;
-	struct scion_linked_list_node *first;
-	struct scion_linked_list_node *last;
+	struct scion_list_node *first;
+	struct scion_list_node *last;
 
 	struct scion_list_value_free free_value;
 };
@@ -80,10 +80,10 @@ struct scion_list_comparator {
  * - SCION_LIST_CUSTOM_FREE_WITH_CTX(free_fn, ctx): a value freer that uses the custom free_fn and context ctx to free
  * the value
  */
-void scion_list_free(struct scion_linked_list *list);
+void scion_list_free(struct scion_list *list);
 
 // TODO document me
-struct scion_linked_list *scion_list_create(struct scion_list_value_free free_value);
+struct scion_list *scion_list_create(struct scion_list_value_free free_value);
 
 /*
  * FUNCTION: scion_list_append
@@ -94,7 +94,7 @@ struct scion_linked_list *scion_list_create(struct scion_list_value_free free_va
  *      - struct scion_linked_list *list: Pointer to a scion_linked_list struct.
  *      - void *ptr: Pointer to which will be added to the list.
  */
-void scion_list_append(struct scion_linked_list *list, void *value);
+void scion_list_append(struct scion_list *list, void *value);
 
 /*
  * FUNCTION: scion_list_append_all
@@ -105,7 +105,7 @@ void scion_list_append(struct scion_linked_list *list, void *value);
  *      - struct scion_linked_list *dst_list: Pointer to the destination scion_linked_list.
  *      - struct scion_linked_list *src_list: Pointer to the source scion_linked_list.
  */
-void scion_list_append_all(struct scion_linked_list *dst_list, struct scion_linked_list *src_list);
+void scion_list_append_all(struct scion_list *dst_list, struct scion_list *src_list);
 
 /*
  * FUNCTION: scion_list_pop
@@ -118,7 +118,7 @@ void scion_list_append_all(struct scion_linked_list *dst_list, struct scion_link
  * Returns:
  *      - void *value: value pointer of the former first element.
  */
-void *scion_list_pop(struct scion_linked_list *list);
+void *scion_list_pop(struct scion_list *list);
 
 /*
  * FUNCTION: scion_list_reverse
@@ -128,15 +128,15 @@ void *scion_list_pop(struct scion_linked_list *list);
  * Arguments:
  *      - struct scion_linked_list *list: Pointer to a scion_linked_list struct which you want to reverse.
  */
-void scion_list_reverse(struct scion_linked_list *list);
+void scion_list_reverse(struct scion_list *list);
 
-void scion_list_sort(struct scion_linked_list *list, struct scion_list_comparator compare);
+void scion_list_sort(struct scion_list *list, struct scion_list_comparator compare);
 
 void scion_list_filter(
-	struct scion_linked_list *list, struct scion_list_predicate predicate, struct scion_list_value_free free_value);
+	struct scion_list *list, struct scion_list_predicate predicate, struct scion_list_value_free free_value);
 
-void *scion_list_get(struct scion_linked_list *list, size_t n);
+void *scion_list_get(struct scion_list *list, size_t n);
 
-void *scion_list_find(struct scion_linked_list *list, struct scion_list_predicate predicate);
+void *scion_list_find(struct scion_list *list, struct scion_list_predicate predicate);
 
-size_t scion_list_size(struct scion_linked_list *list);
+size_t scion_list_size(struct scion_list *list);

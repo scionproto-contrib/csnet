@@ -19,7 +19,7 @@
 #include "data_plane/test_path.h"
 #include "data_plane/test_serialization.h"
 #include "testing.h"
-#include "util/test_linked_list.h"
+#include "util/test_list.h"
 #include "util/test_map.h"
 
 #include <assert.h>

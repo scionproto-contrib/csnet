@@ -40,7 +40,7 @@ add_executable(tests
         data_plane/test_deserialization.c
         data_plane/test_path.c
         data_plane/test_serialization.c
-        util/test_linked_list.c
+        util/test_list.c
         util/test_map.c
 )
 

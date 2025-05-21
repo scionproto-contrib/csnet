@@ -32,7 +32,7 @@ set(SOURCES
         "../../lib/data_plane/socket.c"
         "../../lib/data_plane/udp.c"
         "../../lib/util/http2_rpc.c"
-        "../../lib/util/linked_list.c"
+        "../../lib/util/list.c"
         "../../lib/util/map.c"
 )
 

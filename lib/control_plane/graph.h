@@ -18,7 +18,7 @@
 #include "control_plane/topology.h"
 #include "data_plane/path.h"
 #include "scion/scion.h"
-#include "util/linked_list.h"
+#include "util/list.h"
 
 /**
  * Builds the available paths between two ASes given the available segments.
@@ -38,4 +38,4 @@
  */
 int scion_build_paths(scion_ia src, scion_ia dst, struct scion_topology *topology, struct scion_path_segment **ups,
 	size_t ups_length, struct scion_path_segment **cores, size_t cores_length, struct scion_path_segment **downs,
-	size_t downs_length, struct scion_linked_list *paths, uint opt);
+	size_t downs_length, struct scion_list *paths, uint opt);

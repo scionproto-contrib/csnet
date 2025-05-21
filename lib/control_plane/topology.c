@@ -414,7 +414,7 @@ int scion_topology_next_underlay_hop(struct scion_topology *t, scion_interface_i
 	assert(t->border_routers);
 	assert(underlay);
 
-	struct scion_linked_list_node *curr = t->border_routers->first;
+	struct scion_list_node *curr = t->border_routers->first;
 	while (curr) {
 		struct scion_border_router *br = curr->value;
 		if (br != NULL) {

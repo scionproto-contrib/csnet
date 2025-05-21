@@ -20,7 +20,7 @@
 #include <scion/scion.h>
 
 struct scion_path_collection {
-	struct scion_linked_list *list;
+	struct scion_list *list;
 };
 
 int scion_path_collection_init(struct scion_path_collection **paths);

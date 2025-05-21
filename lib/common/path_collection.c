@@ -24,7 +24,7 @@ int scion_path_collection_init(struct scion_path_collection **paths)
 {
 	assert(paths);
 
-	struct scion_linked_list *list = scion_list_create(SCION_LIST_CUSTOM_FREE(scion_path_free));
+	struct scion_list *list = scion_list_create(SCION_LIST_CUSTOM_FREE(scion_path_free));
 	struct scion_path_collection *new_paths = malloc(sizeof(*new_paths));
 	if (new_paths == NULL) {
 		return SCION_MEM_ALLOC_FAIL;
@@ -68,7 +68,7 @@ struct scion_path *scion_path_collection_first(struct scion_path_collection *pat
 {
 	assert(paths);
 
-	struct scion_linked_list_node *first = paths->list->first;
+	struct scion_list_node *first = paths->list->first;
 
 	if (first == NULL) {
 		return NULL;
@@ -108,7 +108,7 @@ struct scion_path **scion_path_collection_as_array(struct scion_path_collection 
 	assert(len);
 
 	struct scion_path **path_array = calloc(paths->list->size, sizeof(*path_array));
-	struct scion_linked_list_node *current = paths->list->first;
+	struct scion_list_node *current = paths->list->first;
 
 	size_t i = 0;
 	while (current) {
@@ -124,13 +124,13 @@ struct scion_path **scion_path_collection_as_array(struct scion_path_collection 
 
 void scion_path_collection_print(struct scion_path_collection *paths)
 {
-	struct scion_linked_list *list = paths->list;
+	struct scion_list *list = paths->list;
 	if (!paths || !list || list->size == 0) {
 		return;
 	}
 	(void)printf("Available paths:\n");
 	uint16_t i = 0;
-	struct scion_linked_list_node *curr = list->first;
+	struct scion_list_node *curr = list->first;
 	size_t length = 0;
 	while (curr) {
 		struct scion_path *path = curr->value;
