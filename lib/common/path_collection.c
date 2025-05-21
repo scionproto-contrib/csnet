@@ -20,30 +20,19 @@
 
 #include "common/path_collection.h"
 
-static struct scion_path_collection *scion_path_collection_from_list(struct scion_linked_list *list)
-{
-	struct scion_path_collection *paths = malloc(sizeof(*paths));
-	if (paths == NULL) {
-		return NULL;
-	}
-
-	paths->list = list;
-	return paths;
-}
-
 int scion_path_collection_init(struct scion_path_collection **paths)
 {
 	assert(paths);
 
 	struct scion_linked_list *list = scion_list_create(SCION_LIST_CUSTOM_FREE(scion_path_free));
-	struct scion_path_collection *new_paths = scion_path_collection_from_list(list);
-
+	struct scion_path_collection *new_paths = malloc(sizeof(*new_paths));
 	if (new_paths == NULL) {
 		return SCION_MEM_ALLOC_FAIL;
 	}
 
-	*paths = new_paths;
+	new_paths->list = list;
 
+	*paths = new_paths;
 	return 0;
 }
 
