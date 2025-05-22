@@ -69,7 +69,7 @@ static int set_split_seg(struct scion_split_segments *split_seg, bool has_up, sc
  *      - Potential Optimization if we can determine that destination is the only Core AS in the ISD:
  *        [(src to dst, UP)]
  *
- * (5) Source and destination are in the same ISD. Neiter are Core ASes
+ * (5) Source and destination are in the same ISD. Neither are Core ASes
  *      Result: [(src to src_wildcard, UP), (src_wildcard to dst_wildcard, CORE), (dst_wildcard to dst, DOWN)]
  *
  *      - Potential Optimization if we can determine that there is the only one Core AS in the ISD:
@@ -81,7 +81,7 @@ static int set_split_seg(struct scion_split_segments *split_seg, bool has_up, sc
  * (7) Source and destination are not in the same ISD. Only the destination is a Core AS.
  *      Result: [(src to src_wildcard, UP), (src_wildcard to dst, CORE)]
  *
- * (8) Source and destination are not in the same ISD. Neiter are Core ASes
+ * (8) Source and destination are not in the same ISD. Neither are Core ASes
  *      Result: [(src to src_wildcard, UP), (src_wildcard to dst_wildcard, CORE), (dst_wildcard to dst, DOWN)]
  *
  * Arguments:
