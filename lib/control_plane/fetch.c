@@ -24,18 +24,16 @@
 #include "data_plane/path.h"
 #include "util/linked_list.h"
 
-/*
+/**
  * FUNCTION: scion_fetch_paths
  * -----------------
  * Returns a list of available paths between a given source AS and a given destination AS by
  * fetching the required path segments from the local Control Server.
  *
  * Arguments:
- *      - struct scion_topology *t: Pointer to scion_topology struct, containing information about the local AS
- * 		  (such as control server ip, etc.).
- *      - ScionIA src: source AS.
+ *      - struct scion_network *network: Pointer to the SCION network.
  *      - ScionIA dst: destination AS.
- *      - struct scion_linked_list *paths: Pointer to a scion_linked_list into which the resulting scion_path structs,
+ *      - struct scion_path_collection **paths: Double pointer to a scion_path_collection into which the resulting scion_path structs,
  *        which represent the available paths, will be stored.
  *
  * Returns:
