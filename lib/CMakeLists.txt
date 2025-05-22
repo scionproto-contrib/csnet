@@ -41,6 +41,8 @@ add_library(scion STATIC
         control_plane/segment.c
         control_plane/topology.c
         control_plane/network.c
+        control_plane/policy.c
+        control_plane/path_metadata.c
         data_plane/packet.c
         data_plane/path.c
         data_plane/socket.c
@@ -48,7 +50,8 @@ add_library(scion STATIC
         data_plane/scmp.c
         data_plane/underlay.c
         util/http2_rpc.c
-        util/linked_list.c
+        util/list.c
+        util/map.c
         proto/control_plane/experimental/v1/seg_detached_extensions.pb-c.c
         proto/control_plane/v1/seg.pb-c.c
         proto/control_plane/v1/seg_extensions.pb-c.c

@@ -25,9 +25,10 @@
 #include "common/path_segment.h"
 #include "control_plane/fetch.h"
 #include "control_plane/graph.h"
+#include "control_plane/path_metadata.h"
 #include "data_plane/path.h"
 #include "util/endian.h"
-#include "util/linked_list.h"
+#include "util/list.h"
 
 // Internally used structs
 
@@ -65,7 +66,7 @@ struct solution_edge {
 };
 
 struct path_solution {
-	struct scion_linked_list *edges;
+	struct scion_list *edges;
 	struct vertex *current_vertex;
 	struct input_segment *current_seg;
 	size_t cost;
@@ -101,7 +102,7 @@ struct dmg {
 
 struct segment {
 	struct scion_info_field *info_field;
-	struct scion_linked_list *hop_fields;
+	struct scion_list *hop_fields;
 	// COMMENT: GO implementation includes a list of ASEntries but I can't seem to find a place where they are needed /
 	// used. So I omit them here.
 };
@@ -121,17 +122,9 @@ static void free_segment(struct segment *seg)
 		free(seg->info_field);
 		seg->info_field = NULL;
 	}
-	scion_list_free(seg->hop_fields, free);
+	scion_list_free(seg->hop_fields);
 	seg->hop_fields = NULL;
 	free(seg);
-}
-
-static void free_segment_list(struct scion_linked_list *segments)
-{
-	if (segments == NULL) {
-		return;
-	}
-	scion_list_free(segments, (scion_list_value_free)free_segment);
 }
 
 /*
@@ -247,14 +240,14 @@ static int init_solution_edge(
 	return 0;
 }
 
-static int copy_solution_edge_list(struct scion_linked_list *new_list, struct scion_linked_list *old_list)
+static int copy_solution_edge_list(struct scion_list *new_list, struct scion_list *old_list)
 {
 	assert(new_list);
 	assert(old_list);
 
 	int ret;
 
-	struct scion_linked_list_node *curr = old_list->first;
+	struct scion_list_node *curr = old_list->first;
 	while (curr) {
 		struct solution_edge *old_edge = curr->value;
 		struct solution_edge *new_edge = malloc(sizeof(*new_edge));
@@ -284,22 +277,14 @@ static void free_solution_edge(struct solution_edge *sol_edge)
 	free(sol_edge);
 }
 
-static void free_solution_edge_list(struct scion_linked_list *sol_edge_list)
-{
-	if (sol_edge_list == NULL) {
-		return;
-	}
-	scion_list_free(sol_edge_list, (scion_list_value_free)free_solution_edge);
-}
-
 /*
  * ##################################################################
  * ################### path_solution functions ######################
  * ##################################################################
  */
 
-static int init_path_solution(struct path_solution *path_sol, struct scion_linked_list *edges, struct vertex *v,
-	struct input_segment *seg, size_t c)
+static int init_path_solution(
+	struct path_solution *path_sol, struct scion_list *edges, struct vertex *v, struct input_segment *seg, size_t c)
 {
 	assert(path_sol);
 
@@ -318,7 +303,7 @@ static void free_path_solution(struct path_solution *path_sol)
 {
 	assert(path_sol);
 
-	free_solution_edge_list(path_sol->edges);
+	scion_list_free(path_sol->edges);
 	path_sol->edges = NULL;
 	free(path_sol);
 }
@@ -705,14 +690,6 @@ static int add_edge(
  * ##################################################################
  */
 
-static void free_tuples_list(struct scion_linked_list *tuples)
-{
-	if (tuples == NULL) {
-		return;
-	}
-	scion_list_free(tuples, free);
-}
-
 static int traverse_segment(struct dmg *graph, struct input_segment *seg)
 {
 	assert(graph);
@@ -749,26 +726,26 @@ static int traverse_segment(struct dmg *graph, struct input_segment *seg)
 	}
 
 	scion_ia pinned_ia = as_entries[as_entries_length - 1]->local;
-	struct scion_linked_list *tuples;
+	struct scion_list *tuples;
 	for (size_t i = as_entries_length; i > 0; i--) {
 		struct scion_as_entry *curr_as_entry = as_entries[i - 1];
 		scion_ia current_ia = curr_as_entry->local;
-		tuples = scion_list_create();
+		tuples = scion_list_create(SCION_LIST_SIMPLE_FREE);
 
 		if (i != as_entries_length) {
 			struct tuple *t = malloc(sizeof(*t));
 			if (t == NULL) {
-				free_tuples_list(tuples);
+				scion_list_free(tuples);
 				return SCION_MEM_ALLOC_FAIL;
 			}
 			ret = vertex_from_ia(pinned_ia, &t->src);
 			if (ret != 0) {
-				free_tuples_list(tuples);
+				scion_list_free(tuples);
 				return ret;
 			}
 			ret = vertex_from_ia(current_ia, &t->dst);
 			if (ret != 0) {
-				free_tuples_list(tuples);
+				scion_list_free(tuples);
 				return ret;
 			}
 			t->peer = 0;
@@ -781,24 +758,24 @@ static int traverse_segment(struct dmg *graph, struct input_segment *seg)
 			uint16_t remote = curr_as_entry->peer_entries[j]->peer_interface;
 			struct tuple *t = malloc(sizeof(*t));
 			if (t == NULL) {
-				free_tuples_list(tuples);
+				scion_list_free(tuples);
 				return SCION_MEM_ALLOC_FAIL;
 			}
 			ret = vertex_from_ia(pinned_ia, &t->src);
 			if (ret != 0) {
-				free_tuples_list(tuples);
+				scion_list_free(tuples);
 				return ret;
 			}
 			ret = vertex_from_peer(current_ia, ingress, curr_as_entry->peer_entries[j]->peer, remote, &t->dst);
 			if (ret != 0) {
-				free_tuples_list(tuples);
+				scion_list_free(tuples);
 				return ret;
 			}
 			t->peer = j + 1;
 			scion_list_append(tuples, t);
 		}
 
-		struct scion_linked_list_node *curr = tuples->first;
+		struct scion_list_node *curr = tuples->first;
 		while (curr != NULL) {
 			struct tuple *t = curr->value;
 			size_t weight = as_entries_length - i;
@@ -806,7 +783,7 @@ static int traverse_segment(struct dmg *graph, struct input_segment *seg)
 			if (seg->type == DOWN_SEGMENT) {
 				ret = reverse_vertex(&t->dst);
 				if (ret != 0) {
-					free_tuples_list(tuples);
+					scion_list_free(tuples);
 					return ret;
 				}
 				struct vertex old_src = t->src;
@@ -819,18 +796,18 @@ static int traverse_segment(struct dmg *graph, struct input_segment *seg)
 			e = malloc(sizeof(*e));
 			ret = init_edge(e, weight, i - 1, t->peer);
 			if (ret != 0) {
-				free_tuples_list(tuples);
+				scion_list_free(tuples);
 				return ret;
 			}
 			ret = add_edge(graph, &t->src, &t->dst, seg, e);
 			if (ret != 0) {
 				free(e);
-				free_tuples_list(tuples);
+				scion_list_free(tuples);
 				return ret;
 			}
 			curr = curr->next;
 		}
-		free_tuples_list(tuples);
+		scion_list_free(tuples);
 	}
 	return 0;
 }
@@ -994,8 +971,8 @@ static bool scion_path_sol_less(struct path_solution *a, struct path_solution *b
 		return (a->edges->size < b->edges->size);
 	}
 
-	struct scion_linked_list_node *curr_a = a->edges->first;
-	struct scion_linked_list_node *curr_b = b->edges->first;
+	struct scion_list_node *curr_a = a->edges->first;
+	struct scion_list_node *curr_b = b->edges->first;
 	struct solution_edge *sol_edge_a;
 	struct solution_edge *sol_edge_b;
 	// TODO: Potentially add Null checks?
@@ -1041,7 +1018,7 @@ static bool scion_path_sol_less(struct path_solution *a, struct path_solution *b
  * Returns:
  * 		- An integer status code, 0 for success or an error code as defined in error.h.
  */
-static int scion_sort_path_solutions(struct scion_linked_list *paths)
+static int scion_sort_path_solutions(struct scion_list *paths)
 {
 	assert(paths);
 
@@ -1049,9 +1026,9 @@ static int scion_sort_path_solutions(struct scion_linked_list *paths)
 		return 0;
 	}
 
-	struct scion_linked_list_node *curr_pos = paths->first;
-	struct scion_linked_list_node *curr_test;
-	struct scion_linked_list_node *candidate;
+	struct scion_list_node *curr_pos = paths->first;
+	struct scion_list_node *curr_test;
+	struct scion_list_node *candidate;
 
 	while (curr_pos) {
 		candidate = curr_pos;
@@ -1090,7 +1067,7 @@ static int scion_sort_path_solutions(struct scion_linked_list *paths)
  * Returns:
  * 		- An integer status code, 0 for success or an error code as defined in error.h.
  */
-static int get_paths_from_graph(struct dmg *dmg, scion_ia src_ia, scion_ia dst_ia, struct scion_linked_list *paths)
+static int get_paths_from_graph(struct dmg *dmg, scion_ia src_ia, scion_ia dst_ia, struct scion_list *paths)
 {
 	assert(dmg);
 	assert(dmg->start_node);
@@ -1109,15 +1086,15 @@ static int get_paths_from_graph(struct dmg *dmg, scion_ia src_ia, scion_ia dst_i
 		return ret;
 	}
 
-	struct scion_linked_list *queue = scion_list_create();
+	struct scion_list *queue = scion_list_create(SCION_LIST_NO_FREE_VALUES);
 	if (queue == NULL) {
 		return SCION_MEM_ALLOC_FAIL;
 	}
 
-	struct scion_linked_list *current_edge_list = scion_list_create();
+	struct scion_list *current_edge_list = scion_list_create(SCION_LIST_CUSTOM_FREE(free_solution_edge));
 	if (current_edge_list == NULL) {
 		ret = SCION_MEM_ALLOC_FAIL;
-		goto cleanup_queue_with_values;
+		goto exit;
 	}
 
 	struct path_solution *current_path_sol = malloc(sizeof(*current_path_sol));
@@ -1145,7 +1122,7 @@ static int get_paths_from_graph(struct dmg *dmg, scion_ia src_ia, scion_ia dst_i
 					struct edge *e = curr_edge_map_node->value;
 
 					if (valid_next_seg(current_path_sol->current_seg, seg)) {
-						current_edge_list = scion_list_create();
+						current_edge_list = scion_list_create(SCION_LIST_CUSTOM_FREE(free_solution_edge));
 						ret = copy_solution_edge_list(current_edge_list, current_path_sol->edges);
 						if (ret != 0) {
 							goto cleanup_path_solution;
@@ -1180,21 +1157,20 @@ static int get_paths_from_graph(struct dmg *dmg, scion_ia src_ia, scion_ia dst_i
 		free_path_solution(current_path_sol);
 	}
 
-	scion_list_free(queue, NULL);
-
 	ret = scion_sort_path_solutions(paths);
+
+exit:
+	scion_list_free(queue);
+
 	return ret;
 
 cleanup_path_solution:
 	free_path_solution(current_path_sol);
 
 cleanup_edge_list:
-	free_solution_edge_list(current_edge_list);
+	scion_list_free(current_edge_list);
 
-cleanup_queue_with_values:
-	scion_list_free(queue, (scion_list_value_free)free_path_solution);
-
-	return ret;
+	goto exit;
 }
 
 /*
@@ -1204,7 +1180,7 @@ cleanup_queue_with_values:
  */
 
 // Implementation of https://github.com/scionproto/scion/blob/master/private/path/combinator/graph.go#L676
-static int scion_segments_to_raw_path(struct scion_linked_list *segments, struct scion_path_raw *raw)
+static int scion_segments_to_raw_path(struct scion_list *segments, struct scion_path_raw *raw)
 {
 	assert(segments);
 	assert(raw);
@@ -1212,18 +1188,18 @@ static int scion_segments_to_raw_path(struct scion_linked_list *segments, struct
 	int ret;
 
 	struct scion_path_meta_hdr meta;
-	struct scion_linked_list *infos = scion_list_create();
-	struct scion_linked_list *hops = scion_list_create();
+	struct scion_list *infos = scion_list_create(SCION_LIST_NO_FREE_VALUES);
+	struct scion_list *hops = scion_list_create(SCION_LIST_NO_FREE_VALUES);
 
 	ret = scion_path_meta_hdr_init(&meta);
 	if (ret != 0) {
-		scion_list_free(infos, NULL);
-		scion_list_free(hops, NULL);
+		scion_list_free(infos);
+		scion_list_free(hops);
 		return ret;
 	}
 
 	uint8_t i = 0;
-	struct scion_linked_list_node *curr = segments->first;
+	struct scion_list_node *curr = segments->first;
 	while (curr) {
 		struct segment *curr_seg = curr->value;
 		meta.seg_len[i] = (uint8_t)curr_seg->hop_fields->size;
@@ -1235,8 +1211,8 @@ static int scion_segments_to_raw_path(struct scion_linked_list *segments, struct
 
 	ret = scion_path_raw_init(raw, &meta, infos, hops);
 
-	scion_list_free(infos, NULL);
-	scion_list_free(hops, NULL);
+	scion_list_free(infos);
+	scion_list_free(hops);
 
 	return ret;
 }
@@ -1311,15 +1287,17 @@ static int scion_path_solution_to_path(
 	uint16_t mtu = UINT16_MAX;
 	uint16_t link_mtu = UINT16_MAX;
 	int64_t expiry = INT64_MAX;
-	struct scion_linked_list *segments = scion_list_create();
-	struct scion_linked_list *all_interfaces = scion_list_create();
+	struct scion_list *segments = scion_list_create(SCION_LIST_CUSTOM_FREE(free_segment));
+	struct scion_list *all_interfaces = scion_list_create(SCION_LIST_SIMPLE_FREE);
+	struct scion_list *all_as_entries = scion_list_create(SCION_LIST_NO_FREE_VALUES);
 
 	// iterate through Solution Edges
-	struct scion_linked_list_node *curr = solution->edges->first;
+	struct scion_list_node *curr = solution->edges->first;
 	while (curr) {
 		struct solution_edge *curr_sol_edge = curr->value;
-		struct scion_linked_list *hops = scion_list_create();
-		struct scion_linked_list *curr_interfaces = scion_list_create();
+		struct scion_list *hops = scion_list_create(SCION_LIST_SIMPLE_FREE);
+		struct scion_list *curr_interfaces = scion_list_create(SCION_LIST_NO_FREE_VALUES);
+		struct scion_list *curr_as_entries = scion_list_create(SCION_LIST_NO_FREE_VALUES);
 		uint8_t min_exp_time = UINT8_MAX;
 
 		// Segments are in construction order, regardless of whether they're
@@ -1337,6 +1315,8 @@ static int scion_path_solution_to_path(
 			bool is_peer = (i - 1 == shortcut) && (curr_sol_edge->edge->peer != 0);
 			struct scion_as_entry *curr_as_entry = as_entries[i - 1];
 			struct scion_hop_field *hop_field = malloc(sizeof(*hop_field));
+
+			scion_list_append(curr_as_entries, curr_as_entry);
 
 			if (!is_peer) {
 				struct scion_hop_entry *curr_hop_entry = &(curr_as_entry->hop_entry);
@@ -1398,6 +1378,7 @@ static int scion_path_solution_to_path(
 		if (curr_sol_edge->segment->type == DOWN_SEGMENT) {
 			scion_list_reverse(hops);
 			scion_list_reverse(curr_interfaces);
+			scion_list_reverse(curr_as_entries);
 		}
 
 		// Create segment
@@ -1423,7 +1404,10 @@ static int scion_path_solution_to_path(
 
 		// Append Interfaces and free current list:
 		scion_list_append_all(all_interfaces, curr_interfaces);
-		scion_list_free(curr_interfaces, NULL);
+		scion_list_free(curr_interfaces);
+
+		scion_list_append_all(all_as_entries, curr_as_entries);
+		scion_list_free(curr_as_entries);
 
 		// Expiry calculation defined in https://docs.scion.org/en/latest/protocols/scion-header.html#hop-field
 		int64_t curr_expiry = (int64_t)info->timestamp + ((1 + (int64_t)min_exp_time) * (24 * 60 * 60) / 256);
@@ -1442,10 +1426,7 @@ static int scion_path_solution_to_path(
 	}
 
 	// Create scion_path_metadata
-	struct scion_path_metadata *metadata = malloc(sizeof(*metadata));
-	metadata->mtu = mtu;
-	metadata->expiry = expiry;
-	metadata->interfaces = all_interfaces;
+	struct scion_path_metadata *metadata = scion_path_metadata_collect(all_interfaces, all_as_entries, mtu, expiry);
 
 	// Create raw path
 	struct scion_path_raw *raw = malloc(sizeof(*raw));
@@ -1461,7 +1442,9 @@ static int scion_path_solution_to_path(
 	path->weight = (uint32_t)solution->cost;
 
 exit:
-	free_segment_list(segments);
+	scion_list_free(segments);
+	scion_list_free(all_as_entries);
+	scion_list_free(all_interfaces);
 
 	return ret;
 
@@ -1478,51 +1461,48 @@ static bool scion_contains_loop(struct scion_path *path)
 		return false;
 	}
 
-	if (path->metadata->interfaces->size < 2) {
+	if (path->metadata->interfaces_len < 2) {
 		return false;
 	}
 
-	struct scion_linked_list_node *inner;
-	struct scion_linked_list_node *outer = path->metadata->interfaces->first->next;
+	for (size_t i_outer = 1; i_outer < path->metadata->interfaces_len; i_outer++) {
+		struct scion_path_interface *curr_intf = &path->metadata->interfaces[i_outer];
 
-	while (outer != NULL) {
-		struct scion_path_interface *curr_intf = (struct scion_path_interface *)outer->value;
-		inner = path->metadata->interfaces->first;
-		uint8_t i = 0;
-		while (inner != outer) {
-			struct scion_path_interface *test_intf = (struct scion_path_interface *)inner->value;
+		bool duplicate_seen = false;
+		for (size_t i_inner = 0; i_inner < i_outer; i_inner++) {
+			struct scion_path_interface *test_intf = &path->metadata->interfaces[i_inner];
+
 			if (test_intf->ia == curr_intf->ia) {
-				i += 1;
+				if (duplicate_seen) {
+					return true;
+				}
+
+				duplicate_seen = true;
 			}
-			if (i > 1) {
-				return true;
-			}
-			inner = inner->next;
 		}
-		outer = outer->next;
 	}
+
 	return false;
 }
 
 // To compare paths, we use the list of ifids, which we encode in an uint16_t array.
 // The first element of the array is the total number of elements in the array,
 // including the size element.
-static bool scion_check_duplicate_path(struct scion_linked_list *ifids_list, uint16_t *ifids)
+static bool scion_check_duplicate_path(struct scion_list *ifids_list, scion_interface_id *ifids)
 {
 	int ret;
 	if (ifids_list->size == 0) {
 		return false;
 	}
 
-	struct scion_linked_list_node *curr = ifids_list->first;
+	struct scion_list_node *curr = ifids_list->first;
 	while (curr) {
 		uint16_t *curr_ifids = (uint16_t *)curr->value;
 		if (curr_ifids == NULL) {
-			(void)printf("WUT?\n");
 			continue;
 		}
 		if (curr_ifids[0] == ifids[0]) {
-			ret = memcmp(curr_ifids, ifids, ifids[0] * sizeof(uint16_t));
+			ret = memcmp(curr_ifids, ifids, ifids[0] * sizeof(scion_interface_id));
 			if (ret == 0) {
 				return true;
 			}
@@ -1532,19 +1512,21 @@ static bool scion_check_duplicate_path(struct scion_linked_list *ifids_list, uin
 	return false;
 }
 
-static int scion_path_solution_list_to_path_list(struct scion_linked_list *path_solutions,
-	struct scion_linked_list *paths, scion_ia src, scion_ia dst, struct scion_topology *topology, uint opt)
+static int scion_path_solution_list_to_path_list(struct scion_list *path_solutions, struct scion_list *paths,
+	scion_ia src, scion_ia dst, struct scion_topology *topology, uint opt)
 {
+	// TODO: remove me
+	(void)opt;
 	assert(path_solutions);
 	assert(paths);
 
 	int ret;
 
-	struct scion_linked_list *ifids_list = scion_list_create();
+	struct scion_list *ifids_list = scion_list_create(SCION_LIST_SIMPLE_FREE);
 	bool duplicate;
 	bool contains_loop;
 
-	struct scion_linked_list_node *curr = path_solutions->first;
+	struct scion_list_node *curr = path_solutions->first;
 	while (curr) {
 		struct path_solution *path_sol = curr->value;
 		struct scion_path *path = malloc(sizeof(*path));
@@ -1559,16 +1541,14 @@ static int scion_path_solution_list_to_path_list(struct scion_linked_list *path_
 			path->src = src;
 
 			// Generate ifids array to check duplicate paths.
-			uint16_t *ifids = malloc((path->metadata->interfaces->size + 1) * sizeof(uint16_t));
-			ifids[0] = (uint16_t)(path->metadata->interfaces->size + 1);
-			struct scion_linked_list_node *curr_intf_node = path->metadata->interfaces->first;
-			int i = 1;
-			while (curr_intf_node) {
-				struct scion_path_interface *curr_intf = (struct scion_path_interface *)curr_intf_node->value;
-				ifids[i] = curr_intf->id;
-				i++;
-				curr_intf_node = curr_intf_node->next;
+			scion_interface_id *ifids = malloc((path->metadata->interfaces_len + 1) * sizeof(scion_interface_id));
+			ifids[0] = (scion_interface_id)(path->metadata->interfaces_len + 1);
+
+			for (size_t i = 0; i < path->metadata->interfaces_len; i++) {
+				struct scion_path_interface *curr_intf = &path->metadata->interfaces[i];
+				ifids[i + 1] = curr_intf->id;
 			}
+
 			// Check duplicate
 			duplicate = scion_check_duplicate_path(ifids_list, ifids);
 
@@ -1580,17 +1560,12 @@ static int scion_path_solution_list_to_path_list(struct scion_linked_list *path_
 				scion_path_free(path);
 			} else {
 				scion_list_append(ifids_list, ifids);
-
-				if (!(opt & SCION_FETCH_OPT_DEBUG)) {
-					scion_list_free(path->metadata->interfaces, free);
-					path->metadata->interfaces = NULL;
-				}
 				scion_list_append(paths, path);
 			}
 		}
 		curr = curr->next;
 	}
-	scion_list_free(ifids_list, free);
+	scion_list_free(ifids_list);
 	return 0;
 }
 
@@ -1602,7 +1577,7 @@ static int scion_path_solution_list_to_path_list(struct scion_linked_list *path_
 
 int scion_build_paths(scion_ia src, scion_ia dst, struct scion_topology *topology, struct scion_path_segment **ups,
 	size_t ups_length, struct scion_path_segment **cores, size_t cores_length, struct scion_path_segment **downs,
-	size_t downs_length, struct scion_linked_list *paths, uint opt)
+	size_t downs_length, struct scion_list *paths, uint opt)
 {
 	assert(paths);
 
@@ -1614,7 +1589,7 @@ int scion_build_paths(scion_ia src, scion_ia dst, struct scion_topology *topolog
 		return ret;
 	}
 
-	struct scion_linked_list *path_solutions = scion_list_create();
+	struct scion_list *path_solutions = scion_list_create(SCION_LIST_CUSTOM_FREE(free_path_solution));
 	ret = get_paths_from_graph(&dmg, src, dst, path_solutions);
 	if (ret != 0) {
 		goto exit;
@@ -1628,7 +1603,7 @@ int scion_build_paths(scion_ia src, scion_ia dst, struct scion_topology *topolog
 
 exit:
 	free_dmg_internal(&dmg);
-	scion_list_free(path_solutions, (scion_list_value_free)free_path_solution);
+	scion_list_free(path_solutions);
 	return ret;
 }
 

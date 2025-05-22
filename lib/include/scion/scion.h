@@ -320,18 +320,11 @@ struct scion_path;
 int scion_path_reverse(struct scion_path *path);
 
 /**
- * Gets the weight of a path.
+ * Gets the number of hops of a path.
  * @param[in] path The path.
- * @return The weight of the path.
+ * @return The number of hops of the path.
  */
-uint32_t scion_path_get_weight(const struct scion_path *path);
-
-/**
- * Gets the MTU of a path.
- * @param[in] path The path.
- * @return The MTU of the path.
- */
-uint32_t scion_path_get_mtu(const struct scion_path *path);
+size_t scion_path_get_hops(const struct scion_path *path);
 
 /**
  * Frees a path.
@@ -340,10 +333,183 @@ uint32_t scion_path_get_mtu(const struct scion_path *path);
 void scion_path_free(struct scion_path *path);
 
 /**
+ * Returns true if the latency is unknown.
+ * @param latency The latency.
+ */
+#define SCION_PATH_METADATA_LATENCY_IS_UNSET(latency) (latency.tv_sec == 0 && latency.tv_usec == -1)
+/**
+ * Returns true if the bandwidth is unknown.
+ * @param bandwidth The bandwidth.
+ */
+#define SCION_PATH_METADATA_BANDWIDTH_IS_UNSET(bandwidth) (bandwidth == 0)
+/**
+ * Returns true if the geographical location is unknown.
+ * @param geo The geographical location.
+ */
+#define SCION_PATH_METADATA_GEO_IS_UNSET(geo) (geo.latitude == NAN && geo.longitude == NAN && geo.address == NULL)
+/**
+ * Returns true if the number of internal hops is unknown.
+ * @param internal_hops The number of internal hops.
+ */
+#define SCION_PATH_METADATA_INTERNAL_HOPS_IS_UNSET(internal_hops) (internal_hops == 0)
+
+/**
+ * An interface identifier.
+ */
+typedef uint64_t scion_interface_id;
+
+/**
+ * @struct scion_path_interface
+ *
+ * @brief An interface of an AS in a SCION path.
+ */
+struct scion_path_interface {
+	/**
+	 * The identifier of the interface.
+	 */
+	scion_interface_id id;
+	/**
+	 * The AS identifier.
+	 */
+	scion_ia ia;
+};
+
+/**
+ * @struct scion_geo_coordinates
+ *
+ * @brief The geographic location of an AS.
+ */
+struct scion_geo_coordinates {
+	/**
+	 * Latitude of the geographic coordinate, in the WGS 84 datum.
+	 */
+	float latitude;
+	/**
+	 * Longitude of the geographic coordinate, in the WGS 84 datum.
+	 */
+	float longitude;
+	/**
+	 * Civic address of the location.
+	 */
+	char *address;
+};
+
+/**
+ * The linky type of a hop.
+ */
+enum scion_link_type {
+	/**
+	 * Unspecified link type.
+	 */
+	SCION_LINK_TYPE_UNSPECIFIED = 0,
+	/**
+	 * Direct physical connection.
+	 */
+	SCION_LINK_TYPE_DIRECT = 1,
+	/**
+	 * Connection with local routing/switching.
+	 */
+	SCION_LINK_TYPE_MULTI_HOP = 2,
+	/**
+	 * Connection overlaid over publicly routed Internet.
+	 */
+	SCION_LINK_TYPE_OPEN_NET = 3
+};
+
+/**
+ * @struct scion_path_metadata
+ *
+ * @brief The metadata of a SCION path.
+ */
+struct scion_path_metadata {
+	/**
+	 * All ASes on the path.
+	 */
+	scion_ia *ases;
+	size_t ases_len;
+
+	/**
+	 * All interfaces on the path.
+	 */
+	struct scion_path_interface *interfaces;
+	size_t interfaces_len;
+
+	/**
+	 * Maximum transmission unit for the path, in bytes.
+	 */
+	uint32_t mtu;
+	/**
+	 * Expiration time of the path.
+	 */
+	int64_t expiry;
+
+	/**
+	 * List of latencies between any two consecutive interfaces.
+	 * Entry i describes the latency between interface i and i+1.
+	 * Consequently, there are N-1 entries for N interfaces.
+	 * SCION_PATH_METADATA_LATENCY_IS_UNSET can be used to check whether an entry is set or not.
+	 */
+	struct timeval *latencies;
+
+	/**
+	 * List of bandwidths between any two consecutive interfaces, in Kbit/s.
+	 * Entry i describes the bandwidth between interfaces i and i+1.
+	 * A 0-value indicates that the AS did not announce a bandwidth for this hop.
+	 * SCION_PATH_METADATA_BANDWIDTH_IS_UNSET can be used to check whether an entry is set or not.
+	 */
+	uint64_t *bandwidths;
+
+	/**
+	 * Geographical positions of the border routers along the path.
+	 * Entry i describes the position of the router for interface i.
+	 * A 0-value indicates that the AS did not announce a position for this router.
+	 * SCION_PATH_METADATA_GEO_IS_UNSET can be used to check whether an entry is set or not.
+	 */
+	struct scion_geo_coordinates *geo;
+
+	/**
+	 * Link types of inter-domain links.
+	 * Entry i describes the link between interfaces 2*i and 2*i+1.
+	 */
+	enum scion_link_type *link_types;
+
+	//
+	/**
+	 * Numbers of AS internal hops for the ASes on path.
+	 * Entry i describes the hop between interfaces 2*i+1 and 2*i+2 in the same AS.
+	 * Consequently, there are no entries for the first and last ASes, as these
+	 * are not traversed completely by the path.
+	 * SCION_PATH_METADATA_INTERNAL_HOPS_IS_UNSET can be used to check whether an entry is set or not.
+	 */
+	uint32_t *internal_hops;
+
+	/**
+	 * Notes added by ASes on the path, in the order of occurrence.
+	 * Entry i is the note of AS i on the path.
+	 */
+	char **notes;
+};
+
+/**
+ * Gets the metadata of a path.
+ * @param[in] path The path.
+ * @return A reference to the metadata of the path.
+ *
+ * @note Do not modify the metadata.
+ */
+const struct scion_path_metadata *scion_path_get_metadata(const struct scion_path *path);
+
+/**
  * Prints a path to stdout.
  * @param[in] path The path to print.
  */
 void scion_path_print(const struct scion_path *path);
+
+/**
+ * Prints the metadata of a path.
+ * @param[in] path The path.
+ */
+void scion_path_print_metadata(const struct scion_path *path);
 
 /**
  * @struct scion_path_collection
@@ -353,13 +519,60 @@ void scion_path_print(const struct scion_path *path);
 struct scion_path_collection;
 
 /**
- * A function that matches SCION paths with custom criteria.
+ * A function that matches a path with a custom context.
  * @param path The candidate path.
- * @return Whether the path matches the custom criteria.
- *
- * @note See @link scion_path_collection_find @endlink.
+ * @param ctx The custom context.
+ * @return true, if the path matches the predicate
+ * @return false, if the path does not match the predicate
  */
-typedef bool scion_path_selector(struct scion_path *path);
+typedef bool (*scion_path_predicate_fn)(struct scion_path *path, void *ctx);
+
+/**
+ * @struct scion_path_predicate
+ *
+ * @brief A path predicate.
+ */
+struct scion_path_predicate {
+	/**
+	 * The predicate function.
+	 */
+	scion_path_predicate_fn fn;
+	/**
+	 * The context that will be provided to the predicate function.
+	 */
+	void *ctx;
+};
+
+/**
+ * A function that compares two paths with a custom context.
+ * @param path_one The first path.
+ * @param path_two The second path.
+ * @param ctx The custom context.
+ * @return 1, if path_one > path_two
+ * @return 0, if path_one == path_two
+ * @return -1, if path_one < path_two
+ */
+typedef int (*scion_path_comparator_fn)(struct scion_path *path_one, struct scion_path *path_two, void *ctx);
+
+/**
+ * @struct scion_path_comparator
+ *
+ * @brief A path comparator.
+ */
+struct scion_path_comparator {
+	/**
+	 * The comparator function.
+	 */
+	scion_path_comparator_fn fn;
+	/**
+	 * The context that will be provided to the comparator function.
+	 */
+	void *ctx;
+	/**
+	 * The sorting order.
+	 */
+	bool ascending;
+};
 
 /**
  * Frees a collection of paths, including the paths themselves.
@@ -368,19 +581,68 @@ typedef bool scion_path_selector(struct scion_path *path);
 void scion_path_collection_free(struct scion_path_collection *paths);
 
 /**
- * Finds the first path that matches a custom criteria.
+ * Finds the first path that matches the provided predicate.
  * @param[in] paths The path collection.
- * @param selector The selector function that implements the custom criteria.
+ * @param[in] predicate The predicate.
  * @return The first path that matches, or NULL if no path matched.
+ *
+ * @see @link scion_path_predicate @endlink
  */
-struct scion_path *scion_path_collection_find(struct scion_path_collection *paths, scion_path_selector selector);
+struct scion_path *scion_path_collection_find(
+	struct scion_path_collection *paths, struct scion_path_predicate predicate);
 
 /**
- * Pop the first element of a path collection.
+ * Gets and removes the first element from a path collection.
  * @param[in] paths The path collection.
  * @return The first element of the path collection, or NULL if the path collection is empty.
+ *
+ * @note The returned element must be freed by the caller.
  */
 struct scion_path *scion_path_collection_pop(struct scion_path_collection *paths);
+
+/**
+ * Gets the first element of a path collection.
+ * @param[in] paths The path collection.
+ * @return The first element of the path collection, or NULL if the path collection is empty.
+ *
+ * @note The returned element must not be freed by the caller.
+ */
+struct scion_path *scion_path_collection_first(struct scion_path_collection *paths);
+
+/**
+ * Sorts a path collection in-place with the provided comparator.
+ * @param[in,out] paths The path collection.
+ * @param[in] comparator The comparator.
+ *
+ * @see @link scion_path_comparator @endlink
+ */
+void scion_path_collection_sort(struct scion_path_collection *paths, struct scion_path_comparator comparator);
+
+/**
+ * Filters a path collection in-place with the provided predicate.
+ * @param[in,out] paths The path collection.
+ * @param[in] predicate The predicate.
+ *
+ * @see @link scion_path_predicate @endlink
+ */
+void scion_path_collection_filter(struct scion_path_collection *paths, struct scion_path_predicate predicate);
+
+/**
+ * Gets the number of paths in a path collection.
+ * @param[in] paths The path collection.
+ * @return The number of paths in the path collection.
+ */
+size_t scion_path_collection_size(struct scion_path_collection *paths);
+
+/**
+ * Creates an array representation of a path collection.
+ * @param[in] paths The path collection.
+ * @param[out] len The length of the array.
+ * @return The array representation of the path collection.
+ *
+ * @note The array must be freed by the caller. Do not free the path entries.
+ */
+struct scion_path **scion_path_collection_as_array(struct scion_path_collection *paths, size_t *len);
 
 /**
  * Prints a path collection to stdout.
@@ -399,6 +661,40 @@ void scion_path_collection_print(struct scion_path_collection *paths);
 int scion_fetch_paths(struct scion_network *network, scion_ia dst, uint opt, struct scion_path_collection **paths);
 
 /**
+ * A SCION path policy.
+ */
+struct scion_policy {
+	/**
+	 * A function that implements the path selection policy by filtering and/or sorting the available paths contained
+	 * in the path collection. The function must modify the path collection in-place. When sorting the paths, the most
+	 * preferred path should be the first path.
+	 *
+	 * @see @link scion_path_collection_filter @endlink, @link scion_path_collection_sort @endlink
+	 */
+	void (*filter)(struct scion_path_collection *paths);
+};
+
+/**
+ * A policy that prefers paths with high MTU.
+ */
+extern const struct scion_policy scion_policy_highest_mtu;
+
+/**
+ * A policy that prefers paths with few hops.
+ */
+extern const struct scion_policy scion_policy_least_hops;
+
+/**
+ * A policy that prefers paths with low latency.
+ */
+extern const struct scion_policy scion_policy_lowest_latency;
+
+/**
+ * A policy that prefers paths with high bandwidth.
+ */
+extern const struct scion_policy scion_policy_highest_bandwidth;
+
+/**
  * @struct scion_socket
  *
  * @brief A SCION socket.
@@ -411,7 +707,7 @@ struct scion_socket;
  * @param size The size of the buffer.
  * @param ctx The context that was provided when setting up the callback.
  *
- * @see scion_set_scmp_error_cb
+ * @see @link scion_setsockerrcb @endlink
  */
 typedef void scion_socket_scmp_error_cb(uint8_t *buf, size_t size, void *ctx);
 
@@ -562,14 +858,6 @@ int scion_setsockopt(struct scion_socket *scion_sock, int level, int optname, co
 int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, socklen_t *addrlen, scion_ia *ia);
 
 /**
- * Gets the current path of a connected socket.
- * @param[in] scion_sock The socket.
- * @param[out] path The current path.
- * @return 0 on success, a negative error code on failure.
- */
-int scion_getsockpath(struct scion_socket *scion_sock, struct scion_path **path);
-
-/**
  * Gets the file descriptor of the underlying system socket.
  * @param[in] scion_sock The socket.
  * @param[out] fd The file descriptor of the underlying system socket.
@@ -586,6 +874,14 @@ int scion_getsockfd(struct scion_socket *scion_sock, int *fd);
  * @return 0 on success, a negative error code on failure.
  */
 int scion_setsockerrcb(struct scion_socket *scion_sock, scion_socket_scmp_error_cb cb, void *ctx);
+
+/**
+ * Sets the path selection policy of a socket.
+ * @param scion_sock The socket.
+ * @param policy The path selection policy to use.
+ * @return 0 on success, a negative error code on failure.
+ */
+int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy policy);
 
 /**
  * Prints a SCION address pair to stdout.

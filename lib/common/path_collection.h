@@ -19,19 +19,28 @@
 #include "data_plane/path.h"
 #include <scion/scion.h>
 
-typedef bool scion_path_selector(struct scion_path *path);
-
 struct scion_path_collection {
-	struct scion_linked_list *list;
+	struct scion_list *list;
 };
 
 int scion_path_collection_init(struct scion_path_collection **paths);
 
 void scion_path_collection_free(struct scion_path_collection *paths);
 
-struct scion_path *scion_path_collection_find(struct scion_path_collection *paths, scion_path_selector selector);
+struct scion_path *scion_path_collection_find(
+	struct scion_path_collection *paths, struct scion_path_predicate predicate);
 
 struct scion_path *scion_path_collection_pop(struct scion_path_collection *paths);
+
+struct scion_path *scion_path_collection_first(struct scion_path_collection *paths);
+
+void scion_path_collection_sort(struct scion_path_collection *paths, struct scion_path_comparator comparator);
+
+void scion_path_collection_filter(struct scion_path_collection *paths, struct scion_path_predicate predicate);
+
+size_t scion_path_collection_size(struct scion_path_collection *paths);
+
+struct scion_path **scion_path_collection_as_array(struct scion_path_collection *paths, size_t *len);
 
 /*
  * FUNCTION: scion_path_collection_print

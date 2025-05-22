@@ -22,16 +22,15 @@
 
 int scion_path_collection_init(struct scion_path_collection **paths)
 {
-	struct scion_path_collection *new_paths = malloc(sizeof(*paths));
+	assert(paths);
+
+	struct scion_list *list = scion_list_create(SCION_LIST_CUSTOM_FREE(scion_path_free));
+	struct scion_path_collection *new_paths = malloc(sizeof(*new_paths));
 	if (new_paths == NULL) {
 		return SCION_MEM_ALLOC_FAIL;
 	}
 
-	new_paths->list = scion_list_create();
-	if (new_paths->list == NULL) {
-		free(new_paths);
-		return SCION_MEM_ALLOC_FAIL;
-	}
+	new_paths->list = list;
 
 	*paths = new_paths;
 	return 0;
@@ -43,25 +42,18 @@ void scion_path_collection_free(struct scion_path_collection *paths)
 		return;
 	}
 
-	scion_list_free(paths->list, (scion_list_value_free)scion_path_free);
+	scion_list_free(paths->list);
 	free(paths);
 }
 
-struct scion_path *scion_path_collection_find(struct scion_path_collection *paths, scion_path_selector selector)
+struct scion_path *scion_path_collection_find(
+	struct scion_path_collection *paths, struct scion_path_predicate predicate)
 {
 	assert(paths);
 	assert(paths->list);
 
-	struct scion_linked_list_node *node = paths->list->first;
-	while (node != NULL) {
-		if (selector(node->value)) {
-			return node->value;
-		}
-
-		node = node->next;
-	}
-
-	return NULL;
+	return scion_list_find(paths->list,
+		(struct scion_list_predicate){ .fn = (scion_list_predicate_fn)predicate.fn, .ctx = predicate.ctx });
 }
 
 struct scion_path *scion_path_collection_pop(struct scion_path_collection *paths)
@@ -72,16 +64,74 @@ struct scion_path *scion_path_collection_pop(struct scion_path_collection *paths
 	return scion_list_pop(paths->list);
 }
 
+struct scion_path *scion_path_collection_first(struct scion_path_collection *paths)
+{
+	assert(paths);
+
+	struct scion_list_node *first = paths->list->first;
+
+	if (first == NULL) {
+		return NULL;
+	}
+
+	return first->value;
+}
+
+void scion_path_collection_sort(struct scion_path_collection *paths, struct scion_path_comparator comparator)
+{
+	assert(paths);
+
+	return scion_list_sort(paths->list,
+		(struct scion_list_comparator){
+			.fn = (scion_list_comparator_fn)comparator.fn, .ctx = comparator.ctx, .ascending = comparator.ascending });
+}
+
+void scion_path_collection_filter(struct scion_path_collection *paths, struct scion_path_predicate predicate)
+{
+	assert(paths);
+
+	return scion_list_filter(paths->list,
+		(struct scion_list_predicate){ .fn = (scion_list_predicate_fn)predicate.fn, .ctx = predicate.ctx },
+		SCION_LIST_CUSTOM_FREE(scion_path_free));
+}
+
+size_t scion_path_collection_size(struct scion_path_collection *paths)
+{
+	assert(paths);
+
+	return paths->list->size;
+}
+
+struct scion_path **scion_path_collection_as_array(struct scion_path_collection *paths, size_t *len)
+{
+	assert(paths);
+	assert(len);
+
+	struct scion_path **path_array = calloc(paths->list->size, sizeof(*path_array));
+	struct scion_list_node *current = paths->list->first;
+
+	size_t i = 0;
+	while (current) {
+		path_array[i++] = current->value;
+
+		current = current->next;
+	}
+
+	*len = i;
+
+	return path_array;
+}
+
 void scion_path_collection_print(struct scion_path_collection *paths)
 {
-	struct scion_linked_list *list = paths->list;
+	struct scion_list *list = paths->list;
 	if (!paths || !list || list->size == 0) {
 		return;
 	}
 	(void)printf("Available paths:\n");
 	uint16_t i = 0;
-	struct scion_linked_list_node *curr = list->first;
-	uint32_t length = 0;
+	struct scion_list_node *curr = list->first;
+	size_t length = 0;
 	while (curr) {
 		struct scion_path *path = curr->value;
 
@@ -91,17 +141,17 @@ void scion_path_collection_print(struct scion_path_collection *paths)
 			}
 		} else {
 			if (path->metadata->interfaces == NULL) {
-				(void)printf(
-					"[%" PRIu16
-					"]: Path priniting unavailable due to missing metadata; Enable DEBUG MODE during path generation. "
-					"(IMPORTANT: deserialized paths can never be printed as the metadata is never present)\n",
+				(void)printf("[%" PRIu16 "]: Path priniting unavailable due to missing metadata."
+							 "(IMPORTANT: deserialized paths can never be printed as the metadata is never present)\n",
 					i);
 				continue;
 			}
 
-			if ((path->metadata->interfaces->size / 2 + 1) > length) {
-				length = (path->metadata->interfaces->size / 2 + 1);
-				(void)printf("%" PRIu32 " Hops:\n", length);
+			size_t current_length = scion_path_get_hops(path);
+
+			if (current_length > length) {
+				length = current_length;
+				(void)printf("%zu Hops:\n", length);
 			}
 		}
 

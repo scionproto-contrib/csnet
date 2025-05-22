@@ -8,6 +8,7 @@ set(test_list
         list_free
         list_free_value
         list_free_value_custom
+        map_example
         ia_from_isd_as
         ia_from_isd_as_too_large_as
         get_isd
@@ -39,7 +40,8 @@ add_executable(tests
         data_plane/test_deserialization.c
         data_plane/test_path.c
         data_plane/test_serialization.c
-        util/test_linked_list.c
+        util/test_list.c
+        util/test_map.c
 )
 
 # Link SCION library to tests

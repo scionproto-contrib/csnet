@@ -36,7 +36,8 @@ struct scion_socket {
 	struct sockaddr_storage dst_addr;
 	socklen_t dst_addr_len;
 	scion_ia dst_ia;
-	struct scion_path *path;
+	struct scion_path_collection *paths;
+	struct scion_policy policy;
 	scion_socket_scmp_error_cb *scmp_error_cb;
 	void *scmp_error_ctx;
 	bool is_bound;
@@ -69,10 +70,10 @@ int scion_setsockopt(struct scion_socket *scion_sock, int level, int optname, co
 
 int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, socklen_t *addrlen, scion_ia *ia);
 
-int scion_getsockpath(struct scion_socket *scion_sock, struct scion_path **path);
-
 int scion_getsockfd(struct scion_socket *scion_sock, int *fd);
 
 int scion_setsockerrcb(struct scion_socket *scion_sock, scion_socket_scmp_error_cb cb, void *ctx);
+
+int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy policy);
 
 void scion_print_addr(const struct sockaddr *addr, scion_ia ia);
