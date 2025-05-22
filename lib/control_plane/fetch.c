@@ -24,7 +24,7 @@
 #include "data_plane/path.h"
 #include "util/linked_list.h"
 
-/*
+/**
  * FUNCTION: scion_fetch_paths
  * -----------------
  * Returns a list of available paths between a given source AS and a given destination AS by
@@ -33,7 +33,7 @@
  * Arguments:
  *      - struct scion_network *network: Pointer to the SCION network.
  *      - ScionIA dst: destination AS.
- *      - struct scion_path_collection *paths: Pointer to a scion_path_collection into which the resulting scion_path structs,
+ *      - struct scion_path_collection **paths: Double pointer to a scion_path_collection into which the resulting scion_path structs,
  *        which represent the available paths, will be stored.
  *
  * Returns:
