@@ -23,8 +23,7 @@
 #include "control_plane/segment.h"
 #include "proto/control_plane/v1/seg.pb-c.h"
 #include "util/http2_rpc.h"
-
-#include <util/map.h>
+#include "util/map.h"
 
 #define SEGMENTS_PATH "/proto.control_plane.v1.SegmentLookupService/Segments"
 #define INITIAL_RPC_OUTPUT_BUFFER_SIZE (2 << 15)

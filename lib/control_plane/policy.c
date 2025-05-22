@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "policy.h"
-#include "common/path_collection.h"
-
 #include <stdio.h>
 #include <time.h>
-#include <util/map.h>
+
+#include "common/path_collection.h"
+#include "policy.h"
+#include "util/map.h"
 
 #define PATH_KEY_SIZE 8
 
