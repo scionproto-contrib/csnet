@@ -586,7 +586,7 @@ void scion_path_collection_free(struct scion_path_collection *paths);
  * @param[in] predicate The predicate.
  * @return The first path that matches, or NULL if no path matched.
  *
- * @see @ref scion_path_predicate @endref
+ * @see @link scion_path_predicate @endlink
  */
 struct scion_path *scion_path_collection_find(
 	struct scion_path_collection *paths, struct scion_path_predicate predicate);
@@ -614,7 +614,7 @@ struct scion_path *scion_path_collection_first(struct scion_path_collection *pat
  * @param[in,out] paths The path collection.
  * @param[in] comparator The comparator.
  *
- * @see @ref scion_path_comparator @endref
+ * @see @link scion_path_comparator @endlink
  */
 void scion_path_collection_sort(struct scion_path_collection *paths, struct scion_path_comparator comparator);
 
@@ -623,7 +623,7 @@ void scion_path_collection_sort(struct scion_path_collection *paths, struct scio
  * @param[in,out] paths The path collection.
  * @param[in] predicate The predicate.
  *
- * @see @ref scion_path_predicate @endref
+ * @see @link scion_path_predicate @endlink
  */
 void scion_path_collection_filter(struct scion_path_collection *paths, struct scion_path_predicate predicate);
 
@@ -669,7 +669,7 @@ struct scion_policy {
 	 * in the path collection. The function must modify the path collection in-place. When sorting the paths, the most
 	 * preferred path should be the first path.
 	 *
-	 * @see @ref scion_path_collection_filter @endref, @ref scion_path_collection_sort @endref
+	 * @see @link scion_path_collection_filter @endlink, @link scion_path_collection_sort @endlink
 	 */
 	void (*filter)(struct scion_path_collection *paths);
 };
@@ -707,7 +707,7 @@ struct scion_socket;
  * @param size The size of the buffer.
  * @param ctx The context that was provided when setting up the callback.
  *
- * @see scion_set_scmp_error_cb
+ * @see @link scion_setsockerrcb @endlink
  */
 typedef void scion_socket_scmp_error_cb(uint8_t *buf, size_t size, void *ctx);
 

@@ -502,7 +502,7 @@ int scion_dst_core_check(const char *hostname, const char *ip, uint16_t port, sc
 	(void)proto__control_plane__v1__segments_request__pack(&seg_req, msg_buf);
 
 	http2_rpc_handle hd;
-	ret = http2_rpc_handle_init(&hd, hostname, ip, port, 2 * 20480); // TODO: Hardcoded size?
+	ret = http2_rpc_handle_init(&hd, hostname, ip, port, INITIAL_RPC_OUTPUT_BUFFER_SIZE);
 	if (ret != 0) {
 		free(msg_buf);
 		return ret;
