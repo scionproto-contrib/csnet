@@ -31,11 +31,9 @@
  * fetching the required path segments from the local Control Server.
  *
  * Arguments:
- *      - struct scion_topology *t: Pointer to scion_topology struct, containing information about the local AS
- * 		  (such as control server ip, etc.).
- *      - ScionIA src: source AS.
+ *      - struct scion_network *network: Pointer to the SCION network.
  *      - ScionIA dst: destination AS.
- *      - struct scion_linked_list *paths: Pointer to a scion_linked_list into which the resulting scion_path structs,
+ *      - struct scion_path_collection *paths: Pointer to a scion_path_collection into which the resulting scion_path structs,
  *        which represent the available paths, will be stored.
  *
  * Returns:
