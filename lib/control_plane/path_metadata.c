@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "path_metadata.h"
-#include "common/as_entry.h"
-#include "data_plane/path.h"
-#include "util/map.h"
-
 #include <assert.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#include "common/as_entry.h"
+#include "data_plane/path.h"
+#include "path_metadata.h"
+#include "util/map.h"
 
 static struct timeval latency_unset = { .tv_sec = 0, .tv_usec = -1 };
 static uint64_t bandwidth_unset = 0;
