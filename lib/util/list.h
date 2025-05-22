@@ -13,9 +13,9 @@
 // limitations under the License.
 
 /**
- * @file linked_list.h
+ * @file list.h
  *
- * The linked list util of CSNET.
+ * The list util of CSNET.
  */
 
 #pragma once
@@ -69,65 +69,31 @@ struct scion_list_comparator {
 	bool ascending;
 };
 
-// TODO adjust my documentation
 /**
- * Frees a linked list.
- * @param[in] list The linked list.
- * @param[in] free_value The value freer to use. The following macros are available:
- * - SCION_LIST_NO_FREE_VALUES: a value freer that does not free the value
- * - SCION_LIST_SIMPLE_FREE: a value freer that uses the c lib free function to free the value
- * - SCION_LIST_CUSTOM_FREE(free_fn): a value freer that uses the custom free_fn to free the value
- * - SCION_LIST_CUSTOM_FREE_WITH_CTX(free_fn, ctx): a value freer that uses the custom free_fn and context ctx to free
- * the value
+ * Frees a list.
+ * @param[in] list The list to free.
  */
 void scion_list_free(struct scion_list *list);
 
-// TODO document me
+/**
+ * Creates a list.
+ * @param free_value The value freer to use.
+ * The following macros are available:
+ * - SCION_LIST_NO_FREE_VALUES: a value freer that does not free the values
+ * - SCION_LIST_SIMPLE_FREE: a value freer that uses the c lib free function to free the values
+ * - SCION_LIST_CUSTOM_FREE(free_fn): a value freer that uses the custom free_fn to free the values
+ * - SCION_LIST_CUSTOM_FREE_WITH_CTX(free_fn, ctx): a value freer that uses the custom free_fn and context ctx to free
+ * the values
+ * @return The newly created list.
+ */
 struct scion_list *scion_list_create(struct scion_list_value_free free_value);
 
-/*
- * FUNCTION: scion_list_append
- * -----------------
- * Adds a value to the end of a scion_linked_list.
- *
- * Arguments:
- *      - struct scion_linked_list *list: Pointer to a scion_linked_list struct.
- *      - void *ptr: Pointer to which will be added to the list.
- */
 void scion_list_append(struct scion_list *list, void *value);
 
-/*
- * FUNCTION: scion_list_append_all
- * -----------------
- * Adds all elements (individually) from the source list to the end of the destination list.
- *
- * Arguments:
- *      - struct scion_linked_list *dst_list: Pointer to the destination scion_linked_list.
- *      - struct scion_linked_list *src_list: Pointer to the source scion_linked_list.
- */
 void scion_list_append_all(struct scion_list *dst_list, struct scion_list *src_list);
 
-/*
- * FUNCTION: scion_list_pop
- * -----------------
- * Removes the first element from a scion_linked_list and returns the value pointer of this element.
- *
- * Arguments:
- *      - struct scion_linked_list *list: Pointer to a scion_linked_list struct.
- *
- * Returns:
- *      - void *value: value pointer of the former first element.
- */
 void *scion_list_pop(struct scion_list *list);
 
-/*
- * FUNCTION: scion_list_reverse
- * -----------------
- * Reverses a linked list (in place).
- *
- * Arguments:
- *      - struct scion_linked_list *list: Pointer to a scion_linked_list struct which you want to reverse.
- */
 void scion_list_reverse(struct scion_list *list);
 
 void scion_list_sort(struct scion_list *list, struct scion_list_comparator compare);

@@ -24,8 +24,6 @@
 #include <string.h>
 #include <time.h>
 
-// TODO make key serialization function an argument when instantiating the map
-
 static struct timeval latency_unset = { .tv_sec = 0, .tv_usec = -1 };
 static uint64_t bandwidth_unset = 0;
 static struct scion_geo_coordinates geo_unset = { .latitude = NAN, .longitude = NAN, .address = NULL };
