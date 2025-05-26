@@ -661,17 +661,27 @@ void scion_path_collection_print(struct scion_path_collection *paths);
 int scion_fetch_paths(struct scion_network *network, scion_ia dst, uint opt, struct scion_path_collection **paths);
 
 /**
+ * A function that implements the path selection policy by filtering and/or sorting the available paths contained
+ * in the path collection. The function must modify the path collection in-place. When sorting the paths, the most
+ * preferred path should be the first path.
+ *
+ * @see @link scion_path_collection_filter @endlink, @link scion_path_collection_sort @endlink
+ */
+typedef void (*scion_policy_fn)(struct scion_path_collection *paths, void *ctx);
+
+/**
  * A SCION path policy.
  */
 struct scion_policy {
 	/**
-	 * A function that implements the path selection policy by filtering and/or sorting the available paths contained
-	 * in the path collection. The function must modify the path collection in-place. When sorting the paths, the most
-	 * preferred path should be the first path.
-	 *
-	 * @see @link scion_path_collection_filter @endlink, @link scion_path_collection_sort @endlink
+	 * The function that implements the path policy.
 	 */
-	void (*filter)(struct scion_path_collection *paths);
+	scion_policy_fn fn;
+
+	/**
+	 * The context that will be provided to the path policy function.
+	 */
+	void *ctx;
 };
 
 /**
@@ -693,6 +703,13 @@ extern const struct scion_policy scion_policy_lowest_latency;
  * A policy that prefers paths with high bandwidth.
  */
 extern const struct scion_policy scion_policy_highest_bandwidth;
+
+/**
+ * Returns a policy that ensures all paths have the provided minimum MTU.
+ * @param[in] mtu The minimum MTU.
+ * @return The path policy.
+ */
+struct scion_policy scion_policy_min_mtu(uint32_t *mtu);
 
 /**
  * @struct scion_socket

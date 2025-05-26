@@ -30,12 +30,13 @@ static int compare_hops(struct scion_path *path_one, struct scion_path *path_two
 	return (hops_one > hops_two) - (hops_one < hops_two);
 }
 
-static void least_hops_filter(struct scion_path_collection *paths)
+static void sort_least_hops(struct scion_path_collection *paths, void *ctx)
 {
+	(void)ctx;
 	scion_path_collection_sort(
 		paths, (struct scion_path_comparator){ .fn = (scion_path_comparator_fn)compare_hops, .ascending = true });
 }
-const struct scion_policy scion_policy_least_hops = { .filter = least_hops_filter };
+const struct scion_policy scion_policy_least_hops = { .fn = sort_least_hops, .ctx = NULL };
 
 static int compare_mtu(struct scion_path *path_one, struct scion_path *path_two, void *ctx)
 {
@@ -53,12 +54,14 @@ static int compare_mtu(struct scion_path *path_one, struct scion_path *path_two,
 	return ret;
 }
 
-static void highest_mtu_filter(struct scion_path_collection *paths)
+static void sort_highest_mtu(struct scion_path_collection *paths, void *ctx)
 {
+	(void)ctx;
+
 	scion_path_collection_sort(
 		paths, (struct scion_path_comparator){ .fn = (scion_path_comparator_fn)compare_mtu, .ascending = false });
 }
-const struct scion_policy scion_policy_highest_mtu = { .filter = highest_mtu_filter };
+const struct scion_policy scion_policy_highest_mtu = { .fn = sort_highest_mtu, .ctx = NULL };
 
 static int compare_latencies(
 	struct scion_path *path_one, struct scion_path *path_two, struct scion_map *path_total_latencies)
@@ -88,8 +91,10 @@ static int compare_latencies(
 	return compare_hops(path_one, path_two, NULL);
 }
 
-static void lowest_latency_filter(struct scion_path_collection *path_collection)
+static void sort_lowest_latency(struct scion_path_collection *path_collection, void *ctx)
 {
+	(void)ctx;
+
 	struct scion_map *path_total_latencies = scion_map_create(
 		(struct scion_map_key_config){ .size = PATH_KEY_SIZE, .serialize = NULL }, SCION_MAP_SIMPLE_FREE);
 
@@ -130,7 +135,7 @@ static void lowest_latency_filter(struct scion_path_collection *path_collection)
 	free(paths);
 	scion_map_free(path_total_latencies);
 }
-const struct scion_policy scion_policy_lowest_latency = { .filter = lowest_latency_filter };
+const struct scion_policy scion_policy_lowest_latency = { .fn = sort_lowest_latency, .ctx = NULL };
 
 static int compare_bandwidths(
 	struct scion_path *path_one, struct scion_path *path_two, struct scion_map *path_bandwidths)
@@ -158,8 +163,10 @@ static int compare_bandwidths(
 	return -compare_hops(path_one, path_two, NULL);
 }
 
-static void highest_bandwidth_filter(struct scion_path_collection *path_collection)
+static void sort_highest_bandwidth(struct scion_path_collection *path_collection, void *ctx)
 {
+	(void)ctx;
+
 	struct scion_map *path_bandwidths = scion_map_create(
 		(struct scion_map_key_config){ .size = PATH_KEY_SIZE, .serialize = NULL }, SCION_MAP_SIMPLE_FREE);
 
@@ -203,4 +210,20 @@ static void highest_bandwidth_filter(struct scion_path_collection *path_collecti
 	free(paths);
 	scion_map_free(path_bandwidths);
 }
-const struct scion_policy scion_policy_highest_bandwidth = { .filter = highest_bandwidth_filter };
+const struct scion_policy scion_policy_highest_bandwidth = { .fn = sort_highest_bandwidth, .ctx = NULL };
+
+static bool has_min_mtu(struct scion_path *path, uint32_t *mtu)
+{
+	return scion_path_get_metadata(path)->mtu >= *mtu;
+}
+
+static void filter_min_mtu(struct scion_path_collection *path_collection, uint32_t *mtu)
+{
+	scion_path_collection_filter(
+		path_collection, (struct scion_path_predicate){ .fn = (scion_path_predicate_fn)has_min_mtu, .ctx = mtu });
+}
+
+struct scion_policy scion_policy_min_mtu(uint32_t *mtu)
+{
+	return (struct scion_policy){ .fn = (scion_policy_fn)filter_min_mtu, .ctx = mtu };
+}
