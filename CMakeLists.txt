@@ -34,12 +34,13 @@ if (BUILD_CMD OR BUILD_TESTING)
     add_subdirectory(cmd)
 endif ()
 
-if (BUILD_EXAMPLES OR BUILD_TESTING)
+if (BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif ()
 
 if (BUILD_TESTING)
-    add_subdirectory(tests)
+    add_subdirectory(tests/unit)
+    add_subdirectory(tests/e2e)
 endif ()
 
 if (BUILD_DOCS)

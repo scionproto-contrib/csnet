@@ -1070,7 +1070,6 @@ static int scion_sort_path_solutions(struct scion_list *paths)
 static int get_paths_from_graph(struct dmg *dmg, scion_ia src_ia, scion_ia dst_ia, struct scion_list *paths)
 {
 	assert(dmg);
-	assert(dmg->start_node);
 	assert(paths);
 
 	int ret;
