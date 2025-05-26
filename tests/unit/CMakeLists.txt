@@ -34,7 +34,7 @@ set(test_list
 )
 
 # Declare test executable
-add_executable(tests
+add_executable(unit_tests
         testing.c
         common/test_isd_as.c
         data_plane/test_deserialization.c
@@ -45,13 +45,13 @@ add_executable(tests
 )
 
 # Link SCION library to tests
-target_link_libraries(tests PRIVATE scion)
+target_link_libraries(unit_tests PRIVATE scion)
 
 # Give tests access to internal headers
-target_include_directories(tests PRIVATE ${PROJECT_SOURCE_DIR}/lib)
+target_include_directories(unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/lib)
 
 # Register all tests in the list
 foreach (test ${test_list})
-    add_test(NAME ${test} COMMAND tests ${test})
+    add_test(NAME ${test} COMMAND unit_tests ${test})
     set_tests_properties(${test} PROPERTIES LABELS "unit")
 endforeach ()

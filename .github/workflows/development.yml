@@ -101,7 +101,7 @@ jobs:
 
       - name: Run Tests
         working-directory: ${{ needs.build.outputs.build-dir }}
-        run: ctest --build-config Debug -L unit
+        run: ctest --build-config Debug -L unit --output-on-failure
 
   e2e-tests:
     needs: build
@@ -109,8 +109,10 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      SCION_PATH: ${{ github.workspace }}/scion
-      SCION_TESTNET_PATH: ${{ github.workspace }}/scion-testnet
+      SCION_PATH: ${{ github.workspace }}/network/scion
+      SCION_TESTNET_PATH: ${{ github.workspace }}/network/scion-testnet
+      NETWORK_STARTUP_TIME: 20
+      TEST_SERVER_STARTUP_TIME: 10
 
     steps:
       - name: Retrieve SCION repo versions
@@ -165,26 +167,6 @@ jobs:
           go build scion-testnet.go
           go build test-server.go
 
-      - name: Start SCION Network, Server and Tests
-        run: |
-          cd ${{ steps.scion-repos.outputs.scion-testnet-path }}
-          rm -rf logs gen-cache
-          mkdir logs gen-cache
-          
-          sudo ./scion-testnet ifconfig topos/default
-          
-          ./scion-testnet cryptogen topos/default
-          ./scion-testnet run topos/default &
-          echo $! > testnet.pid
-          sleep 20
-          ./test-server -local '2-ff00:0:222,[fd00:f00d:cafe::7f00:55]:31000' &
-          echo $! > testserver.pid
-          sleep 10
-          
-          cd ${{ needs.build.outputs.build-dir }}
-          ctest --output-on-failure --build-config Debug -L e2e
-          
-          cd ${{ steps.scion-repos.outputs.scion-testnet-path }}
-          kill -SIGINT $(cat testserver.pid)
-          kill -SIGINT $(cat testnet.pid)
-          
+      - name: Run Tests
+        working-directory: ${{ needs.build.outputs.build-dir }}
+        run: sudo ctest --build-config Debug -L e2e --output-on-failure
