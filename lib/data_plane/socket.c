@@ -308,7 +308,7 @@ static int refresh_connected_paths(struct scion_socket *scion_sock)
 		return ret;
 	}
 
-	scion_sock->policy.filter(scion_sock->paths);
+	scion_sock->policy.fn(scion_sock->paths, scion_sock->policy.ctx);
 
 	if (scion_path_collection_size(scion_sock->paths) == 0) {
 		return SCION_NO_PATHS;

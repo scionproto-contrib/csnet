@@ -15,3 +15,5 @@
 #pragma once
 
 #include "scion/scion.h"
+
+struct scion_policy scion_policy_min_mtu(uint32_t *mtu);
