@@ -20,9 +20,9 @@ typedef struct http2_rpc_handle {
 	nghttp2_session *nghttp2_session;
 	int socket_fd;
 
-	char *hostname;
-	char *ip;
-	uint16_t port;
+	char *dst_hostname;
+	struct sockaddr *dst_addr;
+	socklen_t dst_addr_len;
 
 	char *output_buffer;
 	size_t output_buffer_size;
@@ -31,8 +31,8 @@ typedef struct http2_rpc_handle {
 	int grpc_status_code;
 } http2_rpc_handle;
 
-int http2_rpc_handle_init(
-	http2_rpc_handle *hd, const char *hostname, const char *ip, uint16_t port, size_t initial_output_buffer_size);
+int http2_rpc_handle_init(http2_rpc_handle *hd, const char *dst_hostname, struct sockaddr *dst_addr,
+	socklen_t dst_addr_len, size_t initial_output_buffer_size);
 
 int http2_rpc_request(http2_rpc_handle *hd, const char *path, const uint8_t *data, size_t data_length);
 

@@ -46,8 +46,8 @@ int scion_fetch_paths(struct scion_network *network, scion_ia dst, uint opt, str
 
 	int ret;
 
-	struct scion_topology *t = network->topology;
-	scion_ia src = t->ia;
+	struct scion_topology *topology = network->topology;
+	scion_ia src = topology->ia;
 
 	struct scion_path_collection *new_paths;
 	ret = scion_path_collection_init(&new_paths);
@@ -72,9 +72,9 @@ int scion_fetch_paths(struct scion_network *network, scion_ia dst, uint opt, str
 		goto exit;
 	}
 
-	bool src_is_core = scion_topology_is_local_as_core(t);
+	bool src_is_core = scion_topology_is_local_as_core(topology);
 	bool dst_is_core;
-	ret = scion_dst_core_check(t->cs_ip, t->cs_ip, t->cs_port, src, dst);
+	ret = scion_dst_core_check(topology, src, dst);
 	if (ret < 0) {
 		goto exit;
 	} else if (ret == 0) {
@@ -94,8 +94,7 @@ int scion_fetch_paths(struct scion_network *network, scion_ia dst, uint opt, str
 	struct scion_path_segment_list downs_list;
 
 	if (split_requests.has_up) {
-		ret = scion_path_segments_lookup(
-			t->cs_ip, t->cs_ip, t->cs_port, split_requests.up_src, split_requests.up_dst, &ups_list);
+		ret = scion_path_segments_lookup(topology, split_requests.up_src, split_requests.up_dst, &ups_list);
 		if (ret != 0) {
 			goto cleanup_ups;
 		}
@@ -105,8 +104,7 @@ int scion_fetch_paths(struct scion_network *network, scion_ia dst, uint opt, str
 	}
 
 	if (split_requests.has_core) {
-		ret = scion_path_segments_lookup(
-			t->cs_ip, t->cs_ip, t->cs_port, split_requests.core_src, split_requests.core_dst, &cores_list);
+		ret = scion_path_segments_lookup(topology, split_requests.core_src, split_requests.core_dst, &cores_list);
 		if (ret != 0) {
 			goto cleanup_cores;
 		}
@@ -116,8 +114,7 @@ int scion_fetch_paths(struct scion_network *network, scion_ia dst, uint opt, str
 	}
 
 	if (split_requests.has_down) {
-		ret = scion_path_segments_lookup(
-			t->cs_ip, t->cs_ip, t->cs_port, split_requests.down_src, split_requests.down_dst, &downs_list);
+		ret = scion_path_segments_lookup(topology, split_requests.down_src, split_requests.down_dst, &downs_list);
 		if (ret != 0) {
 			goto cleanup_downs;
 		}
