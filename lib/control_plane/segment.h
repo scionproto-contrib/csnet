@@ -108,8 +108,8 @@ int scion_split_segments(
  * Returns:
  *      - An integer status code, 0 for success or an error code as defined in error.h.
  */
-int scion_path_segments_lookup(const char *hostname, const char *ip, uint16_t port, scion_ia src, scion_ia dst,
-	struct scion_path_segment_list *segments);
+int scion_path_segments_lookup(
+	struct scion_topology *topology, scion_ia src, scion_ia dst, struct scion_path_segment_list *segments);
 
 /*
  * FUNCTION: scion_free_pathseglist_internal
@@ -147,6 +147,6 @@ void scion_free_pathseglist_internal(struct scion_path_segment_list *pathseg_lis
  *      - An integer status code, 0 if dst is a non-core AS, 1 if dst is a core AS and
  * 		  otherwise an error code as defined in error.h.
  */
-int scion_dst_core_check(const char *hostname, const char *ip, uint16_t port, scion_ia src, scion_ia dst);
+int scion_dst_core_check(struct scion_topology *topology, scion_ia src, scion_ia dst);
 
 size_t scion_pathsegment_list_byte_size(struct scion_path_segment_list *pathseglist);
