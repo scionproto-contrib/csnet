@@ -538,7 +538,7 @@ struct scion_path_predicate {
 	 */
 	scion_path_predicate_fn fn;
 	/**
-	 * The context that will be provided to the predicate function.
+	 * The user-defined context that will be provided to the predicate function. Can be NULL.
 	 */
 	void *ctx;
 };
@@ -565,7 +565,7 @@ struct scion_path_comparator {
 	 */
 	scion_path_comparator_fn fn;
 	/**
-	 * The context that will be provided to the comparator function.
+	 * The user-defined context that will be provided to the comparator function. Can be NULL.
 	 */
 	void *ctx;
 	/**
@@ -664,6 +664,8 @@ int scion_fetch_paths(struct scion_network *network, scion_ia dst, uint opt, str
  * A function that implements the path selection policy by filtering and/or sorting the available paths contained
  * in the path collection. The function must modify the path collection in-place. When sorting the paths, the most
  * preferred path should be the first path.
+ * @param[in,out] paths The path collection.
+ * @param[in] ctx The user-defined context that was provided when creating the policy.
  *
  * @see @link scion_path_collection_filter @endlink, @link scion_path_collection_sort @endlink
  */
@@ -679,7 +681,7 @@ struct scion_policy {
 	scion_policy_fn fn;
 
 	/**
-	 * The context that will be provided to the path policy function.
+	 * The user-defined context that will be provided to every path policy function invocation.
 	 */
 	void *ctx;
 };
@@ -886,8 +888,7 @@ int scion_getsockfd(struct scion_socket *scion_sock, int *fd);
  * Sets the SCMP error callback that is called when a SCMP error is received by the socket.
  * @param[in,out] scion_sock The socket.
  * @param[in] cb The callback to use.
- * @param[in] ctx The context that is passed to every invocation of the callback. Must be NULL, if not context is
- * needed.
+ * @param[in] ctx The user-defined context that is passed to every invocation of the callback. Can be NULL.
  * @return 0 on success, a negative error code on failure.
  */
 int scion_setsockerrcb(struct scion_socket *scion_sock, scion_socket_scmp_error_cb cb, void *ctx);
