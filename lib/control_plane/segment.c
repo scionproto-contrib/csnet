@@ -47,6 +47,25 @@ static int set_split_seg(struct scion_split_segments *split_seg, bool has_up, sc
 	return 0;
 }
 
+static char *hostname_from_addr(struct sockaddr *addr)
+{
+	char *hostname = NULL;
+
+	if (addr->sa_family == AF_INET) {
+		hostname = malloc(INET_ADDRSTRLEN + 1);
+		if (hostname) {
+			inet_ntop(AF_INET, &((struct sockaddr_in *)addr)->sin_addr, hostname, INET_ADDRSTRLEN + 1);
+		}
+	} else {
+		hostname = malloc(INET6_ADDRSTRLEN + 1);
+		if (hostname) {
+			inet_ntop(AF_INET6, &((struct sockaddr_in6 *)addr)->sin6_addr, hostname, INET6_ADDRSTRLEN + 1);
+		}
+	}
+
+	return hostname;
+}
+
 /*
  * FUNCTION: scion_split_segments
  * ---------------
@@ -377,11 +396,10 @@ static int protobuf_to_path_segments(
  * Returns:
  *      - An integer status code, 0 for success or an error code as defined in error.h.
  */
-int scion_path_segments_lookup(const char *hostname, const char *ip, uint16_t port, scion_ia src, scion_ia dst,
-	struct scion_path_segment_list *segments)
+int scion_path_segments_lookup(
+	struct scion_topology *topology, scion_ia src, scion_ia dst, struct scion_path_segment_list *segments)
 {
-	assert(hostname);
-	assert(ip);
+	assert(topology);
 	assert(segments);
 
 	int ret;
@@ -402,8 +420,11 @@ int scion_path_segments_lookup(const char *hostname, const char *ip, uint16_t po
 	msg_buf = malloc(len);
 	(void)proto__control_plane__v1__segments_request__pack(&seg_req, msg_buf);
 
+	char *hostname = hostname_from_addr((struct sockaddr *)&topology->cs_addr);
 	http2_rpc_handle hd;
-	ret = http2_rpc_handle_init(&hd, hostname, ip, port, INITIAL_RPC_OUTPUT_BUFFER_SIZE);
+	ret = http2_rpc_handle_init(
+		&hd, hostname, (struct sockaddr *)&topology->cs_addr, topology->cs_addr_len, INITIAL_RPC_OUTPUT_BUFFER_SIZE);
+	free(hostname);
 	if (ret != 0) {
 		goto cleanup_msg_buf;
 	}
@@ -481,10 +502,9 @@ void scion_free_pathseglist_internal(struct scion_path_segment_list *pathseg_lis
  *      - An integer status code, 0 if dst is a non-core AS, 1 if dst is a core AS and
  * 		  otherwise an error code as defined in error.h.
  */
-int scion_dst_core_check(const char *hostname, const char *ip, uint16_t port, scion_ia src, scion_ia dst)
+int scion_dst_core_check(struct scion_topology *topology, scion_ia src, scion_ia dst)
 {
-	assert(hostname);
-	assert(ip);
+	assert(topology);
 	int ret;
 
 	bool single_isd = (scion_ia_get_isd(src) == scion_ia_get_isd(dst));
@@ -500,8 +520,11 @@ int scion_dst_core_check(const char *hostname, const char *ip, uint16_t port, sc
 	msg_buf = malloc(len);
 	(void)proto__control_plane__v1__segments_request__pack(&seg_req, msg_buf);
 
+	char *hostname = hostname_from_addr((struct sockaddr *)&topology->cs_addr);
 	http2_rpc_handle hd;
-	ret = http2_rpc_handle_init(&hd, hostname, ip, port, INITIAL_RPC_OUTPUT_BUFFER_SIZE);
+	ret = http2_rpc_handle_init(&hd, hostname, (struct sockaddr *)&topology->cs_addr, topology->cs_addr_len,
+		INITIAL_RPC_OUTPUT_BUFFER_SIZE);
+	free(hostname);
 	if (ret != 0) {
 		free(msg_buf);
 		return ret;

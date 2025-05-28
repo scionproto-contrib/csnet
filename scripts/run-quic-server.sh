@@ -1,3 +1,5 @@
+#!/bin/bash
+
 WORKSPACE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 export SCION_QUIC_SERVER_PATH="$WORKSPACE_DIR/network/scion-apps/_examples/helloquic"

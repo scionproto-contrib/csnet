@@ -2,23 +2,15 @@ set(DEPENDENCY_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/dependencies)
 
 add_executable(paths_example paths.c)
 target_link_libraries(paths_example PRIVATE scion)
-add_test(NAME fetch_paths COMMAND paths_example)
-set_tests_properties(fetch_paths PROPERTIES LABELS "e2e")
 
 add_executable(choose_path_example choose_path.c)
 target_link_libraries(choose_path_example PRIVATE scion)
-add_test(NAME choose_path COMMAND choose_path_example)
-set_tests_properties(choose_path PROPERTIES LABELS "e2e")
 
 add_executable(udp_example udp.c)
 target_link_libraries(udp_example PRIVATE scion)
-add_test(NAME udp COMMAND udp_example)
-set_tests_properties(udp PROPERTIES LABELS "e2e")
 
 add_executable(features_example features.c)
 target_link_libraries(features_example PRIVATE scion)
-add_test(NAME features COMMAND features_example)
-set_tests_properties(features PROPERTIES LABELS "e2e")
 
 add_executable(policy_example policy.c)
 target_link_libraries(policy_example PRIVATE scion)

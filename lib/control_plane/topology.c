@@ -55,12 +55,6 @@ void scion_free_border_router(struct scion_border_router *br)
 	if (br == NULL) {
 		return;
 	}
-	br->ifid = 0;
-	if (br->ip != NULL) {
-		free(br->ip);
-		br->ip = NULL;
-	}
-	br->port = 0;
 	free(br);
 }
 
@@ -69,15 +63,10 @@ void scion_topology_free(struct scion_topology *topo)
 	if (topo == NULL) {
 		return;
 	}
-	if (topo->cs_ip != NULL) {
-		free(topo->cs_ip);
-		topo->cs_ip = NULL;
-	}
 	if (topo->border_routers != NULL) {
 		scion_list_free(topo->border_routers);
 		topo->border_routers = NULL;
 	}
-	topo->cs_port = 0;
 	free(topo);
 }
 
@@ -95,6 +84,67 @@ static bool jsoneq(const char *json, jsmntok_t *tok, const char *s)
 	return false;
 }
 
+static int parse_address(char *buff, size_t buff_len, struct sockaddr_storage *addr, socklen_t *addr_len)
+{
+	// Find last colon
+	char *colon_ptr = scion_memrchr(buff, ':', buff_len);
+	if (colon_ptr == NULL) {
+		return SCION_TOPOLOGY_INVALID;
+	}
+
+	// IP
+	size_t ip_len = (size_t)(colon_ptr - buff);
+	if (buff_len == 0) {
+		return SCION_TOPOLOGY_INVALID;
+	}
+
+	uint16_t *port_storage;
+	if (memchr(buff, '[', ip_len) != NULL && memchr(buff, ']', ip_len) != NULL) {
+		// IPv6, which was "[IP]:Port", do not copy "[" and "]"
+		ip_len -= 2;
+
+		char ip[ip_len + 1];
+		(void)memcpy(ip, buff + 1, ip_len);
+		ip[ip_len] = 0x00;
+
+		// Validate IP
+		struct sockaddr_in6 *addr_in6 = (struct sockaddr_in6 *)addr;
+		addr_in6->sin6_family = AF_INET6;
+		*addr_len = sizeof(*addr_in6);
+		if (inet_pton(AF_INET6, ip, &addr_in6->sin6_addr) != 1) {
+			return SCION_TOPOLOGY_INVALID;
+		}
+
+		port_storage = &addr_in6->sin6_port;
+	} else {
+		char ip[ip_len + 1];
+		(void)memcpy(ip, buff, ip_len);
+		ip[ip_len] = 0x00;
+
+		// Validate IP
+		struct sockaddr_in *addr_in = (struct sockaddr_in *)addr;
+		addr_in->sin_family = AF_INET;
+		*addr_len = sizeof(*addr_in);
+		if (inet_pton(AF_INET, ip, &addr_in->sin_addr) != 1) {
+			return SCION_TOPOLOGY_INVALID;
+		}
+
+		port_storage = &addr_in->sin_port;
+	}
+
+	// Port
+	size_t port_len = (size_t)((ssize_t)buff_len - (colon_ptr + 1 - buff));
+	if (port_len < 1) {
+		return SCION_TOPOLOGY_INVALID;
+	}
+	char port[port_len + 1];
+	(void)memcpy(port, colon_ptr + 1, port_len);
+	port[port_len] = 0x00;
+	*port_storage = htons((uint16_t)strtoul(port, NULL, 10));
+
+	return 0;
+}
+
 int scion_topology_from_file(struct scion_topology **topology, const char *path)
 {
 	assert(topology);
@@ -108,8 +158,7 @@ int scion_topology_from_file(struct scion_topology **topology, const char *path)
 	// Initialize empty topology
 	topology_storage->ia = 0;
 	topology_storage->local_core = false;
-	topology_storage->cs_ip = NULL;
-	topology_storage->cs_port = 0;
+	topology_storage->cs_addr_len = 0;
 	topology_storage->border_routers = scion_list_create(SCION_LIST_CUSTOM_FREE(scion_free_border_router));
 
 	// populate topology using topology.json
@@ -203,57 +252,13 @@ int scion_topology_from_file(struct scion_topology **topology, const char *path)
 			// Handle Control Server IP and PORT
 			if (tokens[i].type == JSMN_STRING) {
 				t = tokens[i];
-				uint len = (uint)(t.end - t.start);
-				// Find Colon
-				char *colon_ptr = scion_memrchr(raw_json + t.start, 0x3a, len); // 0x3a == ':'
-				if (colon_ptr == NULL) {
-					ret = SCION_TOPOLOGY_INVALID;
+				size_t len = (size_t)(t.end - t.start);
+
+				ret = parse_address(
+					raw_json + t.start, len, &topology_storage->cs_addr, &topology_storage->cs_addr_len);
+				if (ret != 0) {
 					goto cleanup_json;
 				}
-
-				// IP
-				len = (uint)((int)(colon_ptr - raw_json) - t.start);
-				if (len < 1) {
-					ret = SCION_TOPOLOGY_INVALID;
-					goto cleanup_json;
-				}
-				if (memchr(raw_json + t.start, 0x5b, len) != NULL && memchr(raw_json + t.start, 0x5d, len) != NULL) {
-					// 0x5b == '[' and 0x5d == ']'
-					// IPv6, which was "[IP]:Port", do not copy "[" and "]"
-					len = len - 2;
-					topology_storage->cs_ip = malloc(len + 1);
-					(void)memcpy(topology_storage->cs_ip, raw_json + t.start + 1, len);
-					topology_storage->cs_ip[len] = 0x00;
-
-					// Validate IP
-					struct in6_addr ipv6_addr;
-					if (inet_pton(AF_INET6, topology_storage->cs_ip, &ipv6_addr) != 1) {
-						ret = SCION_TOPOLOGY_INVALID;
-						goto cleanup_json;
-					}
-				} else {
-					topology_storage->cs_ip = malloc(len + 1);
-					(void)memcpy(topology_storage->cs_ip, raw_json + t.start, len);
-					topology_storage->cs_ip[len] = 0x00;
-
-					// Validate IP
-					struct in_addr ipv4_addr;
-					if (inet_pton(AF_INET, topology_storage->cs_ip, &ipv4_addr) != 1) {
-						ret = SCION_TOPOLOGY_INVALID;
-						goto cleanup_json;
-					}
-				}
-
-				// Port
-				len = (uint)(t.end - (int)(colon_ptr + 1 - raw_json));
-				if (len < 1) {
-					ret = SCION_TOPOLOGY_INVALID;
-					goto cleanup_json;
-				}
-				char port[len + 1];
-				(void)memcpy(port, colon_ptr + 1, len);
-				port[len] = 0x00;
-				topology_storage->cs_port = (uint16_t)strtoul(port, NULL, 10);
 			}
 
 		} else if (jsoneq((const char *)raw_json, &tokens[i], "border_routers")) {
@@ -294,71 +299,21 @@ int scion_topology_from_file(struct scion_topology **topology, const char *path)
 						}
 
 						struct scion_border_router *br = malloc(sizeof(*br));
-						br->ip = NULL;
+						br->addr_len = 0;
 
 						// BR IP and PORT
 						t = tokens[i];
-						uint len = (uint)(t.end - t.start);
-						// Find Colon
-						char *colon_ptr = scion_memrchr(raw_json + t.start, 0x3a, len);
-						if (colon_ptr == NULL) {
+						size_t len = (size_t)(t.end - t.start);
+
+						ret = parse_address(raw_json + t.start, len, &br->addr, &br->addr_len);
+						if (ret != 0) {
 							scion_free_border_router(br);
-							ret = SCION_TOPOLOGY_INVALID;
 							goto cleanup_json;
 						}
 
-						// IP
-						len = (uint)((int)(colon_ptr - raw_json) - t.start);
-						if (len < 1) {
-							scion_free_border_router(br);
-							ret = SCION_TOPOLOGY_INVALID;
-							goto cleanup_json;
-						}
-						if (memchr(raw_json + t.start, 0x5b, len) != NULL
-							&& memchr(raw_json + t.start, 0x5d, len) != NULL) {
-							// 0x5b == '[' and 0x5d == ']'
-							// IPv6, which was "[IP]:Port", do not copy "[" and "]"
-							len = len - 2;
-							br->ip = malloc(len + 1);
-							(void)memcpy(br->ip, raw_json + t.start + 1, len);
-							br->ip[len] = 0x00;
-
-							// Validate IP
-							struct in6_addr ipv6_addr;
-							if (inet_pton(AF_INET6, br->ip, &ipv6_addr) != 1) {
-								scion_free_border_router(br);
-								ret = SCION_TOPOLOGY_INVALID;
-								goto cleanup_json;
-							}
-							// Set local address family
-							topology_storage->local_addr_family = AF_INET6;
-						} else {
-							br->ip = malloc(len + 1);
-							(void)memcpy(br->ip, raw_json + t.start, len);
-							br->ip[len] = 0x00;
-
-							// Validate IP
-							struct in_addr ipv4_addr;
-							if (inet_pton(AF_INET, br->ip, &ipv4_addr) != 1) {
-								scion_free_border_router(br);
-								ret = SCION_TOPOLOGY_INVALID;
-								goto cleanup_json;
-							}
-							// Set local address family
-							topology_storage->local_addr_family = AF_INET;
-						}
-
-						// Port
-						len = (uint)(t.end - (int)(colon_ptr + 1 - raw_json));
-						if (len < 1) {
-							scion_free_border_router(br);
-							ret = SCION_TOPOLOGY_INVALID;
-							goto cleanup_json;
-						}
-						char port[len + 1];
-						(void)memcpy(port, colon_ptr + 1, len);
-						port[len] = 0x00;
-						br->port = (uint16_t)strtoul(port, NULL, 10);
+						// Use border router address family as topology address family (we assume that the whole
+						// topology has the same address family anyway)
+						topology_storage->local_addr_family = br->addr.ss_family;
 
 						// BR IFID
 						// jump to IFID
@@ -408,38 +363,22 @@ cleanup_topology:
 	return ret;
 }
 
-int scion_topology_next_underlay_hop(struct scion_topology *t, scion_interface_id ifid, struct scion_underlay *underlay)
+int scion_topology_next_underlay_hop(
+	struct scion_topology *topology, scion_interface_id ifid, struct scion_underlay *underlay)
 {
-	assert(t);
-	assert(t->border_routers);
+	assert(topology);
+	assert(topology->border_routers);
 	assert(underlay);
 
-	struct scion_list_node *curr = t->border_routers->first;
+	struct scion_list_node *curr = topology->border_routers->first;
 	while (curr) {
 		struct scion_border_router *br = curr->value;
 		if (br != NULL) {
 			if (ifid == SCION_INTERFACE_ANY || br->ifid == ifid) {
-				if (strchr(br->ip, 0x2e) != NULL) { // 0x2e == '.'
-					// ip contains "." -> IPv4
-					struct sockaddr_in *next_addr = (struct sockaddr_in *)&underlay->addr;
-					next_addr->sin_addr.s_addr = inet_addr(br->ip);
-					next_addr->sin_family = AF_INET;
-					next_addr->sin_port = htons(br->port);
-					underlay->addrlen = sizeof(struct sockaddr_in);
-					underlay->addr_family = SCION_AF_IPV4;
-					return 0;
-				} else {
-					struct sockaddr_in6 *next_addr = (struct sockaddr_in6 *)&underlay->addr;
-					int ret = inet_pton(AF_INET6, br->ip, &next_addr->sin6_addr);
-					if (ret != 0) {
-						return SCION_TOPOLOGY_INVALID;
-					}
-					next_addr->sin6_family = AF_INET6;
-					next_addr->sin6_port = htons(br->port);
-					underlay->addrlen = sizeof(struct sockaddr_in6);
-					underlay->addr_family = SCION_AF_IPV6;
-					return 0;
-				}
+				underlay->addr = br->addr;
+				underlay->addrlen = br->addr_len;
+				underlay->addr_family = br->addr.ss_family;
+				return 0;
 			}
 		}
 		curr = curr->next;

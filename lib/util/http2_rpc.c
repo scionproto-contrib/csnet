@@ -324,20 +324,18 @@ static int on_header_callback(nghttp2_session *session, const nghttp2_frame *fra
  * ###################### initialize handle function ######################
  */
 
-int http2_rpc_handle_init(
-	http2_rpc_handle *hd, const char *hostname, const char *ip, uint16_t port, size_t initial_output_buffer_size)
+int http2_rpc_handle_init(http2_rpc_handle *hd, const char *dst_hostname, struct sockaddr *dst_addr,
+	socklen_t dst_addr_len, size_t initial_output_buffer_size)
 {
 	(void)memset(hd, 0, sizeof(*hd));
 
 	hd->socket_fd = -1;
 
-	size_t hostname_len = strlen(hostname) + 1;
-	hd->hostname = malloc(hostname_len);
-	(void)strncpy(hd->hostname, hostname, hostname_len);
-	size_t ip_len = strlen(ip) + 1;
-	hd->ip = malloc(ip_len);
-	(void)strncpy(hd->ip, ip, ip_len);
-	hd->port = port;
+	size_t hostname_len = strlen(dst_hostname) + 1;
+	hd->dst_hostname = malloc(hostname_len);
+	(void)strncpy(hd->dst_hostname, dst_hostname, hostname_len);
+	hd->dst_addr = dst_addr;
+	hd->dst_addr_len = dst_addr_len;
 
 	hd->output_buffer_size = initial_output_buffer_size;
 	hd->output_buffer = malloc(initial_output_buffer_size);
@@ -363,13 +361,9 @@ void http2_rpc_handle_free(http2_rpc_handle *hd)
 		(void)close(hd->socket_fd);
 		hd->socket_fd = -1;
 	}
-	if (hd->hostname) {
-		free(hd->hostname);
-		hd->hostname = NULL;
-	}
-	if (hd->ip) {
-		free(hd->ip);
-		hd->ip = NULL;
+	if (hd->dst_hostname) {
+		free(hd->dst_hostname);
+		hd->dst_hostname = NULL;
 	}
 	if (hd->output_buffer) {
 		free(hd->output_buffer);
@@ -416,21 +410,13 @@ int http2_rpc_connect(http2_rpc_handle *hd)
 {
 	int ret;
 
-	struct sockaddr_in dest_addr;
-	ret = inet_pton(AF_INET, hd->ip, &dest_addr.sin_addr);
-	if (ret != 1) {
-		return -1;
-	}
-	dest_addr.sin_family = AF_INET;
-	dest_addr.sin_port = htons(hd->port);
-
-	hd->socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+	hd->socket_fd = socket(hd->dst_addr->sa_family, SOCK_STREAM, 0);
 	if (hd->socket_fd == -1) {
 		http2_rpc_handle_free(hd);
 		return -1;
 	}
 
-	ret = connect(hd->socket_fd, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+	ret = connect(hd->socket_fd, hd->dst_addr, hd->dst_addr_len);
 	if (ret != 0) {
 		http2_rpc_handle_free(hd);
 		return ret;
@@ -518,7 +504,7 @@ int http2_rpc_request(http2_rpc_handle *hd, const char *path, const u_int8_t *da
 	http2_rpc_data rpc_data = { .data = data, .data_length = data_length };
 
 	const nghttp2_nv headers[] = { MAKE_NV(":method", "POST"), MAKE_NV(":scheme", "http"),
-		MAKE_NV(":authority", hd->hostname), MAKE_NV(":path", path), MAKE_NV("te", "trailers"),
+		MAKE_NV(":authority", hd->dst_hostname), MAKE_NV(":path", path), MAKE_NV("te", "trailers"),
 		MAKE_NV("content-type", "application/grpc+proto"), MAKE_NV("grpc-accept-encoding", "identity, deflate, gzip"),
 		MAKE_NV("user-agent", "grpc-esp32/custom") };
 

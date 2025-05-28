@@ -1,3 +1,5 @@
+#!/bin/bash
+
 WORKSPACE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 export SCION_PATH="$WORKSPACE_DIR/network/scion"

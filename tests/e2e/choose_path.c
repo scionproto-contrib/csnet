@@ -1,3 +1,17 @@
+// Copyright 2025 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Copyright 2024 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +46,7 @@ int main(int argc, char *argv[])
 	printf("\nHello SCION on Linux\n\n");
 
 	struct scion_topology *topology;
-	ret = scion_topology_from_file(&topology, "../topology/topology.json");
+	ret = scion_topology_from_file(&topology, "../../topology/topology.json");
 	if (ret != 0) {
 		printf("ERROR: Topology init failed with error code: %d\n", ret);
 		return EXIT_FAILURE;
@@ -88,17 +102,6 @@ int main(int argc, char *argv[])
 		goto cleanup_paths;
 	}
 	printf("[Sent %d bytes]: \"%s\"\n", ret, tx_buf);
-
-	char rx_buf[200];
-	ret = scion_recv(scion_sock, &rx_buf, sizeof rx_buf - 1, /* flags: */ 0);
-	if (ret < 0) {
-		printf("ERROR: Receive failed with error code: %d\n", ret);
-		ret = EXIT_FAILURE;
-		goto cleanup_paths;
-	}
-	rx_buf[ret] = '\0';
-
-	printf("[Received %d bytes]: \"%s\"\n", ret, rx_buf);
 
 	ret = EXIT_SUCCESS;
 

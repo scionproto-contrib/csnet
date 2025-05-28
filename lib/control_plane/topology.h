@@ -28,28 +28,28 @@
 struct scion_topology {
 	scion_ia ia;
 	bool local_core;
-	char *cs_ip;
-	uint16_t cs_port;
+	struct sockaddr_storage cs_addr;
+	socklen_t cs_addr_len;
 	enum scion_addr_family local_addr_family;
 	struct scion_list *border_routers;
 };
 
 struct scion_border_router {
 	scion_interface_id ifid;
-	char *ip;
-	uint16_t port;
+	struct sockaddr_storage addr;
+	socklen_t addr_len;
 };
 
 /**
  * Uses the topology file and a provided interface id to determine the next hop. If SCION_INTERFACE_ANY is used, an
  * arbitrary underlay is returned.
- * @param[in] t The topology.
+ * @param[in] topology The topology.
  * @param[in] ifid The interface id, or @link SCION_INTERFACE_ANY @endlink.
  * @param[out] underlay The underlay of the next hop.
  * @return 0 on success, a negative error code on failure.
  */
 int scion_topology_next_underlay_hop(
-	struct scion_topology *t, scion_interface_id ifid, struct scion_underlay *underlay);
+	struct scion_topology *topology, scion_interface_id ifid, struct scion_underlay *underlay);
 
 /*
  * FUNCTION: scion_topology_is_local_as_core
