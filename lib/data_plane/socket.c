@@ -996,6 +996,7 @@ int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, so
 		}
 
 		(void)memcpy(addr, &src_addr, src_addr_len);
+		*addrlen = src_addr_len;
 	}
 
 	if (ia != NULL) {
