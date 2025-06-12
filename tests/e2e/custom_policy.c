@@ -13,16 +13,35 @@
 // limitations under the License.
 
 #include <arpa/inet.h>
-#include <stdbool.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <scion/scion.h>
 
-static bool select_path(struct scion_path *path, void *ctx)
+static bool has_nine_hops(struct scion_path *path, void *ctx)
 {
-	const struct scion_path_metadata *metadata = scion_path_get_metadata(path);
-	return scion_path_get_hops(path) == 8 && metadata->mtu == 1400;
+	(void)ctx;
+	return scion_path_get_hops(path) == 9;
+}
+
+static int compare_mtu(struct scion_path *path_one, struct scion_path *path_two, void *ctx)
+{
+	(void)ctx;
+	uint32_t mtu_one = scion_path_get_metadata(path_one)->mtu;
+	uint32_t mtu_two = scion_path_get_metadata(path_two)->mtu;
+
+	return (mtu_one > mtu_two) - (mtu_one < mtu_two);
+}
+
+static void policy_fn(struct scion_path_collection *paths, void *ctx)
+{
+	(void)ctx;
+	// only use paths that have exactly nine hops
+	scion_path_collection_filter(paths, (struct scion_path_predicate){ .fn = has_nine_hops });
+	// sort paths with descending MTU
+	scion_path_collection_sort(paths, (struct scion_path_comparator){ .fn = compare_mtu, .ascending = false });
 }
 
 int main(int argc, char *argv[])
@@ -60,39 +79,31 @@ int main(int argc, char *argv[])
 		goto cleanup_network;
 	}
 
-	// ### Select path and set path ###
-	struct scion_path_collection *paths;
-	ret = scion_fetch_paths(network, dst_ia, SCION_FETCH_OPT_DEBUG, &paths);
+	int optval = true;
+	ret = scion_setsockopt(scion_sock, SOL_SOCKET, SCION_SO_DEBUG, &optval, sizeof(optval));
 	if (ret != 0) {
-		printf("ERROR: Failed to fetch paths with error code: %d\n", ret);
+		printf("ERROR: Setting socket to debug mode failed with error code: %d\n", ret);
 		ret = EXIT_FAILURE;
 		goto cleanup_socket;
 	}
 
-	struct scion_path *path = scion_path_collection_find(paths, (struct scion_path_predicate){ .fn = select_path });
-	if (path == NULL) {
-		printf("ERROR: Failed to find path meeting criteria\n");
+	struct scion_policy policy = { .fn = policy_fn, .ctx = NULL };
+	ret = scion_setsockpolicy(scion_sock, policy);
+	if (ret != 0) {
+		printf("ERROR: Setting socket policy failed with error code: %d\n", ret);
 		ret = EXIT_FAILURE;
-		goto cleanup_paths;
+		goto cleanup_socket;
 	}
 
-	// ### Send and Receive ###
-	char tx_buf[] = "Hello, Scion!";
-	printf("Using Path:\n");
-	scion_path_print(path);
-	ret = scion_sendto(scion_sock, tx_buf, sizeof tx_buf - 1, /* flags: */ 0, (struct sockaddr *)&dst_addr,
-		sizeof(dst_addr), dst_ia, path);
-	if (ret < 0) {
-		printf("ERROR: Send failed with error code: %d\n", ret);
+	ret = scion_connect(scion_sock, (struct sockaddr *)&dst_addr, sizeof(dst_addr), dst_ia);
+	if (ret != 0) {
+		printf("ERROR: Socket connect failed with error code: %d\n", ret);
 		ret = EXIT_FAILURE;
-		goto cleanup_paths;
+		goto cleanup_socket;
 	}
-	printf("[Sent %d bytes]: \"%s\"\n", ret, tx_buf);
 
+	printf("\nDone.\n");
 	ret = EXIT_SUCCESS;
-
-cleanup_paths:
-	scion_path_collection_free(paths);
 
 cleanup_socket:
 	scion_close(scion_sock);

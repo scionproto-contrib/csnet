@@ -50,10 +50,8 @@ The following options exist:
 - `BUILD_LIB`: build the library in `./lib`
 - `BUILD_CMD`: build the command line tools in `./cmd`
 - `BUILD_EXAMPLES`: build the examples in `./examples`.
-- `BUILD_TESTS`: build the tests in `./tests`, the cmd tools in `./cmd` and some of the examples in
-  `./examples` that serve as E2E tests. This means that even if `BUILD_EXAMPLES` is `OFF` some examples may still be
-  built if `BUILD_TESTS` is
-  `ON`. The same holds for `BUILD_CMD`.
+- `BUILD_TESTS`: build the tests in `./tests`. May also build the command line tools in `./cmd` that are required by the
+  tests even if `DBUILD_CMD` is `OFF`.
 - `BUILD_DOCS`: build the docs which are output to `./docs/api`.
 
 Build everything with
@@ -88,7 +86,7 @@ Requirements:
 - Go 1.23 or newer (download [here](https://go.dev/dl/))
 
 To set up a local SCION Network execute the setup script in `scripts/setup-network.sh`. After successfully installing
-it, the network can be started with `scripts/run-testnet.sh`. Press `Ctrl+C` to shut down the test network.
+it, the network can be started with `sudo scripts/run-testnet.sh`. Press `Ctrl+C` to shut down the test network.
 
 ## ESP32
 

@@ -18,6 +18,7 @@ set(test_list
         send_udp
         choose_path
         server_with_multiple_clients
+        custom_policy
 )
 
 # Register all tests in the list
