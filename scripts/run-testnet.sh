@@ -10,9 +10,9 @@ cd "$SCION_TESTNET_PATH" || exit
 rm -rf logs gen-cache
 mkdir logs gen-cache
 
-sudo ./scion-testnet ifconfig topos/default
+./scion-testnet ifconfig topos/default
 
 ./scion-testnet cryptogen topos/default
 ./scion-testnet run topos/default
 
-sudo ./scion-testnet ifconfig -c topos/default
+./scion-testnet ifconfig -c topos/default
