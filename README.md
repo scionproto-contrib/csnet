@@ -74,12 +74,6 @@ The installation will produce the static libraries `lib/libscion.a`, `lib/libngh
 file `include/scion/scion.h` and the command-line tool `bin/ping` in your installation directory. When using the library
 make sure to link against all the static libraries produced by the installation.
 
-### Known Issues
-
-- On ARM you might get `clang++: error: unsupported option '-msse4.1' for target 'arm64-apple-darwin24.4.0` when
-  building. This is a known issue and we have to wait for a version bump in protobuf (
-  discussion [here](https://github.com/scionproto-contrib/csnet/pull/41#issuecomment-2895630253)).
-
 ## Local SCION Network Setup
 
 Requirements:
