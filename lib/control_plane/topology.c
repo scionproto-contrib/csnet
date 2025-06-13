@@ -37,15 +37,16 @@ static void *scion_memrchr(const void *s, int c, size_t n)
 		return NULL;
 	}
 
-	for (size_t i = 0; i < n; i++) {
-		int *v = &((int *)s)[n - 1 - i];
-		if (*v == c) {
-			return v;
+	const unsigned char *t = s;
+	while (n > 0) {
+		n--;
+		if (t[n] == (unsigned char)c) {
+			return (void *)&t[n];
 		}
 	}
 
 	return NULL;
-};
+}
 #else
 #define scion_memrchr memrchr
 #endif
