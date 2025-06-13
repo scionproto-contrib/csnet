@@ -13,8 +13,8 @@ ExternalProject_Add(
 ExternalProject_Add(
         protobuf
         GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
-        GIT_TAG v29.3
-        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -Dprotobuf_BUILD_TESTS=OFF -DABSL_PROPAGATE_CXX_STD=ON
+        GIT_TAG v31.1
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_PROTOC_BINARIES=OFF -Dprotobuf_BUILD_LIBUPB=OFF -DABSL_PROPAGATE_CXX_STD=ON
 )
 
 # Fetch protobuf-c
