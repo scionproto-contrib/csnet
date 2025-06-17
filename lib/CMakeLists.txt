@@ -43,6 +43,7 @@ add_library(scion STATIC
         control_plane/network.c
         control_plane/policy.c
         control_plane/path_metadata.c
+        control_plane/bootstrapper.c
         data_plane/packet.c
         data_plane/path.c
         data_plane/socket.c
@@ -75,6 +76,11 @@ target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libnghttp2.a)
 
 # Link protobuf-c
 target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libprotobuf-c.a)
+
+target_link_libraries(scion PRIVATE resolv)
+
+find_package(CURL REQUIRED)
+target_link_libraries(scion PRIVATE CURL::libcurl)
 
 # Set compiler flags
 extract_valid_c_compiler_flags(COMPILER_FLAGS

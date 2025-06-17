@@ -178,6 +178,8 @@ enum scion_error {
 	 * @see [Source Address Determination](docs/design/source_address_determination.md)
 	 */
 	SCION_ERR_SRC_ADDR_UNKNOWN = -31,
+	// TODO document me
+	SCION_ERR_BOOTSTRAPPING_FAIL = -32,
 	// Internal errors
 	SCION_ERR_NOT_ENOUGH_DATA = -201,
 	SCION_ERR_PACKET_FIELD_INVALID = -202,
@@ -273,6 +275,9 @@ scion_ia scion_topology_get_local_ia(struct scion_topology *topo);
  * @param[in] topo The topology to free.
  */
 void scion_topology_free(struct scion_topology *topo);
+
+// TODO document me
+int scion_bootstrap(struct scion_topology **topology);
 
 /**
  * @struct scion_network

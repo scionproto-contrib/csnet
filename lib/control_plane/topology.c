@@ -146,9 +146,8 @@ static int parse_address(char *buff, size_t buff_len, struct sockaddr_storage *a
 	return 0;
 }
 
-int scion_topology_from_file(struct scion_topology **topology, const char *path)
+int scion_topology_from_stream(struct scion_topology **topology, FILE *f)
 {
-	assert(topology);
 	int ret;
 
 	struct scion_topology *topology_storage = malloc(sizeof(*topology_storage));
@@ -162,38 +161,31 @@ int scion_topology_from_file(struct scion_topology **topology, const char *path)
 	topology_storage->cs_addr_len = 0;
 	topology_storage->border_routers = scion_list_create(SCION_LIST_CUSTOM_FREE(scion_free_border_router));
 
-	// populate topology using topology.json
-	FILE *f = fopen(path, "r");
-	if (f == NULL) {
-		ret = SCION_ERR_FILE_NOT_FOUND;
-		goto cleanup_topology;
-	}
-
 	// load json
 	ret = fseek(f, 0L, SEEK_END);
 	if (ret != 0) {
 		ret = SCION_ERR_TOPOLOGY_INVALID;
-		goto cleanup_topo_file;
+		goto cleanup_topology;
 	}
 	long pos = ftell(f);
 	if (pos < 0) {
 		ret = SCION_ERR_TOPOLOGY_INVALID;
-		goto cleanup_topo_file;
+		goto cleanup_topology;
 	}
 	size_t size = (size_t)pos;
 	char *raw_json = malloc(size + 1);
 	if (raw_json == NULL) {
 		ret = SCION_ERR_MEM_ALLOC_FAIL;
-		goto cleanup_topo_file;
+		goto cleanup_topology;
 	}
 	ret = fseek(f, 0L, SEEK_SET);
 	if (ret != 0) {
 		ret = SCION_ERR_TOPOLOGY_INVALID;
-		goto cleanup_topo_file;
+		goto cleanup_topology;
 	}
 	if (fread(raw_json, 1, size + 1, f) != size) {
 		ret = SCION_ERR_TOPOLOGY_INVALID;
-		goto cleanup_topo_file;
+		goto cleanup_topology;
 	}
 	raw_json[size] = 0x00;
 
@@ -351,14 +343,29 @@ int scion_topology_from_file(struct scion_topology **topology, const char *path)
 cleanup_json:
 	free(raw_json);
 
-cleanup_topo_file:
-	fclose(f);
-
 cleanup_topology:
 	if (ret < 0) {
 		scion_topology_free(topology_storage);
 	} else {
 		*topology = topology_storage;
+	}
+
+	return ret;
+}
+
+int scion_topology_from_file(struct scion_topology **topology, const char *path)
+{
+	assert(topology);
+
+	// populate topology using topology.json
+	FILE *f = fopen(path, "r");
+	if (f == NULL) {
+		return SCION_ERR_FILE_NOT_FOUND;
+	}
+
+	int ret = scion_topology_from_stream(topology, f);
+	if (ret < 0) {
+		(void)fclose(f);
 	}
 
 	return ret;
