@@ -277,7 +277,7 @@ scion_ia scion_topology_get_local_ia(struct scion_topology *topo);
 void scion_topology_free(struct scion_topology *topo);
 
 // TODO document me
-int scion_bootstrap(struct scion_topology **topology);
+int scion_bootstrap(const char *topology_output_path);
 
 /**
  * @struct scion_network

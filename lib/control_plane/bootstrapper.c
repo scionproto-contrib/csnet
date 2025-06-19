@@ -14,11 +14,13 @@
 
 #include "bootstrapper.h"
 
+#include <arpa/inet.h>
 #include <arpa/nameser.h>
 #include <assert.h>
 #include <curl/curl.h>
 #include <inttypes.h>
 #include <resolv.h>
+#include <scion/scion.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -357,8 +359,7 @@ cleanup_resolver:
 	return ret;
 }
 
-static int fetch_topology_from_discovery_server(
-	struct sockaddr *addr, socklen_t addrlen, char **buffer, size_t *buffer_size)
+static int fetch_topology_from_discovery_server(struct sockaddr *addr, socklen_t addrlen, FILE *topology_stream)
 {
 	(void)addrlen;
 	int ret = 0;
@@ -381,68 +382,48 @@ static int fetch_topology_from_discovery_server(
 
 	CURL *curl = curl_easy_init();
 	if (!curl) {
-		return -1;
+		ret = -1;
+		goto cleanup_curl_global;
 	}
 
 	curl_easy_setopt(curl, CURLOPT_URL, url);
-
-	FILE *stream = open_memstream(buffer, buffer_size);
-	if (stream == NULL) {
-		ret = -1;
-		goto cleanup_curl;
-	}
-
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, stream);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, topology_stream);
 
 	CURLcode code = curl_easy_perform(curl);
 	if (code != CURLE_OK) {
 		ret = -1;
 	}
 
-	(void)fclose(stream);
-
-cleanup_curl:
 	curl_easy_cleanup(curl);
+
+cleanup_curl_global:
 	curl_global_cleanup();
 
 	return ret;
 }
 
-int scion_bootstrap(struct scion_topology **topology)
+int scion_bootstrap(const char *topology_output_path)
 {
 	struct sockaddr_storage discovery_server_addr = { 0 };
 	socklen_t discovery_server_addr_len = sizeof(discovery_server_addr);
 
 	int ret = determine_discovery_server_addr((struct sockaddr *)&discovery_server_addr, &discovery_server_addr_len);
 	if (ret != 0) {
-		goto error;
-	}
-
-	char *topology_data;
-	size_t topology_data_len;
-	ret = fetch_topology_from_discovery_server(
-		(struct sockaddr *)&discovery_server_addr, discovery_server_addr_len, &topology_data, &topology_data_len);
-	if (ret != 0) {
-		goto error;
-	}
-
-	FILE *topology_stream = fmemopen(topology_data, topology_data_len, "r");
-	if (topology_stream == NULL) {
-		ret = -1;
-		goto cleanup_topology_data;
-	}
-
-	ret = scion_topology_from_stream(topology, topology_stream);
-
-	(void)fclose(topology_stream);
-
-cleanup_topology_data:
-	free(topology_data);
-
-	if (ret < 0) {
-error:
 		return SCION_ERR_BOOTSTRAPPING_FAIL;
 	}
 
-	return 0;
+	FILE *topology_stream = fopen(topology_output_path, "w");
+	if (topology_stream == NULL) {
+		return SCION_ERR_FILE_NOT_FOUND;
+	}
+
+	ret = fetch_topology_from_discovery_server(
+		(struct sockaddr *)&discovery_server_addr, discovery_server_addr_len, topology_stream);
+	if (ret != 0) {
+		ret = SCION_ERR_BOOTSTRAPPING_FAIL;
+	}
+
+	(void)fclose(topology_stream);
+
+	return ret;
 }
