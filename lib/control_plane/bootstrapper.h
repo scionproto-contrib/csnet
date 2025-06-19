@@ -14,6 +14,4 @@
 
 #pragma once
 
-#include "control_plane/topology.h"
-
-int scion_bootstrap(struct scion_topology **topology);
+int scion_bootstrap(const char *topology_output_path);

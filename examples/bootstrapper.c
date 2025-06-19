@@ -22,14 +22,20 @@ int main(int argc, char *argv[])
 
 	printf("\nHello SCION on Linux\n\n");
 
-	struct scion_topology *topology;
-	ret = scion_bootstrap(&topology);
+	const char *topology_path = "bootstrapped_topology.json";
+	ret = scion_bootstrap(topology_path);
 	if (ret != 0) {
 		printf("Error: bootstrapping failed\n");
 		return EXIT_FAILURE;
 	}
 
-cleanup_topology:
+	struct scion_topology *topology;
+	ret = scion_topology_from_file(&topology, topology_path);
+	if (ret != 0) {
+		printf("Error: failed to load topology from file\n");
+		return EXIT_FAILURE;
+	}
+
 	scion_topology_free(topology);
 
 	printf("Done\n");
