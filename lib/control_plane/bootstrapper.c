@@ -57,7 +57,7 @@ static int query_a_record(res_state state, const char *name, struct a_record *re
 {
 	u_char answer[NS_PACKETSZ];
 
-	int ret = res_nquery(state, name, C_IN, T_A, answer, sizeof(answer));
+	int ret = res_nquery(state, name, ns_c_in, ns_t_a, answer, sizeof(answer));
 	if (ret < 0) {
 		return ret;
 	}
@@ -89,7 +89,7 @@ static int query_srv_record(res_state state, const char *name, struct srv_record
 {
 	u_char answer[NS_PACKETSZ];
 
-	int ret = res_nquery(state, name, C_IN, T_SRV, answer, sizeof(answer));
+	int ret = res_nquery(state, name, ns_c_in, ns_t_srv, answer, sizeof(answer));
 	if (ret < 0) {
 		return ret;
 	}
@@ -133,7 +133,7 @@ static int query_ptr_record(res_state state, const char *name, struct ptr_record
 {
 	u_char answer[NS_PACKETSZ];
 
-	int ret = res_nquery(state, name, C_IN, T_PTR, answer, sizeof(answer));
+	int ret = res_nquery(state, name, ns_c_in, ns_t_ptr, answer, sizeof(answer));
 	if (ret < 0) {
 		return ret;
 	}
@@ -176,7 +176,7 @@ static int query_naptr_record(res_state state, const char *name, struct naptr_re
 {
 	u_char answer[NS_PACKETSZ];
 
-	int ret = res_nquery(state, name, C_IN, T_NAPTR, answer, sizeof(answer));
+	int ret = res_nquery(state, name, ns_c_in, ns_t_naptr, answer, sizeof(answer));
 	if (ret < 0) {
 		return ret;
 	}
@@ -361,7 +361,7 @@ static int fetch_topology_from_discovery_server(
 	struct sockaddr *addr, socklen_t addrlen, char **buffer, size_t *buffer_size)
 {
 	(void)addrlen;
-	int ret;
+	int ret = 0;
 
 	assert(addr->sa_family == AF_INET);
 	struct sockaddr_in *in_addr = (struct sockaddr_in *)addr;
@@ -394,8 +394,8 @@ static int fetch_topology_from_discovery_server(
 
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, stream);
 
-	ret = curl_easy_perform(curl);
-	if (ret != CURLE_OK) {
+	CURLcode code = curl_easy_perform(curl);
+	if (code != CURLE_OK) {
 		ret = -1;
 	}
 
