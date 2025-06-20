@@ -31,6 +31,8 @@
 
 #define DISCOVERY_SERVER_DEFAULT_PORT 8041
 
+#define MAX_NAPTR_RECURSION_DEPTH 5
+
 // MAKE_NV based on nghttp2 - HTTP/2 client tutorial, by Tatsuhiro Tsujikawa
 // https://nghttp2.org/documentation/tutorial-client.html
 // clang-format off
@@ -43,7 +45,7 @@
 struct naptr_record {
 	uint16_t order;
 	uint16_t preference;
-	u_char flag;
+	char flag[2];
 	char target[NS_MAXDNAME];
 };
 
@@ -350,22 +352,28 @@ static int query_naptr_records(res_state resolver, const char *name, struct napt
 		}
 
 		const u_char *rdata = ns_rr_rdata(rr);
-		// Ignore flags other an 'A' and 'S'
-		if (!(rdata[4] == 1 && (rdata[5] == 'A' || rdata[5] == 'S'))) {
+
+		size_t flag_len;
+		if (rdata[4] == 0) {
+			flag_len = 0;
+		} else if (rdata[4] == 1 && (rdata[5] == 'A' || rdata[5] == 'S')) {
+			flag_len = 1;
+		} else {
+			// Ignore flags other an 'A', 'S' or empty
 			continue;
 		}
 
 		// Ignore services other than scion discovery
-		if (!(rdata[6] == 20 && memcmp(&rdata[7], "x-sciondiscovery:tcp", 20) == 0)) {
+		if (!(rdata[flag_len + 5] == 20 && memcmp(&rdata[flag_len + 6], "x-sciondiscovery:tcp", 20) == 0)) {
 			continue;
 		}
 
-		// Regex is not correct
-		if (rdata[27] != 0) {
+		// Regex is not empty
+		if (rdata[flag_len + 26] != 0) {
 			continue;
 		}
 
-		const u_char *comp_target_name = &rdata[28];
+		const u_char *comp_target_name = &rdata[flag_len + 27];
 
 		char target_name[NS_MAXDNAME];
 		ret = dn_expand(answer, answer + answerlen, comp_target_name, target_name, sizeof(target_name));
@@ -379,7 +387,9 @@ static int query_naptr_records(res_state resolver, const char *name, struct napt
 		(void)memcpy(&(*records)[j].preference, rdata + 2, sizeof(uint16_t));
 		(*records)[j].preference = be16toh((*records)[j].preference);
 
-		(*records)[j].flag = rdata[5];
+		(void)memcpy((*records)[j].flag, &rdata[5], flag_len);
+		(*records)[j].flag[flag_len] = 0x0;
+
 		(void)strcpy((*records)[j].target, target_name);
 		j++;
 	}
@@ -537,8 +547,12 @@ static int compare_naptr_records(const void *a, const void *b)
 	return record_one->preference - record_two->preference;
 }
 
-static int resolve_naptr(res_state resolver, const char *name, FILE *topology_stream)
+static int resolve_naptr(res_state resolver, const char *name, size_t depth, FILE *topology_stream)
 {
+	if (depth > MAX_NAPTR_RECURSION_DEPTH) {
+		return -1;
+	}
+
 	struct naptr_record *records;
 	size_t records_len;
 	int ret = query_naptr_records(resolver, name, &records, &records_len);
@@ -551,7 +565,7 @@ static int resolve_naptr(res_state resolver, const char *name, FILE *topology_st
 
 	ret = -1;
 	for (size_t i = 0; i < records_len; i++) {
-		if (records[i].flag == 'A') {
+		if (strcmp(records[i].flag, "A") == 0) {
 			ret = resolve_aaaa(resolver, records[i].target, DISCOVERY_SERVER_DEFAULT_PORT, topology_stream);
 			if (ret == 0) {
 				goto cleanup_records;
@@ -561,8 +575,13 @@ static int resolve_naptr(res_state resolver, const char *name, FILE *topology_st
 			if (ret == 0) {
 				goto cleanup_records;
 			}
-		} else if (records[i].flag == 'S') {
+		} else if (strcmp(records[i].flag, "S") == 0) {
 			ret = resolve_srv(resolver, records[i].target, topology_stream);
+			if (ret == 0) {
+				goto cleanup_records;
+			}
+		} else if (strcmp(records[i].flag, "") == 0) {
+			ret = resolve_naptr(resolver, records[i].target, depth + 1, topology_stream);
 			if (ret == 0) {
 				goto cleanup_records;
 			}
@@ -595,7 +614,7 @@ static int try_dns_sd(res_state resolver, const char *domain, FILE *topology_str
 
 static int try_dns_naptr(res_state resolver, const char *domain, FILE *topology_stream)
 {
-	return resolve_naptr(resolver, domain, topology_stream);
+	return resolve_naptr(resolver, domain, 0, topology_stream);
 }
 
 static int locate_discovery_server_and_fetch_topology(char **topology_buffer, size_t *topology_buffer_len)
@@ -627,13 +646,11 @@ static int locate_discovery_server_and_fetch_topology(char **topology_buffer, si
 		goto cleanup_resolver;
 	}
 
-	(void)try_dns_srv;
 	ret = try_dns_srv(&resolver, domain, topology_stream);
 	if (ret == 0) {
 		goto cleanup_stream;
 	}
 
-	(void)try_dns_sd;
 	ret = try_dns_sd(&resolver, domain, topology_stream);
 	if (ret == 0) {
 		goto cleanup_stream;
