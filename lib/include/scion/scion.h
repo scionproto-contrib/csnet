@@ -178,7 +178,9 @@ enum scion_error {
 	 * @see [Source Address Determination](docs/design/source_address_determination.md)
 	 */
 	SCION_ERR_SRC_ADDR_UNKNOWN = -31,
-	// TODO document me
+	/**
+	 * The bootstrapping process failed. Make sure the network is configured correctly.
+	 */
 	SCION_ERR_BOOTSTRAPPING_FAIL = -32,
 	// Internal errors
 	SCION_ERR_NOT_ENOUGH_DATA = -201,
@@ -276,7 +278,15 @@ scion_ia scion_topology_get_local_ia(struct scion_topology *topo);
  */
 void scion_topology_free(struct scion_topology *topo);
 
-// TODO document me
+/**
+ * Tries to automatically bootstrap the topology and store it.
+ * @param[in] topology_output_path The path used to store the topology file.
+ * @return 0 on success, a negative error code on failure.
+ *
+ * @note Currently, only the DNS bootstrapping method is supported.
+ *
+ * @see [End Host Bootstrapping - DNS](https://docs.scion.org/en/latest/dev/design/endhost-bootstrap.html#dns)
+ */
 int scion_bootstrap(const char *topology_output_path);
 
 /**
