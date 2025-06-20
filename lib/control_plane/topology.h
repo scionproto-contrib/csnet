@@ -16,6 +16,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <sys/socket.h>
 
 #include "common/isd_as.h"
@@ -68,5 +69,7 @@ bool scion_topology_is_local_as_core(struct scion_topology *t);
 scion_ia scion_topology_get_local_ia(struct scion_topology *topo);
 
 int scion_topology_from_file(struct scion_topology **topology, const char *path);
+
+int scion_topology_from_stream(struct scion_topology **topology, FILE *stream);
 
 void scion_topology_free(struct scion_topology *topo);
