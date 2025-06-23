@@ -738,14 +738,14 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
 			}
 
 			src_port = udp.src_port;
-			recv_len = udp.data_length;
+			recv_len = udp.data_length > size ? (uint16_t)size : udp.data_length;
 			(void)memcpy(buf, udp.data, recv_len);
 
 			scion_udp_free_internal(&udp);
 		} else if (packet.next_hdr == 202) {
 			// SCMP message
 			src_port = 0; // No port on SCMP
-			recv_len = packet.payload_len;
+			recv_len = packet.payload_len > size ? (uint16_t)size : packet.payload_len;
 			(void)memcpy(buf, packet.payload, recv_len);
 		} else {
 			// Ignore packet
