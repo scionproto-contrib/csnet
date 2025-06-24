@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
 	scion_ia dst_ia = 0x2ff0000000222;
 
 	struct scion_socket *socket;
-	ret = scion_socket(&socket, SCION_AF_IPV4, SCION_PROTO_UDP, network);
+	ret = scion_socket(&socket, SCION_AF_INET, SCION_PROTO_UDP, network);
 	if (ret != 0) {
 		printf("scion_socket failed: (code %d, '%s')\n", ret, scion_strerror(ret));
 		ret = EXIT_FAILURE;

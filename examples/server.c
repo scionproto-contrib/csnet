@@ -24,7 +24,7 @@ int main()
 	int ret;
 
 	struct scion_socket *scion_sock;
-	ret = scion_socket(&scion_sock, SCION_AF_IPV4, SCION_PROTO_UDP, NULL);
+	ret = scion_socket(&scion_sock, SCION_AF_INET, SCION_PROTO_UDP, NULL);
 	if (ret != 0) {
 		printf("ERROR: Socket setup failed with error code: %d", ret);
 		return EXIT_FAILURE;

@@ -397,7 +397,7 @@ int main(int argc, char **argv)
 	}
 
 	enum scion_addr_family local_addr_family = scion_network_get_local_addr_family(network);
-	assert(local_addr_family == SCION_AF_IPV4 || local_addr_family == SCION_AF_IPV6);
+	assert(local_addr_family == SCION_AF_INET || local_addr_family == SCION_AF_INET6);
 
 	struct scion_socket *socket;
 	ret = scion_socket(&socket, local_addr_family, SCION_PROTO_SCMP, network);
@@ -417,7 +417,7 @@ int main(int argc, char **argv)
 	struct sockaddr_storage local_addr;
 	socklen_t local_addr_len;
 
-	if (local_addr_family == SCION_AF_IPV4) {
+	if (local_addr_family == SCION_AF_INET) {
 		struct sockaddr_in *local_addr_in = (struct sockaddr_in *)&local_addr;
 		local_addr_in->sin_family = AF_INET;
 
