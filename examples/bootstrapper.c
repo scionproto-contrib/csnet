@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <inttypes.h>
 #include <scion/scion.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,6 +36,14 @@ int main(int argc, char *argv[])
 		printf("Error: failed to load topology from file\n");
 		return EXIT_FAILURE;
 	}
+
+	char ia_str[SCION_IA_STRLEN];
+	ret = scion_ia_str(scion_topology_get_local_ia(topology), ia_str, sizeof(ia_str));
+	if (ret != 0) {
+		printf("Error: failed to get local ia from topology\n");
+		return EXIT_FAILURE;
+	}
+	printf("The local IA is: %s\n", ia_str);
 
 	scion_topology_free(topology);
 
