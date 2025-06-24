@@ -42,149 +42,149 @@ enum scion_error {
 	/**
 	 * Something went wrong.
 	 */
-	SCION_GENERIC_ERR = -1,
+	SCION_ERR_GENERIC_ERR = -1,
 	/**
 	 * Memory allocation failed.
 	 */
-	SCION_MEM_ALLOC_FAIL = -2,
+	SCION_ERR_MEM_ALLOC_FAIL = -2,
 	/**
 	 * No paths to the destination were found.
 	 */
-	SCION_NO_PATHS = -3,
+	SCION_ERR_NO_PATHS = -3,
 	/**
 	 * The buffer provided was not large enough.
 	 */
-	SCION_BUFFER_SIZE_ERR = -4,
+	SCION_ERR_BUFFER_SIZE_ERR = -4,
 	/**
 	 * Encountered an unsupported address family.
 	 *
 	 * @see @link scion_addr_family @endlink
 	 */
-	SCION_ADDR_FAMILY_UNKNOWN = -5,
+	SCION_ERR_ADDR_FAMILY_UNKNOWN = -5,
 	/**
 	 * Could not send the packet because the maximum SCION header length was exceeded.
 	 */
-	SCION_MAX_HDR_LEN_EXCEEDED = -6,
+	SCION_ERR_MAX_HDR_LEN_EXCEEDED = -6,
 	/**
 	 * The file provided was not found.
 	 */
-	SCION_FILE_NOT_FOUND = -7,
+	SCION_ERR_FILE_NOT_FOUND = -7,
 	/**
 	 * The topology is invalid.
 	 */
-	SCION_TOPOLOGY_INVALID = -8,
+	SCION_ERR_TOPOLOGY_INVALID = -8,
 	/**
 	 * The provided address has an incompatible address family.
 	 * This can happen when binding an address that has a different address family than the socket, or when
 	 * sending/connecting to a host in the same AS that has a different address family than the socket.
 	 */
-	SCION_ADDR_FAMILY_MISMATCH = -9,
+	SCION_ERR_ADDR_FAMILY_MISMATCH = -9,
 	/**
 	 * The provided network has a different address family than the socket.
 	 */
-	SCION_NETWORK_ADDR_FAMILY_MISMATCH = -10,
+	SCION_ERR_NETWORK_ADDR_FAMILY_MISMATCH = -10,
 	/**
 	 * The protocol is not supported.
 	 *
 	 * @see @link scion_proto @endlink
 	 */
-	SCION_PROTO_UNKNOWN = -11,
+	SCION_ERR_PROTO_UNKNOWN = -11,
 	/**
 	 * The socket is not connected yet.
 	 */
-	SCION_NOT_CONNECTED = -12,
+	SCION_ERR_NOT_CONNECTED = -12,
 	/**
 	 * The path destination IA does not match the destination IA.
 	 */
-	SCION_DST_MISMATCH = -13,
+	SCION_ERR_DST_MISMATCH = -13,
 	/**
 	 * The provided IA string is invalid.
 	 */
-	SCION_INVALID_ISD_AS_STR = -14,
+	SCION_ERR_INVALID_ISD_AS_STR = -14,
 	/**
 	 * The receive operation is in non-blocking mode and there is nothing to receive.
 	 */
-	SCION_WOULD_BLOCK = -15,
+	SCION_ERR_WOULD_BLOCK = -15,
 	/**
 	 * The provided address is invalid.
 	 */
-	SCION_ADDR_INVALID = -16,
+	SCION_ERR_ADDR_INVALID = -16,
 	/**
 	 * The socket is already bound.
 	 */
-	SCION_ALREADY_BOUND = -17,
+	SCION_ERR_ALREADY_BOUND = -17,
 	/**
 	 * The flag is not implemented by the library.
 	 */
-	SCION_FLAG_NOT_IMPLEMENTED = -18,
+	SCION_ERR_FLAG_NOT_IMPLEMENTED = -18,
 	/**
 	 * The flag is not supported by the OS.
 	 */
-	SCION_FLAG_NOT_SUPPORTED = -19,
+	SCION_ERR_FLAG_NOT_SUPPORTED = -19,
 	/**
 	 * Encountered an unexpected error when sending packets.
 	 */
-	SCION_SEND_ERR = -20,
+	SCION_ERR_SEND_ERR = -20,
 	/**
 	 * Encountered an unexpected error when receiving packets.
 	 */
-	SCION_RECV_ERR = -21,
+	SCION_ERR_RECV_ERR = -21,
 	/**
 	 * The address is already in use.
 	 *
 	 * @see [EADDRINUSE](https://man7.org/linux/man-pages/man7/ip.7.html#ERRORS)
 	 */
-	SCION_ADDR_IN_USE = -22,
+	SCION_ERR_ADDR_IN_USE = -22,
 	/**
 	 * The address is not available.
 	 *
 	 * @see [EADDRNOTAVAIL](https://man7.org/linux/man-pages/man7/ip.7.html#ERRORS)
 	 */
-	SCION_ADDR_NOT_AVAILABLE = -23,
+	SCION_ERR_ADDR_NOT_AVAILABLE = -23,
 	/**
 	 * The socket output queue is already full.
 	 *
 	 * @see [ENOBUFS](https://man7.org/linux/man-pages/man7/ip.7.html#ERRORS)
 	 */
-	SCION_OUTPUT_QUEUE_FULL = -24,
+	SCION_ERR_OUTPUT_QUEUE_FULL = -24,
 	/**
 	 * The provided socket option is invalid.
 	 */
-	SCION_SOCK_OPT_INVALID = -25,
+	SCION_ERR_SOCK_OPT_INVALID = -25,
 	/**
 	 * The provided address buffer is too small.
 	 */
-	SCION_ADDR_BUF_ERR = -26,
+	SCION_ERR_ADDR_BUF_ERR = -26,
 	/**
 	 * The path has expired and needs to be refreshed.
 	 */
-	SCION_PATH_EXPIRED = -27,
+	SCION_ERR_PATH_EXPIRED = -27,
 	/**
 	 * The socket is not bound.
 	 */
-	SCION_NOT_BOUND = -28,
+	SCION_ERR_NOT_BOUND = -28,
 	/**
 	 * Operation cannot be performed with a networkless socket.
 	 */
-	SCION_NETWORK_UNKNOWN = -29,
+	SCION_ERR_NETWORK_UNKNOWN = -29,
 	/**
 	 * The message is too large.
 	 */
-	SCION_MSG_TOO_LARGE = -30,
+	SCION_ERR_MSG_TOO_LARGE = -30,
 	/**
 	 * The source address of the socket could not automatically be determined. It has to be provided by
 	 * explicitly binding the socket to a non-wildcard address.
 	 *
 	 * @see [Source Address Determination](docs/design/source_address_determination.md)
 	 */
-	SCION_SRC_ADDR_UNKNOWN = -31,
+	SCION_ERR_SRC_ADDR_UNKNOWN = -31,
 	// Internal errors
-	SCION_NOT_ENOUGH_DATA = -201,
-	SCION_PACKET_FIELD_INVALID = -202,
-	SCION_GRPC_ERR = -203,
-	SCION_META_HDR_INVALID = -204,
-	SCION_PATH_TYPE_INVALID = -205,
-	SCION_SCMP_CODE_INVALID = -206,
+	SCION_ERR_NOT_ENOUGH_DATA = -201,
+	SCION_ERR_PACKET_FIELD_INVALID = -202,
+	SCION_ERR_GRPC_ERR = -203,
+	SCION_ERR_META_HDR_INVALID = -204,
+	SCION_ERR_PATH_TYPE_INVALID = -205,
+	SCION_ERR_SCMP_CODE_INVALID = -206,
 };
 
 /**

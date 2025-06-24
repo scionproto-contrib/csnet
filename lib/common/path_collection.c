@@ -27,7 +27,7 @@ int scion_path_collection_init(struct scion_path_collection **paths)
 	struct scion_list *list = scion_list_create(SCION_LIST_CUSTOM_FREE(scion_path_free));
 	struct scion_path_collection *new_paths = malloc(sizeof(*new_paths));
 	if (new_paths == NULL) {
-		return SCION_MEM_ALLOC_FAIL;
+		return SCION_ERR_MEM_ALLOC_FAIL;
 	}
 
 	new_paths->list = list;

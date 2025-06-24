@@ -184,7 +184,7 @@ static int ping(struct scion_socket *socket, struct scion_path *path, struct soc
 		payload = malloc(payload_size);
 
 		if (payload == NULL) {
-			ret = SCION_MEM_ALLOC_FAIL;
+			ret = SCION_ERR_MEM_ALLOC_FAIL;
 			return ret;
 		}
 
@@ -193,7 +193,7 @@ static int ping(struct scion_socket *socket, struct scion_path *path, struct soc
 #else
 		ssize_t generated_bytes = getrandom(payload, payload_size, 0x0001 /* GRND_NONBLOCK */);
 		if (generated_bytes < payload_size) {
-			ret = SCION_GENERIC_ERR;
+			ret = SCION_ERR_GENERIC_ERR;
 			goto cleanup_payload;
 		}
 #endif

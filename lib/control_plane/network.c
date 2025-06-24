@@ -29,7 +29,7 @@ int scion_network(struct scion_network **net, struct scion_topology *topology)
 
 	struct scion_network *new_net = malloc(sizeof(struct scion_network));
 	if (new_net == NULL) {
-		return SCION_MEM_ALLOC_FAIL;
+		return SCION_ERR_MEM_ALLOC_FAIL;
 	}
 
 	new_net->topology = topology;

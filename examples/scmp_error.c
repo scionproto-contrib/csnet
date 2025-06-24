@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
 
 	char rx_buf[200];
 	ret = scion_recv(scion_sock, &rx_buf, sizeof rx_buf - 1, /* flags: */ 0);
-	if (ret != SCION_WOULD_BLOCK) {
+	if (ret != SCION_ERR_WOULD_BLOCK) {
 		printf("ERROR: Receive failed with error code: %d\n", ret);
 		ret = EXIT_FAILURE;
 		goto cleanup_socket;
