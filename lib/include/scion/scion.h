@@ -34,6 +34,11 @@ extern "C" {
 #define SCION_FETCH_OPT_DEBUG 1
 
 /**
+ * The maximum length a string representation of an IA may require (including the null terminator).
+ */
+#define SCION_IA_STRLEN 21
+
+/**
  * Possible error codes returned by the CSNET library.
  *
  * Errors codes smaller than -200 are internal error codes.
@@ -241,6 +246,17 @@ typedef uint64_t scion_ia;
  * @return 0 on success, a negative error code on failure.
  */
 int scion_ia_parse(const char *str, size_t len, scion_ia *ia);
+
+/**
+ * Gets the string representation of an IA.
+ * @param[in] ia The IA.
+ * @param[in,out] buf The buffer in which the string is stored.
+ * @param[in] buflen The length of the buffer.
+ * @return 0 on success, a negative error code on failure.
+ *
+ * @see The macro SCION_IA_STRLEN can be used to allocate a buffer of appropriate size.
+ */
+int scion_ia_str(scion_ia ia, char *buf, size_t buflen);
 
 /**
  * Prints an IA to stdout.
