@@ -187,7 +187,7 @@ static int bind_if_unbound(struct scion_socket *scion_sock)
 	struct sockaddr_storage addr;
 	socklen_t addr_len;
 
-	if (scion_sock->local_addr_family == SCION_AF_IPV4) {
+	if (scion_sock->local_addr_family == SCION_AF_INET) {
 		struct sockaddr_in *addr_in = (struct sockaddr_in *)&addr;
 		addr_in->sin_family = AF_INET;
 		addr_in->sin_addr.s_addr = htonl(INADDR_ANY);
@@ -243,7 +243,7 @@ int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_f
 		goto cleanup_socket_storage;
 	}
 
-	if (addr_family != SCION_AF_IPV4 && addr_family != SCION_AF_IPV6) {
+	if (addr_family != SCION_AF_INET && addr_family != SCION_AF_INET6) {
 		ret = SCION_ADDR_FAMILY_UNKNOWN;
 		goto cleanup_socket_storage;
 	}
@@ -921,7 +921,7 @@ int scion_bind(struct scion_socket *scion_sock, const struct sockaddr *addr, soc
 		return SCION_ALREADY_BOUND;
 	}
 
-	if (!(addr->sa_family == SCION_AF_IPV4 || addr->sa_family == SCION_AF_IPV6)) {
+	if (!(addr->sa_family == SCION_AF_INET || addr->sa_family == SCION_AF_INET6)) {
 		return SCION_ADDR_FAMILY_UNKNOWN;
 	}
 

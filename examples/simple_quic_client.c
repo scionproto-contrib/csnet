@@ -54,7 +54,7 @@
 #define REMOTE_AS "2-ff00:0:222"
 #define REMOTE_HOST "fd00:f00d:cafe::7f00:55"
 #define REMOTE_PORT 31003
-#define REMOTE_AF SCION_AF_IPV6
+#define REMOTE_AF SCION_AF_INET6
 #define ALPN "\xahello-quic"
 #define MESSAGE "Hello QUIC"
 #define SCION_TOPO_PATH "../topology/topology.json"
@@ -94,7 +94,7 @@ cleanup_topology:
 static int create_sock(struct sockaddr *addr, socklen_t *paddrlen, struct scion_socket **socket, const char *host,
 	uint16_t port, struct scion_network *network)
 {
-	if (REMOTE_AF == SCION_AF_IPV4) {
+	if (REMOTE_AF == SCION_AF_INET) {
 		struct sockaddr_in *addr_in = (struct sockaddr_in *)addr;
 		addr_in->sin_family = AF_INET;
 		addr_in->sin_port = htons(port);
@@ -108,7 +108,7 @@ static int create_sock(struct sockaddr *addr, socklen_t *paddrlen, struct scion_
 		*paddrlen = sizeof(struct sockaddr_in6);
 	}
 
-	return scion_socket(socket, SCION_AF_IPV4, SCION_PROTO_UDP, network);
+	return scion_socket(socket, SCION_AF_INET, SCION_PROTO_UDP, network);
 }
 
 static int connect_sock(struct sockaddr *local_addr, socklen_t *plocal_addrlen, struct scion_socket *socket,
