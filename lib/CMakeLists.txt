@@ -93,6 +93,11 @@ target_link_libraries(scion PRIVATE resolv)
 # Link curl
 target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libcurl.a)
 
+if (APPLE)
+    # Link macOS frameworks required by curl
+    target_link_libraries(scion PRIVATE "-framework CoreFoundation" "-framework SystemConfiguration")
+endif()
+
 # Set compiler flags
 extract_valid_c_compiler_flags(COMPILER_FLAGS
         -Wall
