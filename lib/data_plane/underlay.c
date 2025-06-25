@@ -25,7 +25,7 @@ int scion_underlay_probe(struct scion_underlay *underlay, struct sockaddr *addr,
 
 	int sock_fd = socket((int)underlay->addr_family, SOCK_DGRAM, 0);
 	if (sock_fd == -1) {
-		return SCION_ERR_GENERIC_ERR;
+		return SCION_ERR_GENERIC;
 	}
 
 	do {
@@ -33,13 +33,13 @@ int scion_underlay_probe(struct scion_underlay *underlay, struct sockaddr *addr,
 	} while (ret == -1 && errno == EINTR);
 
 	if (ret != 0) {
-		ret = SCION_ERR_GENERIC_ERR;
+		ret = SCION_ERR_GENERIC;
 		goto cleanup_socket;
 	}
 
 	ret = getsockname(sock_fd, addr, addrlen);
 	if (ret != 0) {
-		ret = SCION_ERR_GENERIC_ERR;
+		ret = SCION_ERR_GENERIC;
 	}
 
 cleanup_socket:

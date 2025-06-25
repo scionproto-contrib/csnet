@@ -193,7 +193,7 @@ static int ping(struct scion_socket *socket, struct scion_path *path, struct soc
 #else
 		ssize_t generated_bytes = getrandom(payload, payload_size, 0x0001 /* GRND_NONBLOCK */);
 		if (generated_bytes < payload_size) {
-			ret = SCION_ERR_GENERIC_ERR;
+			ret = SCION_ERR_GENERIC;
 			goto cleanup_payload;
 		}
 #endif

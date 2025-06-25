@@ -17,13 +17,13 @@
 char *scion_strerror(int err)
 {
 	switch (err) {
-	case SCION_ERR_GENERIC_ERR:
+	case SCION_ERR_GENERIC:
 		return "generic error";
 	case SCION_ERR_MEM_ALLOC_FAIL:
 		return "memory allocation failed";
 	case SCION_ERR_NO_PATHS:
 		return "no paths";
-	case SCION_ERR_BUFFER_SIZE_ERR:
+	case SCION_ERR_BUF_TOO_SMALL:
 		return "buffer size error";
 	case SCION_ERR_NOT_ENOUGH_DATA:
 		return "not enough data";
@@ -33,7 +33,7 @@ char *scion_strerror(int err)
 		return "unknown address family";
 	case SCION_ERR_MAX_HDR_LEN_EXCEEDED:
 		return "max header length exceeded";
-	case SCION_ERR_GRPC_ERR:
+	case SCION_ERR_GRPC_FAIL:
 		return "grpc error";
 	case SCION_ERR_FILE_NOT_FOUND:
 		return "file not found";
@@ -65,9 +65,9 @@ char *scion_strerror(int err)
 		return "flag not implemented";
 	case SCION_ERR_FLAG_NOT_SUPPORTED:
 		return "flag not supported";
-	case SCION_ERR_SEND_ERR:
+	case SCION_ERR_SEND_FAIL:
 		return "send error";
-	case SCION_ERR_RECV_ERR:
+	case SCION_ERR_RECV_FAIL:
 		return "receive error";
 	case SCION_ERR_ADDR_IN_USE:
 		return "address is already in use";
@@ -79,7 +79,7 @@ char *scion_strerror(int err)
 		return "invalid socket option";
 	case SCION_ERR_SCMP_CODE_INVALID:
 		return "invalid SCMP code";
-	case SCION_ERR_ADDR_BUF_ERR:
+	case SCION_ERR_ADDR_BUF_TOO_SMALL:
 		return "address buffer error";
 	case SCION_ERR_PATH_EXPIRED:
 		return "path expired";

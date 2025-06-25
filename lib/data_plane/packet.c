@@ -113,7 +113,7 @@ int scion_packet_serialize(struct scion_packet *packet, uint8_t *buf, size_t *bu
 
 	if (total_len > *buf_len) {
 		// buffer is not big enough.
-		return SCION_ERR_BUFFER_SIZE_ERR;
+		return SCION_ERR_BUF_TOO_SMALL;
 	}
 
 	*buf_len = total_len;
@@ -177,7 +177,7 @@ static int scion_deserialize_addr_hdr(const uint8_t *buf, size_t buf_len, struct
 	assert(buf);
 
 	if (buf_len < scion_packet_addr_hdr_len(packet)) {
-		return SCION_ERR_BUFFER_SIZE_ERR;
+		return SCION_ERR_BUF_TOO_SMALL;
 	}
 
 	(void)memcpy(&packet->dst_ia, buf, sizeof(uint64_t));

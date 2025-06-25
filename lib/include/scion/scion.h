@@ -42,7 +42,7 @@ enum scion_error {
 	/**
 	 * Something went wrong.
 	 */
-	SCION_ERR_GENERIC_ERR = -1,
+	SCION_ERR_GENERIC = -1,
 	/**
 	 * Memory allocation failed.
 	 */
@@ -54,7 +54,7 @@ enum scion_error {
 	/**
 	 * The buffer provided was not large enough.
 	 */
-	SCION_ERR_BUFFER_SIZE_ERR = -4,
+	SCION_ERR_BUF_TOO_SMALL = -4,
 	/**
 	 * Encountered an unsupported address family.
 	 *
@@ -124,11 +124,11 @@ enum scion_error {
 	/**
 	 * Encountered an unexpected error when sending packets.
 	 */
-	SCION_ERR_SEND_ERR = -20,
+	SCION_ERR_SEND_FAIL = -20,
 	/**
 	 * Encountered an unexpected error when receiving packets.
 	 */
-	SCION_ERR_RECV_ERR = -21,
+	SCION_ERR_RECV_FAIL = -21,
 	/**
 	 * The address is already in use.
 	 *
@@ -154,7 +154,7 @@ enum scion_error {
 	/**
 	 * The provided address buffer is too small.
 	 */
-	SCION_ERR_ADDR_BUF_ERR = -26,
+	SCION_ERR_ADDR_BUF_TOO_SMALL = -26,
 	/**
 	 * The path has expired and needs to be refreshed.
 	 */
@@ -181,7 +181,7 @@ enum scion_error {
 	// Internal errors
 	SCION_ERR_NOT_ENOUGH_DATA = -201,
 	SCION_ERR_PACKET_FIELD_INVALID = -202,
-	SCION_ERR_GRPC_ERR = -203,
+	SCION_ERR_GRPC_FAIL = -203,
 	SCION_ERR_META_HDR_INVALID = -204,
 	SCION_ERR_PATH_TYPE_INVALID = -205,
 	SCION_ERR_SCMP_CODE_INVALID = -206,

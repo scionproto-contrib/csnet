@@ -57,7 +57,7 @@ int scion_udp_serialize(struct scion_udp *udp, uint8_t *buf, uint16_t *len)
 	uint16_t udp_len = scion_udp_len(udp);
 
 	if (*len < udp_len) {
-		return SCION_ERR_BUFFER_SIZE_ERR;
+		return SCION_ERR_BUF_TOO_SMALL;
 	}
 
 	*(uint16_t *)(buf) = htobe16(udp->src_port);

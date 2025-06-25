@@ -260,7 +260,7 @@ int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_f
 	if (scion_sock_storage->socket_fd == -1) {
 		(void)fprintf(stderr, "ERROR: encountered an unexpected error when creating the socket (%s, code %d)\n",
 			strerror(errno), errno);
-		ret = SCION_ERR_GENERIC_ERR;
+		ret = SCION_ERR_GENERIC;
 		goto cleanup_socket_storage;
 	}
 
@@ -530,7 +530,7 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 		} else {
 			(void)fprintf(stderr, "ERROR: encountered an unexpected error when sending packets (%s, code %d)\n",
 				strerror(errno), errno);
-			ret = SCION_ERR_SEND_ERR;
+			ret = SCION_ERR_SEND_FAIL;
 		}
 
 		goto cleanup_packet_buf;
@@ -545,7 +545,7 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 
 		if ((size_t)ret != packet_length) {
 			// Packet partially transmitted
-			ret = SCION_ERR_SEND_ERR;
+			ret = SCION_ERR_SEND_FAIL;
 		} else {
 			ret = (ssize_t)size;
 		}
@@ -709,7 +709,7 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
 			} else {
 				(void)fprintf(stderr, "ERROR: encountered an unexpected error when receiving packets (%s, code %d)\n",
 					strerror(errno), errno);
-				ret = SCION_ERR_RECV_ERR;
+				ret = SCION_ERR_RECV_FAIL;
 			}
 
 			return ret;
@@ -823,7 +823,7 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
 			assert(addrlen);
 
 			if (*addrlen < sender_addr_len) {
-				ret = SCION_ERR_ADDR_BUF_ERR;
+				ret = SCION_ERR_ADDR_BUF_TOO_SMALL;
 				goto cleanup_packet;
 			}
 
@@ -861,7 +861,7 @@ int scion_getsockopt(struct scion_socket *scion_sock, int level, int optname, vo
 
 	if (level == SOL_SOCKET && optname == SCION_SO_DEBUG) {
 		if (*optlen < sizeof(bool)) {
-			return SCION_ERR_BUFFER_SIZE_ERR;
+			return SCION_ERR_BUF_TOO_SMALL;
 		}
 
 		*(bool *)optval = scion_sock->debug;
@@ -869,14 +869,14 @@ int scion_getsockopt(struct scion_socket *scion_sock, int level, int optname, vo
 		ret = getsockopt(scion_sock->socket_fd, level, optname, optval, optlen);
 		if (ret == -1) {
 			if (errno == EFAULT) {
-				ret = SCION_ERR_BUFFER_SIZE_ERR;
+				ret = SCION_ERR_BUF_TOO_SMALL;
 			} else if (errno == EINVAL || errno == ENOPROTOOPT) {
 				ret = SCION_ERR_SOCK_OPT_INVALID;
 			} else {
 				(void)fprintf(stderr,
 					"ERROR: encountered an unexpected error when getting socket option (%s, code %d)\n",
 					strerror(errno), errno);
-				ret = SCION_ERR_GENERIC_ERR;
+				ret = SCION_ERR_GENERIC;
 			}
 		}
 	}
@@ -896,14 +896,14 @@ int scion_setsockopt(struct scion_socket *scion_sock, int level, int optname, co
 		ret = setsockopt(scion_sock->socket_fd, level, optname, optval, optlen);
 		if (ret == -1) {
 			if (errno == EFAULT) {
-				ret = SCION_ERR_BUFFER_SIZE_ERR;
+				ret = SCION_ERR_BUF_TOO_SMALL;
 			} else if (errno == EINVAL || errno == ENOPROTOOPT) {
 				ret = SCION_ERR_SOCK_OPT_INVALID;
 			} else {
 				(void)fprintf(stderr,
 					"ERROR: encountered an unexpected error when setting socket option (%s, code %d)\n",
 					strerror(errno), errno);
-				ret = SCION_ERR_GENERIC_ERR;
+				ret = SCION_ERR_GENERIC;
 			}
 		}
 	}
@@ -940,7 +940,7 @@ int scion_bind(struct scion_socket *scion_sock, const struct sockaddr *addr, soc
 		}
 
 		(void)fprintf(stderr, "ERROR: encountered an unexpected error when binding (code: %d)\n", errno);
-		return SCION_ERR_GENERIC_ERR;
+		return SCION_ERR_GENERIC;
 	}
 
 	struct sockaddr_storage src_addr;
@@ -949,7 +949,7 @@ int scion_bind(struct scion_socket *scion_sock, const struct sockaddr *addr, soc
 	ret = getsockname(scion_sock->socket_fd, (struct sockaddr *)&src_addr, &src_addr_len);
 	if (ret != 0) {
 		(void)fprintf(stderr, "ERROR: encountered an unexpected error after binding (code: %d)\n", errno);
-		return SCION_ERR_GENERIC_ERR;
+		return SCION_ERR_GENERIC;
 	}
 
 	set_source_address(scion_sock, (struct sockaddr *)&src_addr, src_addr_len, /* with_port */ true);
@@ -992,7 +992,7 @@ int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, so
 		}
 
 		if (*addrlen < src_addr_len) {
-			return SCION_ERR_ADDR_BUF_ERR;
+			return SCION_ERR_ADDR_BUF_TOO_SMALL;
 		}
 
 		(void)memcpy(addr, &src_addr, src_addr_len);
