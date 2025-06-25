@@ -78,7 +78,7 @@ static int parse_isd(const char *buf, size_t len, scion_isd *isd)
 	long int num = strtol(buf, &end_ptr, 10);
 	if (end_ptr == buf || *end_ptr != '\0' || ((num == LONG_MIN || num == LONG_MAX) && errno == ERANGE) || num < 0
 		|| num > UINT16_MAX) {
-		return SCION_INVALID_ISD_AS_STR;
+		return SCION_ERR_INVALID_ISD_AS_STR;
 	}
 
 	*isd = (uint16_t)num;
@@ -95,28 +95,28 @@ static int parse_as(const char *buf, size_t len, scion_as *as)
 		long int num = strtol(buf, &end_ptr, 16);
 		if (end_ptr == buf || ((num == LONG_MIN || num == LONG_MAX) && errno == ERANGE) || num < 0
 			|| num > UINT16_MAX) {
-			return SCION_INVALID_ISD_AS_STR;
+			return SCION_ERR_INVALID_ISD_AS_STR;
 		}
 		*as = (scion_as)num << 32;
 
 		num = strtol(end_ptr + 1, &end_ptr, 16); // TODO: Think about out-of-bounds access
 		if (end_ptr == buf || ((num == LONG_MIN || num == LONG_MAX) && errno == ERANGE) || num < 0
 			|| num > UINT16_MAX) {
-			return SCION_INVALID_ISD_AS_STR;
+			return SCION_ERR_INVALID_ISD_AS_STR;
 		}
 		*as |= (scion_as)num << 16;
 
 		num = strtol(end_ptr + 1, &end_ptr, 16); // TODO: Think about out-of-bounds access
 		if (end_ptr == buf || ((num == LONG_MIN || num == LONG_MAX) && errno == ERANGE) || num < 0
 			|| num > UINT16_MAX) {
-			return SCION_INVALID_ISD_AS_STR;
+			return SCION_ERR_INVALID_ISD_AS_STR;
 		}
 		*as |= (scion_as)num;
 	} else {
 		// BGP-AS number, which is in decimal format.
 		long int num = strtol(buf, &end_ptr, 10);
 		if (end_ptr == buf || ((num == LONG_MIN || num == LONG_MAX) && errno == ERANGE) || num < 0) {
-			return SCION_INVALID_ISD_AS_STR;
+			return SCION_ERR_INVALID_ISD_AS_STR;
 		}
 
 		*as = (uint64_t)num;
@@ -130,12 +130,12 @@ int scion_ia_parse(const char *str, size_t len, scion_ia *ia)
 
 	char *dash_ptr = memchr(str, 0x2d, len); // 0x2d == '-'
 	if (dash_ptr == NULL) {
-		return SCION_INVALID_ISD_AS_STR;
+		return SCION_ERR_INVALID_ISD_AS_STR;
 	}
 
 	ptrdiff_t offset = dash_ptr - str;
 	if (offset <= 0 || (size_t)offset >= len) {
-		return SCION_INVALID_ISD_AS_STR;
+		return SCION_ERR_INVALID_ISD_AS_STR;
 	}
 
 	size_t isd_len = (size_t)(offset);

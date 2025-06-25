@@ -158,7 +158,7 @@ static void set_source_address(struct scion_socket *socket, struct sockaddr *add
 static int get_source_address(struct scion_socket *socket, struct sockaddr *addr, socklen_t *addr_len)
 {
 	if (!socket->is_src_addr_set) {
-		return SCION_SRC_ADDR_UNKNOWN;
+		return SCION_ERR_SRC_ADDR_UNKNOWN;
 	}
 
 	sockaddr_copy_address(addr, addr_len, (struct sockaddr *)&socket->src_addr, socket->src_addr_len);
@@ -181,7 +181,7 @@ static int bind_if_unbound(struct scion_socket *scion_sock)
 	}
 
 	if (scion_sock->network == NULL) {
-		return SCION_NETWORK_UNKNOWN;
+		return SCION_ERR_NETWORK_UNKNOWN;
 	}
 
 	struct sockaddr_storage addr;
@@ -233,24 +233,24 @@ int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_f
 	struct scion_socket *scion_sock_storage = calloc(1, sizeof(struct scion_socket));
 
 	if (scion_sock_storage == NULL) {
-		return SCION_MEM_ALLOC_FAIL;
+		return SCION_ERR_MEM_ALLOC_FAIL;
 	}
 
 	scion_sock_storage->network = network;
 
 	if (network && network->topology->local_addr_family != addr_family) {
-		ret = SCION_NETWORK_ADDR_FAMILY_MISMATCH;
+		ret = SCION_ERR_NETWORK_ADDR_FAMILY_MISMATCH;
 		goto cleanup_socket_storage;
 	}
 
 	if (addr_family != SCION_AF_INET && addr_family != SCION_AF_INET6) {
-		ret = SCION_ADDR_FAMILY_UNKNOWN;
+		ret = SCION_ERR_ADDR_FAMILY_UNKNOWN;
 		goto cleanup_socket_storage;
 	}
 	scion_sock_storage->local_addr_family = addr_family;
 
 	if (protocol != SCION_PROTO_UDP && protocol != SCION_PROTO_SCMP) {
-		ret = SCION_PROTO_UNKNOWN;
+		ret = SCION_ERR_PROTO_UNKNOWN;
 		goto cleanup_socket_storage;
 	}
 	scion_sock_storage->protocol = protocol;
@@ -260,7 +260,7 @@ int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_f
 	if (scion_sock_storage->socket_fd == -1) {
 		(void)fprintf(stderr, "ERROR: encountered an unexpected error when creating the socket (%s, code %d)\n",
 			strerror(errno), errno);
-		ret = SCION_GENERIC_ERR;
+		ret = SCION_ERR_GENERIC;
 		goto cleanup_socket_storage;
 	}
 
@@ -311,12 +311,12 @@ static int refresh_connected_paths(struct scion_socket *scion_sock)
 	scion_sock->policy.fn(scion_sock->paths, scion_sock->policy.ctx);
 
 	if (scion_path_collection_size(scion_sock->paths) == 0) {
-		return SCION_NO_PATHS;
+		return SCION_ERR_NO_PATHS;
 	}
 
 	if (scion_path_collection_first(scion_sock->paths)->path_type == SCION_PATH_TYPE_EMPTY
 		&& scion_sock->dst_addr.ss_family != scion_sock->local_addr_family) {
-		return SCION_ADDR_FAMILY_MISMATCH;
+		return SCION_ERR_ADDR_FAMILY_MISMATCH;
 	}
 
 	return 0;
@@ -329,7 +329,7 @@ int scion_connect(struct scion_socket *scion_sock, const struct sockaddr *addr, 
 	int ret;
 
 	if (scion_sock->network == NULL) {
-		return SCION_NETWORK_UNKNOWN;
+		return SCION_ERR_NETWORK_UNKNOWN;
 	}
 
 	ret = bind_if_unbound(scion_sock);
@@ -359,7 +359,7 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 	ssize_t ret;
 
 	if (path->metadata != NULL && path->metadata->expiry <= time(NULL) + PATH_EXPIRATION_THRESHOLD_IN_SECONDS) {
-		return SCION_PATH_EXPIRED;
+		return SCION_ERR_PATH_EXPIRED;
 	}
 
 	// Create SCION Packet
@@ -390,7 +390,7 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 		(void)memcpy(packet.raw_dst_addr, dst_sockaddr->sin6_addr.s6_addr, packet.raw_dst_addr_length);
 	} else {
 		// Unsupported destination address type
-		ret = SCION_ADDR_FAMILY_UNKNOWN;
+		ret = SCION_ERR_ADDR_FAMILY_UNKNOWN;
 		goto cleanup_packet;
 	}
 
@@ -419,7 +419,7 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 		(void)memcpy(packet.raw_src_addr, src_sockaddr->sin6_addr.s6_addr, packet.raw_src_addr_length);
 	} else {
 		// Unsupported source address type
-		ret = SCION_ADDR_FAMILY_UNKNOWN;
+		ret = SCION_ERR_ADDR_FAMILY_UNKNOWN;
 		goto cleanup_packet;
 	}
 
@@ -428,7 +428,7 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 		// Create UDP packet
 		struct scion_udp udp_packet = { 0 };
 		if (size > UINT16_MAX) {
-			ret = SCION_MSG_TOO_LARGE;
+			ret = SCION_ERR_MSG_TOO_LARGE;
 			goto cleanup_packet;
 		}
 		udp_packet.data_length = (uint16_t)size;
@@ -469,7 +469,7 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 
 	} else if (scion_sock->protocol == SCION_PROTO_SCMP) {
 		if (size > UINT16_MAX) {
-			ret = SCION_MSG_TOO_LARGE;
+			ret = SCION_ERR_MSG_TOO_LARGE;
 			goto cleanup_packet;
 		}
 		packet.payload_len = (uint16_t)size;
@@ -485,7 +485,7 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 	size_t packet_length = scion_packet_len(&packet);
 	uint8_t *packet_buf = malloc(packet_length);
 	if (packet_buf == NULL) {
-		ret = SCION_MEM_ALLOC_FAIL;
+		ret = SCION_ERR_MEM_ALLOC_FAIL;
 		goto cleanup_packet;
 	}
 
@@ -503,12 +503,12 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 		next_hop_addr = dst_addr;
 		next_hop_addr_length = dst_addr_len;
 	} else {
-		ret = SCION_PATH_TYPE_INVALID;
+		ret = SCION_ERR_PATH_TYPE_INVALID;
 		goto cleanup_packet_buf;
 	}
 
 	if (next_hop_addr->sa_family != scion_sock->local_addr_family) {
-		ret = SCION_ADDR_FAMILY_MISMATCH;
+		ret = SCION_ERR_ADDR_FAMILY_MISMATCH;
 		goto cleanup_packet_buf;
 	}
 
@@ -518,19 +518,19 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 
 	if (ret < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK) {
-			ret = SCION_WOULD_BLOCK;
+			ret = SCION_ERR_WOULD_BLOCK;
 		} else if (errno == EACCES) {
-			ret = SCION_ADDR_INVALID;
+			ret = SCION_ERR_ADDR_INVALID;
 		} else if (errno == EOPNOTSUPP) {
-			ret = SCION_FLAG_NOT_SUPPORTED;
+			ret = SCION_ERR_FLAG_NOT_SUPPORTED;
 		} else if (errno == ENOMEM) {
-			ret = SCION_MEM_ALLOC_FAIL;
+			ret = SCION_ERR_MEM_ALLOC_FAIL;
 		} else if (errno == ENOBUFS) {
-			ret = SCION_OUTPUT_QUEUE_FULL;
+			ret = SCION_ERR_OUTPUT_QUEUE_FULL;
 		} else {
 			(void)fprintf(stderr, "ERROR: encountered an unexpected error when sending packets (%s, code %d)\n",
 				strerror(errno), errno);
-			ret = SCION_SEND_ERR;
+			ret = SCION_ERR_SEND_FAIL;
 		}
 
 		goto cleanup_packet_buf;
@@ -545,7 +545,7 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 
 		if ((size_t)ret != packet_length) {
 			// Packet partially transmitted
-			ret = SCION_SEND_ERR;
+			ret = SCION_ERR_SEND_FAIL;
 		} else {
 			ret = (ssize_t)size;
 		}
@@ -566,12 +566,12 @@ static ssize_t scion_sendto_connected_path(struct scion_socket *scion_sock, cons
 {
 	struct scion_path *path = scion_path_collection_first(scion_sock->paths);
 	if (path == NULL) {
-		return SCION_NO_PATHS;
+		return SCION_ERR_NO_PATHS;
 	}
 
 	ssize_t ret = scion_sendto_path(scion_sock, buf, size, flags, dst_addr, dst_addr_len, path);
 
-	if (ret == SCION_PATH_EXPIRED) {
+	if (ret == SCION_ERR_PATH_EXPIRED) {
 		ret = refresh_connected_paths(scion_sock);
 		if (ret != 0) {
 			return ret;
@@ -579,7 +579,7 @@ static ssize_t scion_sendto_connected_path(struct scion_socket *scion_sock, cons
 
 		path = scion_path_collection_first(scion_sock->paths);
 		if (path == NULL) {
-			return SCION_NO_PATHS;
+			return SCION_ERR_NO_PATHS;
 		}
 
 		ret = scion_sendto_path(scion_sock, buf, size, flags, dst_addr, dst_addr_len, path);
@@ -592,7 +592,7 @@ static ssize_t scion_sendto_connected_path(struct scion_socket *scion_sock, cons
 ssize_t scion_send(struct scion_socket *scion_sock, const void *buf, size_t size, int flags)
 {
 	if (scion_sock->network == NULL) {
-		return SCION_NETWORK_UNKNOWN;
+		return SCION_ERR_NETWORK_UNKNOWN;
 	}
 
 	return scion_sendto(scion_sock, buf, size, flags, NULL, 0, 0, NULL);
@@ -607,11 +607,11 @@ ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t si
 	ssize_t ret;
 
 	if (path == NULL && scion_sock->network == NULL) {
-		return SCION_NETWORK_UNKNOWN;
+		return SCION_ERR_NETWORK_UNKNOWN;
 	}
 
 	if ((flags & IMPLEMENTED_SEND_FLAGS) != flags) {
-		return SCION_FLAG_NOT_IMPLEMENTED;
+		return SCION_ERR_FLAG_NOT_IMPLEMENTED;
 	}
 
 	ret = bind_if_unbound(scion_sock);
@@ -621,7 +621,7 @@ ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t si
 
 	if (dst_addr == NULL) {
 		if (!scion_sock->is_connected) {
-			return SCION_NOT_CONNECTED;
+			return SCION_ERR_NOT_CONNECTED;
 		}
 
 		dst_addr = (struct sockaddr *)&scion_sock->dst_addr;
@@ -630,7 +630,7 @@ ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t si
 	}
 
 	if (path != NULL && path->dst != dst_ia) {
-		return SCION_DST_MISMATCH;
+		return SCION_ERR_DST_MISMATCH;
 	}
 
 	// Handle path, there are 3 different cases:
@@ -655,7 +655,7 @@ ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t si
 
 		path = scion_path_collection_pop(paths);
 		if (path == NULL) {
-			return SCION_NO_PATHS;
+			return SCION_ERR_NO_PATHS;
 		}
 
 		scion_path_collection_free(paths);
@@ -686,7 +686,7 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
 	assert(buf);
 
 	if ((flags & IMPLEMENTED_RECV_FLAGS) != flags) {
-		return SCION_FLAG_NOT_IMPLEMENTED;
+		return SCION_ERR_FLAG_NOT_IMPLEMENTED;
 	}
 
 	bool received_anticipated_packet = false;
@@ -705,11 +705,11 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
 
 		if (ret < 0) {
 			if (errno == EAGAIN || errno == EWOULDBLOCK) {
-				ret = SCION_WOULD_BLOCK;
+				ret = SCION_ERR_WOULD_BLOCK;
 			} else {
 				(void)fprintf(stderr, "ERROR: encountered an unexpected error when receiving packets (%s, code %d)\n",
 					strerror(errno), errno);
-				ret = SCION_RECV_ERR;
+				ret = SCION_ERR_RECV_FAIL;
 			}
 
 			return ret;
@@ -823,7 +823,7 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
 			assert(addrlen);
 
 			if (*addrlen < sender_addr_len) {
-				ret = SCION_ADDR_BUF_ERR;
+				ret = SCION_ERR_ADDR_BUF_TOO_SMALL;
 				goto cleanup_packet;
 			}
 
@@ -861,7 +861,7 @@ int scion_getsockopt(struct scion_socket *scion_sock, int level, int optname, vo
 
 	if (level == SOL_SOCKET && optname == SCION_SO_DEBUG) {
 		if (*optlen < sizeof(bool)) {
-			return SCION_BUFFER_SIZE_ERR;
+			return SCION_ERR_BUF_TOO_SMALL;
 		}
 
 		*(bool *)optval = scion_sock->debug;
@@ -869,14 +869,14 @@ int scion_getsockopt(struct scion_socket *scion_sock, int level, int optname, vo
 		ret = getsockopt(scion_sock->socket_fd, level, optname, optval, optlen);
 		if (ret == -1) {
 			if (errno == EFAULT) {
-				ret = SCION_BUFFER_SIZE_ERR;
+				ret = SCION_ERR_BUF_TOO_SMALL;
 			} else if (errno == EINVAL || errno == ENOPROTOOPT) {
-				ret = SCION_SOCK_OPT_INVALID;
+				ret = SCION_ERR_SOCK_OPT_INVALID;
 			} else {
 				(void)fprintf(stderr,
 					"ERROR: encountered an unexpected error when getting socket option (%s, code %d)\n",
 					strerror(errno), errno);
-				ret = SCION_GENERIC_ERR;
+				ret = SCION_ERR_GENERIC;
 			}
 		}
 	}
@@ -896,14 +896,14 @@ int scion_setsockopt(struct scion_socket *scion_sock, int level, int optname, co
 		ret = setsockopt(scion_sock->socket_fd, level, optname, optval, optlen);
 		if (ret == -1) {
 			if (errno == EFAULT) {
-				ret = SCION_BUFFER_SIZE_ERR;
+				ret = SCION_ERR_BUF_TOO_SMALL;
 			} else if (errno == EINVAL || errno == ENOPROTOOPT) {
-				ret = SCION_SOCK_OPT_INVALID;
+				ret = SCION_ERR_SOCK_OPT_INVALID;
 			} else {
 				(void)fprintf(stderr,
 					"ERROR: encountered an unexpected error when setting socket option (%s, code %d)\n",
 					strerror(errno), errno);
-				ret = SCION_GENERIC_ERR;
+				ret = SCION_ERR_GENERIC;
 			}
 		}
 	}
@@ -918,29 +918,29 @@ int scion_bind(struct scion_socket *scion_sock, const struct sockaddr *addr, soc
 	int ret;
 
 	if (scion_sock->is_bound) {
-		return SCION_ALREADY_BOUND;
+		return SCION_ERR_ALREADY_BOUND;
 	}
 
 	if (!(addr->sa_family == SCION_AF_INET || addr->sa_family == SCION_AF_INET6)) {
-		return SCION_ADDR_FAMILY_UNKNOWN;
+		return SCION_ERR_ADDR_FAMILY_UNKNOWN;
 	}
 
 	if (addr->sa_family != scion_sock->local_addr_family) {
-		return SCION_ADDR_FAMILY_MISMATCH;
+		return SCION_ERR_ADDR_FAMILY_MISMATCH;
 	}
 
 	ret = bind(scion_sock->socket_fd, addr, addrlen);
 	if (ret != 0) {
 		if (errno == EADDRINUSE) {
-			return SCION_ADDR_IN_USE;
+			return SCION_ERR_ADDR_IN_USE;
 		}
 
 		if (errno == EADDRNOTAVAIL) {
-			return SCION_ADDR_NOT_AVAILABLE;
+			return SCION_ERR_ADDR_NOT_AVAILABLE;
 		}
 
 		(void)fprintf(stderr, "ERROR: encountered an unexpected error when binding (code: %d)\n", errno);
-		return SCION_GENERIC_ERR;
+		return SCION_ERR_GENERIC;
 	}
 
 	struct sockaddr_storage src_addr;
@@ -949,7 +949,7 @@ int scion_bind(struct scion_socket *scion_sock, const struct sockaddr *addr, soc
 	ret = getsockname(scion_sock->socket_fd, (struct sockaddr *)&src_addr, &src_addr_len);
 	if (ret != 0) {
 		(void)fprintf(stderr, "ERROR: encountered an unexpected error after binding (code: %d)\n", errno);
-		return SCION_GENERIC_ERR;
+		return SCION_ERR_GENERIC;
 	}
 
 	set_source_address(scion_sock, (struct sockaddr *)&src_addr, src_addr_len, /* with_port */ true);
@@ -977,7 +977,7 @@ int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, so
 	assert(scion_sock);
 
 	if (!scion_sock->is_bound) {
-		return SCION_NOT_BOUND;
+		return SCION_ERR_NOT_BOUND;
 	}
 
 	if (addr != NULL) {
@@ -992,7 +992,7 @@ int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, so
 		}
 
 		if (*addrlen < src_addr_len) {
-			return SCION_ADDR_BUF_ERR;
+			return SCION_ERR_ADDR_BUF_TOO_SMALL;
 		}
 
 		(void)memcpy(addr, &src_addr, src_addr_len);
@@ -1001,7 +1001,7 @@ int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, so
 
 	if (ia != NULL) {
 		if (scion_sock->network == NULL) {
-			return SCION_NETWORK_UNKNOWN;
+			return SCION_ERR_NETWORK_UNKNOWN;
 		}
 
 		*ia = scion_sock->network->topology->ia;

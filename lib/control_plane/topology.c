@@ -90,13 +90,13 @@ static int parse_address(char *buff, size_t buff_len, struct sockaddr_storage *a
 	// Find last colon
 	char *colon_ptr = scion_memrchr(buff, ':', buff_len);
 	if (colon_ptr == NULL) {
-		return SCION_TOPOLOGY_INVALID;
+		return SCION_ERR_TOPOLOGY_INVALID;
 	}
 
 	// IP
 	size_t ip_len = (size_t)(colon_ptr - buff);
 	if (buff_len == 0) {
-		return SCION_TOPOLOGY_INVALID;
+		return SCION_ERR_TOPOLOGY_INVALID;
 	}
 
 	uint16_t *port_storage;
@@ -113,7 +113,7 @@ static int parse_address(char *buff, size_t buff_len, struct sockaddr_storage *a
 		addr_in6->sin6_family = AF_INET6;
 		*addr_len = sizeof(*addr_in6);
 		if (inet_pton(AF_INET6, ip, &addr_in6->sin6_addr) != 1) {
-			return SCION_TOPOLOGY_INVALID;
+			return SCION_ERR_TOPOLOGY_INVALID;
 		}
 
 		port_storage = &addr_in6->sin6_port;
@@ -127,7 +127,7 @@ static int parse_address(char *buff, size_t buff_len, struct sockaddr_storage *a
 		addr_in->sin_family = AF_INET;
 		*addr_len = sizeof(*addr_in);
 		if (inet_pton(AF_INET, ip, &addr_in->sin_addr) != 1) {
-			return SCION_TOPOLOGY_INVALID;
+			return SCION_ERR_TOPOLOGY_INVALID;
 		}
 
 		port_storage = &addr_in->sin_port;
@@ -136,7 +136,7 @@ static int parse_address(char *buff, size_t buff_len, struct sockaddr_storage *a
 	// Port
 	size_t port_len = (size_t)((ssize_t)buff_len - (colon_ptr + 1 - buff));
 	if (port_len < 1) {
-		return SCION_TOPOLOGY_INVALID;
+		return SCION_ERR_TOPOLOGY_INVALID;
 	}
 	char port[port_len + 1];
 	(void)memcpy(port, colon_ptr + 1, port_len);
@@ -153,7 +153,7 @@ int scion_topology_from_file(struct scion_topology **topology, const char *path)
 
 	struct scion_topology *topology_storage = malloc(sizeof(*topology_storage));
 	if (topology_storage == NULL) {
-		return SCION_MEM_ALLOC_FAIL;
+		return SCION_ERR_MEM_ALLOC_FAIL;
 	}
 
 	// Initialize empty topology
@@ -165,34 +165,34 @@ int scion_topology_from_file(struct scion_topology **topology, const char *path)
 	// populate topology using topology.json
 	FILE *f = fopen(path, "r");
 	if (f == NULL) {
-		ret = SCION_FILE_NOT_FOUND;
+		ret = SCION_ERR_FILE_NOT_FOUND;
 		goto cleanup_topology;
 	}
 
 	// load json
 	ret = fseek(f, 0L, SEEK_END);
 	if (ret != 0) {
-		ret = SCION_TOPOLOGY_INVALID;
+		ret = SCION_ERR_TOPOLOGY_INVALID;
 		goto cleanup_topo_file;
 	}
 	long pos = ftell(f);
 	if (pos < 0) {
-		ret = SCION_TOPOLOGY_INVALID;
+		ret = SCION_ERR_TOPOLOGY_INVALID;
 		goto cleanup_topo_file;
 	}
 	size_t size = (size_t)pos;
 	char *raw_json = malloc(size + 1);
 	if (raw_json == NULL) {
-		ret = SCION_MEM_ALLOC_FAIL;
+		ret = SCION_ERR_MEM_ALLOC_FAIL;
 		goto cleanup_topo_file;
 	}
 	ret = fseek(f, 0L, SEEK_SET);
 	if (ret != 0) {
-		ret = SCION_TOPOLOGY_INVALID;
+		ret = SCION_ERR_TOPOLOGY_INVALID;
 		goto cleanup_topo_file;
 	}
 	if (fread(raw_json, 1, size + 1, f) != size) {
-		ret = SCION_TOPOLOGY_INVALID;
+		ret = SCION_ERR_TOPOLOGY_INVALID;
 		goto cleanup_topo_file;
 	}
 	raw_json[size] = 0x00;
@@ -204,11 +204,11 @@ int scion_topology_from_file(struct scion_topology **topology, const char *path)
 	ret = jsmn_parse(
 		&parser, (const char *)raw_json, strlen((const char *)raw_json), tokens, sizeof(tokens) / sizeof(tokens[0]));
 	if (ret < 0) {
-		ret = SCION_TOPOLOGY_INVALID;
+		ret = SCION_ERR_TOPOLOGY_INVALID;
 		goto cleanup_json;
 	}
 	if (ret < 1 || tokens[0].type != JSMN_OBJECT) {
-		ret = SCION_TOPOLOGY_INVALID;
+		ret = SCION_ERR_TOPOLOGY_INVALID;
 		goto cleanup_json;
 	}
 
@@ -233,7 +233,7 @@ int scion_topology_from_file(struct scion_topology **topology, const char *path)
 				uint16_t len = (uint16_t)(t.end - t.start);
 				ret = scion_ia_parse(raw_json + t.start, len, &topology_storage->ia);
 				if (ret != 0) {
-					ret = SCION_TOPOLOGY_INVALID;
+					ret = SCION_ERR_TOPOLOGY_INVALID;
 					goto cleanup_json;
 				}
 			}
@@ -290,12 +290,12 @@ int scion_topology_from_file(struct scion_topology **topology, const char *path)
 					if (i < actual_tokens && !end_reached) {
 						if (tokens[i].type != JSMN_STRING) {
 							// Found wrong field
-							ret = SCION_TOPOLOGY_INVALID;
+							ret = SCION_ERR_TOPOLOGY_INVALID;
 							goto cleanup_json;
 						}
 						if (i + 3 >= actual_tokens) {
 							// no IFID field
-							ret = SCION_TOPOLOGY_INVALID;
+							ret = SCION_ERR_TOPOLOGY_INVALID;
 							goto cleanup_json;
 						}
 
@@ -326,7 +326,7 @@ int scion_topology_from_file(struct scion_topology **topology, const char *path)
 						if (tokens[i].type != JSMN_STRING) {
 							// Found wrong field
 							scion_free_border_router(br);
-							ret = SCION_TOPOLOGY_INVALID;
+							ret = SCION_ERR_TOPOLOGY_INVALID;
 							goto cleanup_json;
 						}
 						t = tokens[i];
@@ -385,7 +385,7 @@ int scion_topology_next_underlay_hop(
 		curr = curr->next;
 	}
 
-	return SCION_TOPOLOGY_INVALID;
+	return SCION_ERR_TOPOLOGY_INVALID;
 }
 
 bool scion_topology_is_local_as_core(struct scion_topology *t)

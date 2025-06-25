@@ -435,7 +435,7 @@ int scion_path_segments_lookup(
 	}
 
 	if (hd.grpc_status_code != 0) {
-		ret = SCION_GRPC_ERR;
+		ret = SCION_ERR_GRPC_FAIL;
 		goto cleanup_rpc_handle;
 	}
 
@@ -557,7 +557,7 @@ int scion_dst_core_check(struct scion_topology *topology, scion_ia src, scion_ia
 			}
 			proto__control_plane__v1__segments_response__free_unpacked(response, NULL);
 		} else {
-			ret = SCION_GRPC_ERR;
+			ret = SCION_ERR_GRPC_FAIL;
 		}
 	} else {
 		if (hd.grpc_status_code == 0) {
@@ -565,7 +565,7 @@ int scion_dst_core_check(struct scion_topology *topology, scion_ia src, scion_ia
 		} else if (hd.grpc_status_code == 2) {
 			ret = 0;
 		} else {
-			ret = SCION_GRPC_ERR;
+			ret = SCION_ERR_GRPC_FAIL;
 		}
 	}
 

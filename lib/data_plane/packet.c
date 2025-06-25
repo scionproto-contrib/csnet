@@ -103,7 +103,7 @@ int scion_packet_serialize(struct scion_packet *packet, uint8_t *buf, size_t *bu
 	uint16_t total_hdr_len = scion_packet_hdr_len(packet);
 
 	if (total_hdr_len > SCION_MAX_HDR_LEN) {
-		return SCION_MAX_HDR_LEN_EXCEEDED;
+		return SCION_ERR_MAX_HDR_LEN_EXCEEDED;
 	}
 
 	// header must be a multiple of line length. (i.e. header has to be 4 bytes aligned)
@@ -113,7 +113,7 @@ int scion_packet_serialize(struct scion_packet *packet, uint8_t *buf, size_t *bu
 
 	if (total_len > *buf_len) {
 		// buffer is not big enough.
-		return SCION_BUFFER_SIZE_ERR;
+		return SCION_ERR_BUF_TOO_SMALL;
 	}
 
 	*buf_len = total_len;
@@ -177,7 +177,7 @@ static int scion_deserialize_addr_hdr(const uint8_t *buf, size_t buf_len, struct
 	assert(buf);
 
 	if (buf_len < scion_packet_addr_hdr_len(packet)) {
-		return SCION_BUFFER_SIZE_ERR;
+		return SCION_ERR_BUF_TOO_SMALL;
 	}
 
 	(void)memcpy(&packet->dst_ia, buf, sizeof(uint64_t));
@@ -208,7 +208,7 @@ int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_pa
 
 	if (buf_len < SCION_CMN_HDR_LEN) {
 		// Packet shorter than common header, i.e. incomplete packet
-		return SCION_NOT_ENOUGH_DATA;
+		return SCION_ERR_NOT_ENOUGH_DATA;
 	}
 
 	uint32_t firstline = be32toh(*(uint32_t *)buf);
@@ -234,20 +234,20 @@ int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_pa
 
 	if (hdr_bytes_without_path > hdr_bytes) {
 		// packet hdr_len invalid
-		return SCION_PACKET_FIELD_INVALID;
+		return SCION_ERR_PACKET_FIELD_INVALID;
 	}
 
 	uint16_t path_hdr_len = hdr_bytes - hdr_bytes_without_path;
 
 	if ((size_t)(current_offset + path_hdr_len + packet->payload_len) > buf_len) {
 		// missing part of the payload
-		return SCION_NOT_ENOUGH_DATA;
+		return SCION_ERR_NOT_ENOUGH_DATA;
 	}
 
 	// TODO: move this logic to path.c
 	packet->path = malloc(sizeof(*packet->path));
 	if (packet->path == NULL) {
-		return SCION_MEM_ALLOC_FAIL;
+		return SCION_ERR_MEM_ALLOC_FAIL;
 	}
 	packet->path->dst = packet->dst_ia;
 	packet->path->src = packet->src_ia;
@@ -261,7 +261,7 @@ int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_pa
 	} else {
 		packet->path->raw_path = malloc(sizeof(*packet->path->raw_path));
 		if (packet->path->raw_path == NULL) {
-			ret = SCION_MEM_ALLOC_FAIL;
+			ret = SCION_ERR_MEM_ALLOC_FAIL;
 			goto cleanup_path;
 		}
 		packet->path->raw_path->length = path_hdr_len;
@@ -272,7 +272,7 @@ int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_pa
 
 	packet->payload = (uint8_t *)malloc(packet->payload_len);
 	if (packet->payload == NULL) {
-		ret = SCION_MEM_ALLOC_FAIL;
+		ret = SCION_ERR_MEM_ALLOC_FAIL;
 		goto cleanup_raw_path;
 	}
 	(void)memcpy(packet->payload, buf + current_offset, packet->payload_len);

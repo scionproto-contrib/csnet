@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
 	}
 
 	ret = scion_send(socket, msg, sizeof(msg) - 1, /* flags: */ 0);
-	if (ret != SCION_NOT_CONNECTED) {
+	if (ret != SCION_ERR_NOT_CONNECTED) {
 		printf("scion_send should have failed, but got: (code %d, '%s')\n", ret, scion_strerror(ret));
 		ret = EXIT_FAILURE;
 		goto cleanup_socket;

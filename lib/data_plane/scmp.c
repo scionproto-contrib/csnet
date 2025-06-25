@@ -55,14 +55,14 @@ int scion_scmp_echo_deserialize(const uint8_t *buf, uint16_t buf_len, struct sci
 	assert(buf);
 
 	if (buf_len < SCION_SCMP_ECHO_HDR_LEN) {
-		return SCION_BUFFER_SIZE_ERR;
+		return SCION_ERR_BUF_TOO_SMALL;
 	}
 
 	uint8_t type = scion_scmp_get_type(buf, buf_len);
 	assert(type == SCION_ECHO_TYPE_REQUEST || type == SCION_ECHO_TYPE_REPLY);
 
 	if (buf[1] != 0) {
-		return SCION_SCMP_CODE_INVALID;
+		return SCION_ERR_SCMP_CODE_INVALID;
 	}
 
 	uint16_t data_len = buf_len - SCION_SCMP_ECHO_HDR_LEN;
@@ -71,7 +71,7 @@ int scion_scmp_echo_deserialize(const uint8_t *buf, uint16_t buf_len, struct sci
 	if (scmp_echo->data_length > 0) {
 		scmp_echo->data = malloc(data_len);
 		if (scmp_echo->data == NULL) {
-			return SCION_MEM_ALLOC_FAIL;
+			return SCION_ERR_MEM_ALLOC_FAIL;
 		}
 	} else {
 		scmp_echo->data = NULL;
@@ -94,7 +94,7 @@ int scion_scmp_echo_serialize(const struct scion_scmp_echo *scmp_echo, uint8_t *
 	assert(buf);
 
 	if (buf_len < SCION_SCMP_ECHO_HDR_LEN + scmp_echo->data_length) {
-		return SCION_BUFFER_SIZE_ERR;
+		return SCION_ERR_BUF_TOO_SMALL;
 	}
 
 	*(buf) = (uint8_t)scmp_echo->type;

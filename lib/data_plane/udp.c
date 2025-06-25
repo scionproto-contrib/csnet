@@ -51,13 +51,13 @@ int scion_udp_serialize(struct scion_udp *udp, uint8_t *buf, uint16_t *len)
 	(void)memset(buf, 0, *len);
 
 	if (SCION_UDP_HDR_LEN + (uint32_t)udp->data_length > UINT16_MAX) {
-		return SCION_MSG_TOO_LARGE;
+		return SCION_ERR_MSG_TOO_LARGE;
 	}
 
 	uint16_t udp_len = scion_udp_len(udp);
 
 	if (*len < udp_len) {
-		return SCION_BUFFER_SIZE_ERR;
+		return SCION_ERR_BUF_TOO_SMALL;
 	}
 
 	*(uint16_t *)(buf) = htobe16(udp->src_port);
@@ -79,7 +79,7 @@ int scion_udp_deserialize(const uint8_t *buf, uint16_t len, struct scion_udp *ud
 
 	if (len < SCION_UDP_HDR_LEN) {
 		// incomplete header
-		return SCION_NOT_ENOUGH_DATA;
+		return SCION_ERR_NOT_ENOUGH_DATA;
 	}
 
 	udp->src_port = be16toh(*(uint16_t *)buf);
@@ -88,7 +88,7 @@ int scion_udp_deserialize(const uint8_t *buf, uint16_t len, struct scion_udp *ud
 
 	if (len < udp_len) {
 		// incomplete packet
-		return SCION_NOT_ENOUGH_DATA;
+		return SCION_ERR_NOT_ENOUGH_DATA;
 	}
 
 	udp->data_length = udp_len - SCION_UDP_HDR_LEN;

@@ -359,7 +359,7 @@ static int client_read(struct client *c)
 			c->socket, buf, sizeof(buf), MSG_DONTWAIT, (struct sockaddr *)&addr, &addrlen, NULL, NULL);
 
 		if (nread < 0) {
-			if (nread != SCION_WOULD_BLOCK) {
+			if (nread != SCION_ERR_WOULD_BLOCK) {
 				fprintf(stderr, "recvmsg: %s\n", scion_strerror((int)nread));
 			}
 

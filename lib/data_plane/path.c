@@ -177,7 +177,7 @@ int scion_path_reverse(struct scion_path *path)
 		return 0;
 	}
 
-	return SCION_PATH_TYPE_INVALID;
+	return SCION_ERR_PATH_TYPE_INVALID;
 }
 
 /*
@@ -352,7 +352,7 @@ int scion_path_deserialize(
 	// Calculate num_inf and num_hf
 	for (int8_t i = 2; i >= 0; i--) {
 		if ((hdr->seg_len[i] == 0) && (num_inf > 0)) {
-			return SCION_META_HDR_INVALID;
+			return SCION_ERR_META_HDR_INVALID;
 		}
 		if (hdr->seg_len[i] > 0 && num_inf == 0) {
 			num_inf = (uint8_t)i + 1;
@@ -363,7 +363,7 @@ int scion_path_deserialize(
 	for (uint8_t i = 0; i < num_inf; i++) {
 		struct scion_info_field *info = malloc(sizeof(*info));
 		if (info == NULL) {
-			return SCION_MEM_ALLOC_FAIL;
+			return SCION_ERR_MEM_ALLOC_FAIL;
 		}
 		ret = scion_info_field_deserialize(buf + offset, info);
 		if (ret != 0) {
@@ -377,7 +377,7 @@ int scion_path_deserialize(
 	for (uint8_t i = 0; i < num_hf; i++) {
 		struct scion_hop_field *hop = malloc(sizeof(*hop));
 		if (hop == NULL) {
-			return SCION_MEM_ALLOC_FAIL;
+			return SCION_ERR_MEM_ALLOC_FAIL;
 		}
 		ret = scion_hop_field_deserialize(buf + offset, hop);
 		if (ret != 0) {
