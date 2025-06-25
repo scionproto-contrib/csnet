@@ -201,11 +201,11 @@ enum scion_addr_family {
 	/**
 	 * IPv4 addresses.
 	 */
-	SCION_AF_IPV4 = AF_INET,
+	SCION_AF_INET = AF_INET,
 	/**
 	 * IPv6 addresses.
 	 */
-	SCION_AF_IPV6 = AF_INET6
+	SCION_AF_INET6 = AF_INET6
 };
 
 /**

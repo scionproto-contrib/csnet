@@ -97,7 +97,7 @@ static void example_task(void *args)
 	scion_ia dst_ia = 0x2ff0000000222;
 
 	struct scion_socket *scion_sock;
-	ret = scion_socket(&scion_sock, SCION_AF_IPV4, SCION_PROTO_UDP, network);
+	ret = scion_socket(&scion_sock, SCION_AF_INET, SCION_PROTO_UDP, network);
 	if (ret != 0) {
 		printf("ERROR: Socket setup failed with error code: %d\n", ret);
 		led_strip_set_pixel(led_strip, 0, 1, 0, 0);
