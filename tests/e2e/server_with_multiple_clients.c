@@ -46,15 +46,15 @@ void *server_fn(void *arg)
 	strcat(topo_path, host->topo_path);
 
 	assert(scion_topology_from_file(&topology, topo_path) == 0);
-	pthread_cleanup_push((void (*)(void*))scion_topology_free, topology);
+	pthread_cleanup_push((void (*)(void *))scion_topology_free, topology);
 
 	assert(scion_network(&network, topology) == 0);
-	pthread_cleanup_push((void (*)(void*))scion_network_free, network);
+	pthread_cleanup_push((void (*)(void *))scion_network_free, network);
 
 	struct scion_socket *scion_sock;
 
 	assert(scion_socket(&scion_sock, scion_network_get_local_addr_family(network), SCION_PROTO_UDP, network) == 0);
-	pthread_cleanup_push((void (*)(void*))scion_close, scion_sock);
+	pthread_cleanup_push((void (*)(void *))scion_close, scion_sock);
 	assert(scion_bind(scion_sock, host->server_addr, host->server_addr_len) == 0);
 
 	printf("Started server\n");
@@ -101,21 +101,21 @@ void *client_fn(void *arg)
 	strcat(topo_path, client->topo_path);
 
 	assert(scion_topology_from_file(&topology, topo_path) == 0);
-	pthread_cleanup_push((void (*)(void*))scion_topology_free, topology);
+	pthread_cleanup_push((void (*)(void *))scion_topology_free, topology);
 
 	assert(scion_network(&network, topology) == 0);
-	pthread_cleanup_push((void (*)(void*))scion_network_free, network);
+	pthread_cleanup_push((void (*)(void *))scion_network_free, network);
 
 	struct scion_socket *scion_sock;
 
 	assert(scion_socket(&scion_sock, scion_network_get_local_addr_family(network), SCION_PROTO_UDP, network) == 0);
-	pthread_cleanup_push((void (*)(void*))scion_close, scion_sock);
+	pthread_cleanup_push((void (*)(void *))scion_close, scion_sock);
 
 	int ret = scion_connect(scion_sock, client->server_addr, client->server_addr_len, client->server_ia);
 	assert(ret == 0);
 
 	char message[100];
-	snprintf(message, sizeof(message), "Hello from client %ld", client->thread);
+	snprintf(message, sizeof(message), "Hello from client %ld", (unsigned long)client->thread);
 	char response[200] = { 0 };
 
 	assert(scion_send(scion_sock, message, sizeof(message), 0));
