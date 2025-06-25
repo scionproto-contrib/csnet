@@ -146,7 +146,7 @@ static int parse_address(char *buff, size_t buff_len, struct sockaddr_storage *a
 	return 0;
 }
 
-int scion_topology_from_stream(struct scion_topology **topology, FILE *f)
+static int scion_topology_from_stream(struct scion_topology **topology, FILE *f)
 {
 	int ret;
 
