@@ -91,8 +91,7 @@ void scion_path_collection_filter(struct scion_path_collection *paths, struct sc
 	assert(paths);
 
 	return scion_list_filter(paths->list,
-		(struct scion_list_predicate){ .fn = (scion_list_predicate_fn)predicate.fn, .ctx = predicate.ctx },
-		SCION_LIST_CUSTOM_FREE(scion_path_free));
+		(struct scion_list_predicate){ .fn = (scion_list_predicate_fn)predicate.fn, .ctx = predicate.ctx });
 }
 
 size_t scion_path_collection_size(struct scion_path_collection *paths)

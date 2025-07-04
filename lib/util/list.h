@@ -98,8 +98,7 @@ void scion_list_reverse(struct scion_list *list);
 
 void scion_list_sort(struct scion_list *list, struct scion_list_comparator compare);
 
-void scion_list_filter(
-	struct scion_list *list, struct scion_list_predicate predicate, struct scion_list_value_free free_value);
+void scion_list_filter(struct scion_list *list, struct scion_list_predicate predicate);
 
 void *scion_list_get(struct scion_list *list, size_t n);
 
