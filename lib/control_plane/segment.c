@@ -441,6 +441,11 @@ int scion_path_segments_lookup(
 
 	Proto__ControlPlane__V1__SegmentsResponse *response = proto__control_plane__v1__segments_response__unpack(
 		NULL, hd.bytes_written - 5, (const uint8_t *)(hd.output_buffer) + 5);
+	if (response == NULL) {
+		ret = -1;
+		goto cleanup_rpc_handle;
+	}
+
 	if (response->n_segments > 0) {
 		ret = protobuf_to_path_segments(response, segments);
 	}
@@ -522,8 +527,8 @@ int scion_dst_core_check(struct scion_topology *topology, scion_ia src, scion_ia
 
 	char *hostname = hostname_from_addr((struct sockaddr *)&topology->cs_addr);
 	http2_rpc_handle hd;
-	ret = http2_rpc_handle_init(&hd, hostname, (struct sockaddr *)&topology->cs_addr, topology->cs_addr_len,
-		INITIAL_RPC_OUTPUT_BUFFER_SIZE);
+	ret = http2_rpc_handle_init(
+		&hd, hostname, (struct sockaddr *)&topology->cs_addr, topology->cs_addr_len, INITIAL_RPC_OUTPUT_BUFFER_SIZE);
 	free(hostname);
 	if (ret != 0) {
 		free(msg_buf);
@@ -541,7 +546,9 @@ int scion_dst_core_check(struct scion_topology *topology, scion_ia src, scion_ia
 		if (hd.grpc_status_code == 0) {
 			Proto__ControlPlane__V1__SegmentsResponse *response = proto__control_plane__v1__segments_response__unpack(
 				NULL, hd.bytes_written - 5, (const uint8_t *)(hd.output_buffer) + 5);
-			if (response->n_segments > 0) {
+			if (response == NULL) {
+				ret = SCION_ERR_GENERIC;
+			} else if (response->n_segments > 0) {
 				int32_t seg_type = response->segments[0]->key;
 				if (seg_type == 3) {
 					// segment type 3 == Core segment
