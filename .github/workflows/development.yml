@@ -111,16 +111,14 @@ jobs:
     env:
       SCION_PATH: ${{ github.workspace }}/network/scion
       SCION_TESTNET_PATH: ${{ github.workspace }}/network/scion-testnet
-      NETWORK_STARTUP_TIME: 20
-      TEST_SERVER_STARTUP_TIME: 10
-
+    
     steps:
       - name: Retrieve SCION repo versions
         id: scion-repos
         run: |
           SCION_URL=https://github.com/scionproto/scion.git
           echo "scion-url=$SCION_URL" >> $GITHUB_OUTPUT
-          echo "scion-ref=$(git ls-remote $SCION_URL HEAD | cut -f1)" >> $GITHUB_OUTPUT
+          echo "scion-ref=4ab4513377141a5978d13ec5232e5fae1dd633da" >> $GITHUB_OUTPUT
           echo "scion-path=$SCION_PATH" >> $GITHUB_OUTPUT
           SCION_TESTNET_URL=https://github.com/marcfrei/scion-testnet.git
           echo "scion-testnet-url=$SCION_TESTNET_URL" >> $GITHUB_OUTPUT
@@ -147,6 +145,7 @@ jobs:
         run: |
           git clone ${{ steps.scion-repos.outputs.scion-url }} ${{ steps.scion-repos.outputs.scion-path }}
           cd ${{ steps.scion-repos.outputs.scion-path }}
+          git checkout ${{ steps.scion-repos.outputs.scion-ref }}
           go build -o ./bin/ ./control/cmd/control
           go build -o ./bin/ ./daemon/cmd/daemon
           go build -o ./bin/ ./dispatcher/cmd/dispatcher
@@ -169,4 +168,4 @@ jobs:
 
       - name: Run Tests
         working-directory: ${{ needs.build.outputs.build-dir }}
-        run: sudo ctest --build-config Debug -L e2e --output-on-failure
+        run: sudo NETWORK_STARTUP_TIME=10 TEST_SERVER_STARTUP_TIME=20 ctest --build-config Debug -L e2e --output-on-failure
