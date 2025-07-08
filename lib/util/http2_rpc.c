@@ -117,7 +117,7 @@ static int decompress_grpc_response(http2_rpc_handle *hd)
 		(void)inflateEnd(&stream);
 		return -1;
 	}
-	
+
 	(void)inflateEnd(&stream);
 
 	free(hd->output_buffer);

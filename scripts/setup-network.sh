@@ -17,6 +17,7 @@ export SCION_APPS_PATH="$WORKSPACE_DIR/network/scion-apps"
 echo "Installing SCION..."
 git clone https://github.com/scionproto/scion.git "$SCION_PATH"
 cd "$SCION_PATH" || exit
+git checkout 4ab4513377141a5978d13ec5232e5fae1dd633da
 go build -o ./bin/ ./control/cmd/control
 go build -o ./bin/ ./daemon/cmd/daemon
 go build -o ./bin/ ./dispatcher/cmd/dispatcher

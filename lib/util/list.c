@@ -242,10 +242,9 @@ static struct scion_list_node *filter(
 	}
 }
 
-void scion_list_filter(
-	struct scion_list *list, struct scion_list_predicate predicate, struct scion_list_value_free free_value)
+void scion_list_filter(struct scion_list *list, struct scion_list_predicate predicate)
 {
-	struct scion_list_node *new_head = filter(list->first, predicate, free_value);
+	struct scion_list_node *new_head = filter(list->first, predicate, list->free_value);
 
 	update_list(list, new_head);
 }
