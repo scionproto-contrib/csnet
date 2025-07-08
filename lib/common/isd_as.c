@@ -75,7 +75,7 @@ int scion_ia_str(scion_ia ia, char *buf, size_t buflen)
 	}
 
 	if (print_ret < 0) {
-		return SCION_GENERIC_ERR;
+		return SCION_ERR_GENERIC;
 	}
 
 	size_t strlen = (size_t)print_ret + 1;
@@ -83,7 +83,7 @@ int scion_ia_str(scion_ia ia, char *buf, size_t buflen)
 	assert(strlen <= SCION_IA_STRLEN);
 
 	if (buflen < strlen) {
-		return SCION_BUFFER_SIZE_ERR;
+		return SCION_ERR_BUF_TOO_SMALL;
 	}
 
 	(void)memcpy(buf, ia_str, strlen);
