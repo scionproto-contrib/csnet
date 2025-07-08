@@ -440,7 +440,7 @@ int scion_path_segments_lookup(
 	}
 
 	Proto__ControlPlane__V1__SegmentsResponse *response = proto__control_plane__v1__segments_response__unpack(
-		NULL, hd.bytes_written - 5, (const uint8_t *)(hd.output_buffer) + 5);
+		NULL, hd.bytes_written, (const uint8_t *)hd.output_buffer);
 	if (response->n_segments > 0) {
 		ret = protobuf_to_path_segments(response, segments);
 	}
@@ -540,7 +540,7 @@ int scion_dst_core_check(struct scion_topology *topology, scion_ia src, scion_ia
 	if (single_isd) {
 		if (hd.grpc_status_code == 0) {
 			Proto__ControlPlane__V1__SegmentsResponse *response = proto__control_plane__v1__segments_response__unpack(
-				NULL, hd.bytes_written - 5, (const uint8_t *)(hd.output_buffer) + 5);
+				NULL, hd.bytes_written, (const uint8_t *)hd.output_buffer);
 			if (response->n_segments > 0) {
 				int32_t seg_type = response->segments[0]->key;
 				if (seg_type == 3) {

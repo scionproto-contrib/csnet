@@ -76,8 +76,13 @@ target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libnghttp2.a)
 # Link protobuf-c
 target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libprotobuf-c.a)
 
+# Link zlib for gzip decompression
+find_package(ZLIB REQUIRED)
+target_link_libraries(scion PRIVATE ${ZLIB_LIBRARIES})
+
 # Set compiler flags
 extract_valid_c_compiler_flags(COMPILER_FLAGS
+        -g
         -Wall
         -Wextra
         -Wformat
