@@ -34,6 +34,11 @@ extern "C" {
 #define SCION_FETCH_OPT_DEBUG 1
 
 /**
+ * The maximum length a string representation of an IA may require (including the null terminator).
+ */
+#define SCION_IA_STRLEN 21
+
+/**
  * Possible error codes returned by the CSNET library.
  *
  * Errors codes smaller than -200 are internal error codes.
@@ -178,6 +183,10 @@ enum scion_error {
 	 * @see [Source Address Determination](docs/design/source_address_determination.md)
 	 */
 	SCION_ERR_SRC_ADDR_UNKNOWN = -31,
+	/**
+	 * The bootstrapping process failed. Make sure the network is configured correctly.
+	 */
+	SCION_ERR_BOOTSTRAPPING_FAIL = -32,
 	// Internal errors
 	SCION_ERR_NOT_ENOUGH_DATA = -201,
 	SCION_ERR_PACKET_FIELD_INVALID = -202,
@@ -239,6 +248,17 @@ typedef uint64_t scion_ia;
 int scion_ia_parse(const char *str, size_t len, scion_ia *ia);
 
 /**
+ * Gets the string representation of an IA.
+ * @param[in] ia The IA.
+ * @param[in,out] buf The buffer in which the string is stored.
+ * @param[in] buflen The length of the buffer.
+ * @return 0 on success, a negative error code on failure.
+ *
+ * @see The macro SCION_IA_STRLEN can be used to allocate a buffer of appropriate size.
+ */
+int scion_ia_str(scion_ia ia, char *buf, size_t buflen);
+
+/**
  * Prints an IA to stdout.
  * @param[in] ia The IA.
  */
@@ -273,6 +293,17 @@ scion_ia scion_topology_get_local_ia(struct scion_topology *topo);
  * @param[in] topo The topology to free.
  */
 void scion_topology_free(struct scion_topology *topo);
+
+/**
+ * Tries to automatically bootstrap the topology and store it.
+ * @param[in] topology_output_path The path used to store the topology file.
+ * @return 0 on success, a negative error code on failure.
+ *
+ * @note Currently, only the DNS bootstrapping method is supported.
+ *
+ * @see [End Host Bootstrapping - DNS](https://docs.scion.org/en/latest/dev/design/endhost-bootstrap.html#dns)
+ */
+int scion_bootstrap(const char *topology_output_path);
 
 /**
  * @struct scion_network
