@@ -63,8 +63,7 @@ static int decompress_grpc_response(http2_rpc_handle *hd)
 		return -1;
 	}
 
-	z_stream stream;
-	(void)memset(&stream, 0, sizeof stream);
+	z_stream stream = { 0 };
 
 	int ret = inflateInit2(&stream, 15 + 32); // Auto-detect gzip/deflate
 	if (ret != Z_OK) {
