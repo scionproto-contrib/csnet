@@ -27,6 +27,7 @@
 #include <unistd.h>
 
 #include <nghttp2/nghttp2.h>
+#include <zlib.h>
 
 #include "util/http2_rpc.h"
 
@@ -43,6 +44,88 @@ typedef struct http2_rpc_data {
 	const uint8_t *data;
 	size_t data_length;
 } http2_rpc_data;
+
+static int decompress_grpc_response(http2_rpc_handle *hd)
+{
+	if (hd->bytes_written < 7) {
+		return 1;
+	}
+
+	// Check if gRPC response starts with compression flag and has gzip magic bytes
+	if ((unsigned char)hd->output_buffer[0] != 0x01) {
+		// No compression flag found, data appears uncompressed
+		return 1;
+	}
+
+	// Check for gzip magic bytes
+	if ((unsigned char)hd->output_buffer[5] != 0x1f || (unsigned char)hd->output_buffer[6] != 0x8b) {
+		// No gzip magic bytes found at offset
+		return -1;
+	}
+
+	z_stream stream = { 0 };
+
+	int ret = inflateInit2(&stream, 15 + 32); // Auto-detect gzip/deflate
+	if (ret != Z_OK) {
+		return -1;
+	}
+
+	stream.avail_in = (uInt)(hd->bytes_written - 5);
+	stream.next_in = (Bytef *)(hd->output_buffer + 5);
+
+	size_t decompressed_len = 0;
+	size_t decompressed_cap = 4096;
+	char *decompressed_data = malloc(decompressed_cap);
+	if (!decompressed_data) {
+		inflateEnd(&stream);
+		return -1;
+	}
+
+	do {
+		const size_t min_avail_out = 1024;
+		if (decompressed_cap - decompressed_len < min_avail_out) {
+			decompressed_cap += min_avail_out;
+			void *new_buffer = realloc(decompressed_data, decompressed_cap);
+			if (!new_buffer) {
+				free(decompressed_data);
+				inflateEnd(&stream);
+				return -1;
+			}
+			decompressed_data = new_buffer;
+		}
+
+		size_t avail_out = decompressed_cap - decompressed_len;
+		stream.avail_out = (uInt)avail_out;
+		stream.next_out = (Bytef *)(decompressed_data + decompressed_len);
+
+		ret = inflate(&stream, Z_NO_FLUSH);
+		if (ret == Z_NEED_DICT) {
+			ret = Z_DATA_ERROR;
+		}
+		if (ret == Z_STREAM_ERROR || ret == Z_DATA_ERROR || ret == Z_MEM_ERROR) {
+			free(decompressed_data);
+			(void)inflateEnd(&stream);
+			return -1;
+		}
+
+		decompressed_len += avail_out - stream.avail_out;
+	} while (stream.avail_out == 0);
+
+	if (ret != Z_STREAM_END) {
+		free(decompressed_data);
+		(void)inflateEnd(&stream);
+		return -1;
+	}
+
+	(void)inflateEnd(&stream);
+
+	free(hd->output_buffer);
+	hd->output_buffer = decompressed_data;
+	hd->output_buffer_size = decompressed_cap;
+	hd->bytes_written = decompressed_len;
+
+	return 0;
+}
 
 /*
  * ###################### Send HTTP/2 Ping function ######################
@@ -506,7 +589,7 @@ int http2_rpc_request(http2_rpc_handle *hd, const char *path, const u_int8_t *da
 	const nghttp2_nv headers[] = { MAKE_NV(":method", "POST"), MAKE_NV(":scheme", "http"),
 		MAKE_NV(":authority", hd->dst_hostname), MAKE_NV(":path", path), MAKE_NV("te", "trailers"),
 		MAKE_NV("content-type", "application/grpc+proto"), MAKE_NV("grpc-accept-encoding", "identity, deflate, gzip"),
-		MAKE_NV("user-agent", "grpc-esp32/custom") };
+		MAKE_NV("user-agent", "grpc-csnet/custom") };
 
 	nghttp2_data_provider data_provider;
 	data_provider.read_callback = data_provider_cb;
@@ -525,5 +608,17 @@ int http2_rpc_request(http2_rpc_handle *hd, const char *path, const u_int8_t *da
 		return ret;
 	}
 
+	// Attempt to decompress gRPC response if it's gzip compressed
+	ret = decompress_grpc_response(hd);
+	if (ret < 0) {
+		http2_rpc_handle_free(hd);
+		return -1;
+	}
+	if (ret > 0) {
+		if (hd->bytes_written >= 5) {
+			(void)memmove(hd->output_buffer, hd->output_buffer + 5, hd->bytes_written - 5);
+			hd->bytes_written -= 5;
+		}
+	}
 	return 0;
 }

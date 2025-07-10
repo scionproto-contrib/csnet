@@ -94,6 +94,7 @@ Be sure to free all dynamically allocated resources when they are no longer need
 When linking your application, link against the following libraries:
 
 - `libnghttp2.a`
+- `libz.a`
 - `libprotobuf-c.a`
 - `libscion.a`
 
