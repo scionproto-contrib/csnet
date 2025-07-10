@@ -82,7 +82,6 @@ target_link_libraries(scion PRIVATE ${ZLIB_LIBRARIES})
 
 # Set compiler flags
 extract_valid_c_compiler_flags(COMPILER_FLAGS
-        -g
         -Wall
         -Wextra
         -Wformat
@@ -131,7 +130,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
             -fsanitize=undefined
             -fsanitize=leak
     )
-    target_compile_options(scion PRIVATE -Werror ${SANITIZER_FLAGS})
+    target_compile_options(scion PRIVATE -g -Werror ${SANITIZER_FLAGS})
     target_link_options(scion INTERFACE ${SANITIZER_FLAGS})
 endif ()
 
