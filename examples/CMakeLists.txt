@@ -1,5 +1,8 @@
 set(DEPENDENCY_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/dependencies)
 
+add_executable(bootstrapper bootstrapper.c)
+target_link_libraries(bootstrapper PRIVATE scion)
+
 add_executable(paths_example paths.c)
 target_link_libraries(paths_example PRIVATE scion)
 

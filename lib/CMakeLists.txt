@@ -37,6 +37,20 @@ ExternalProject_Add(
         BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libprotobuf-c.a
 )
 
+# Fetch curl
+ExternalProject_Add(
+        curl
+        GIT_REPOSITORY https://github.com/curl/curl.git
+        GIT_TAG curl-8_14_1
+        CMAKE_ARGS
+        -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DHTTP_ONLY=ON -DBUILD_CURL_EXE=OFF -DBUILD_EXAMPLES=OFF
+        -DBUILD_LIBCURL_DOCS=OFF -DBUILD_MISC_DOCS=OFF -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=OFF
+        -DBUILD_STATIC_LIBS=ON -DCURL_ENABLE_SSL=OFF -DUSE_NGHTTP2=OFF -DCURL_DISABLE_COOKIES=ON
+        -DCURL_USE_LIBPSL=OFF -DCURL_ZLIB=OFF -DCURL_ZSTD=OFF -DCURL_BROTLI=OFF -DCURL_USE_LIBSSH2=OFF
+        -DUSE_LIBIDN2=OFF
+        BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libcurl.a
+)
+
 # Declare library
 add_library(scion STATIC
         common/as_entry.c
@@ -52,6 +66,7 @@ add_library(scion STATIC
         control_plane/network.c
         control_plane/policy.c
         control_plane/path_metadata.c
+        control_plane/bootstrapper.c
         data_plane/packet.c
         data_plane/path.c
         data_plane/socket.c
@@ -72,6 +87,7 @@ add_library(scion STATIC
 add_dependencies(scion nghttp2)
 add_dependencies(scion zlib)
 add_dependencies(scion protobuf-c)
+add_dependencies(scion curl)
 
 # public headers
 target_include_directories(scion PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -88,6 +104,17 @@ target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libz.a)
 
 # Link protobuf-c
 target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libprotobuf-c.a)
+
+# Link libresolv
+target_link_libraries(scion PRIVATE resolv)
+
+# Link curl
+target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libcurl.a)
+
+if (APPLE)
+    # Link macOS frameworks required by curl
+    target_link_libraries(scion PRIVATE "-framework CoreFoundation" "-framework SystemConfiguration")
+endif ()
 
 # Set compiler flags
 extract_valid_c_compiler_flags(COMPILER_FLAGS
@@ -153,5 +180,6 @@ install(FILES
         ${DEPENDENCY_INSTALL_DIR}/lib/libnghttp2.a
         ${DEPENDENCY_INSTALL_DIR}/lib/libz.a
         ${DEPENDENCY_INSTALL_DIR}/lib/libprotobuf-c.a
+        ${DEPENDENCY_INSTALL_DIR}/lib/libcurl.a
         DESTINATION lib
 )

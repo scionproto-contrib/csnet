@@ -25,6 +25,8 @@
 
 #include "common/isd_as.h"
 
+static_assert(sizeof("65535-ffff:ffff:ffff") <= SCION_IA_STRLEN, "SCION_IA_STRLEN is not large enough");
+
 #define SCION_AS_MASK 0xffffffffffff
 
 scion_ia scion_ia_from_isd_as(scion_isd isd, scion_as as)
@@ -52,8 +54,10 @@ bool scion_ia_is_wildcard(scion_ia ia)
 	return scion_ia_get_isd(ia) == 0 || scion_ia_get_as(ia) == 0;
 }
 
-void scion_ia_print(scion_ia ia)
+int scion_ia_str(scion_ia ia, char *buf, size_t buflen)
 {
+	char ia_str[SCION_IA_STRLEN];
+
 	scion_isd isd = scion_ia_get_isd(ia);
 	scion_as as = scion_ia_get_as(ia);
 
@@ -61,13 +65,36 @@ void scion_ia_print(scion_ia ia)
 	uint16_t second = (uint16_t)((as >> 16) & 0xffff);
 	uint16_t third = (uint16_t)(as & 0xffff);
 
-	(void)(void)printf("%" PRIu16 "-", isd);
+	int print_ret = 0;
 	if (first == 0) {
 		uint32_t bgp_as = (uint32_t)as;
-		(void)printf("%" PRIu32 "", bgp_as);
+		print_ret = snprintf(ia_str, sizeof(ia_str), "%" PRIu16 "-%" PRIu32, isd, bgp_as);
 	} else {
-		(void)printf("%" PRIx16 ":%" PRIx16 ":%" PRIx16 "", first, second, third);
+		print_ret = snprintf(
+			ia_str, sizeof(ia_str), "%" PRIu16 "-%" PRIx16 ":%" PRIx16 ":%" PRIx16, isd, first, second, third);
 	}
+
+	if (print_ret < 0) {
+		return SCION_ERR_GENERIC;
+	}
+
+	size_t strlen = (size_t)print_ret + 1;
+
+	assert(strlen <= SCION_IA_STRLEN);
+
+	if (buflen < strlen) {
+		return SCION_ERR_BUF_TOO_SMALL;
+	}
+
+	(void)memcpy(buf, ia_str, strlen);
+	return 0;
+}
+
+void scion_ia_print(scion_ia ia)
+{
+	char ia_str[SCION_IA_STRLEN];
+	(void)scion_ia_str(ia, ia_str, sizeof(ia_str));
+	(void)printf("%s", ia_str);
 }
 
 static int parse_isd(const char *buf, size_t len, scion_isd *isd)

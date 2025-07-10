@@ -52,6 +52,7 @@ jobs:
           -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           -DBUILD_TESTS=ON
+          -DBUILD_EXAMPLES=ON
           -B ${{ steps.strings.outputs.build-dir }}
           -G Ninja
           -S ${{ github.workspace }}
