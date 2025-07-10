@@ -17,6 +17,15 @@ ExternalProject_Add(
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_PROTOC_BINARIES=OFF -Dprotobuf_BUILD_LIBUPB=OFF -DABSL_PROPAGATE_CXX_STD=ON
 )
 
+# Fetch zlib
+ExternalProject_Add(
+        zlib
+        GIT_REPOSITORY https://github.com/madler/zlib
+        GIT_TAG v1.3.1
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DZLIB_BUILD_EXAMPLES=OFF
+        BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libz.a
+)
+
 # Fetch protobuf-c
 ExternalProject_Add(
         protobuf-c
@@ -61,6 +70,7 @@ add_library(scion STATIC
 )
 
 add_dependencies(scion nghttp2)
+add_dependencies(scion zlib)
 add_dependencies(scion protobuf-c)
 
 # public headers
@@ -73,12 +83,11 @@ target_include_directories(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/include)
 # Link nghttp2
 target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libnghttp2.a)
 
+# Link zlib
+target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libz.a)
+
 # Link protobuf-c
 target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libprotobuf-c.a)
-
-# Link zlib for gzip decompression
-find_package(ZLIB REQUIRED)
-target_link_libraries(scion PRIVATE ${ZLIB_LIBRARIES})
 
 # Set compiler flags
 extract_valid_c_compiler_flags(COMPILER_FLAGS
@@ -142,6 +151,7 @@ install(TARGETS scion PUBLIC_HEADER DESTINATION include/scion)
 # install the dependencies
 install(FILES
         ${DEPENDENCY_INSTALL_DIR}/lib/libnghttp2.a
+        ${DEPENDENCY_INSTALL_DIR}/lib/libz.a
         ${DEPENDENCY_INSTALL_DIR}/lib/libprotobuf-c.a
         DESTINATION lib
 )

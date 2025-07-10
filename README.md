@@ -68,7 +68,7 @@ To install the library execute:
 
 Depending on the installation directory you might need to run the command with `sudo`.
 
-The installation will produce the static libraries `lib/libscion.a`, `lib/libnghttp2.a`, `lib/libprotobuf.a`, the header
+The installation will produce the static libraries `lib/libscion.a`, `lib/libnghttp2.a`, `lib/libz.a`, `lib/libprotobuf.a`, the header
 file `include/scion/scion.h` and the command-line tool `bin/ping` in your installation directory. When using the library
 make sure to link against all the static libraries produced by the installation.
 
