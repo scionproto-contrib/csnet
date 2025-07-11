@@ -200,7 +200,7 @@ static int ping(struct scion_socket *socket, struct scion_path *path, struct soc
 	}
 
 	(void)printf("PING ");
-	scion_print_addr(addr, ia);
+	scion_addr_print(addr, ia);
 	(void)printf(" pld=%" PRIu16 "B\n", payload_size);
 
 	double max = 0.0;
@@ -256,7 +256,7 @@ static int ping(struct scion_socket *socket, struct scion_path *path, struct soc
 	}
 
 	(void)printf("\n--- ");
-	scion_print_addr(addr, ia);
+	scion_addr_print(addr, ia);
 	(void)printf(" ping statistics ---\n");
 	(void)printf("%" PRIu16 " packets transmitted, %" PRIu16 " packets received, %.1f%% packet loss\n", packets_sent,
 		packets_received, packet_loss);

@@ -937,7 +937,7 @@ int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy pol
  * @param[in] addr The address.
  * @param[in] ia The IA.
  */
-void scion_print_addr(const struct sockaddr *addr, scion_ia ia);
+void scion_addr_print(const struct sockaddr *addr, scion_ia ia);
 
 /**
  * Gets the type of a SCMP message.

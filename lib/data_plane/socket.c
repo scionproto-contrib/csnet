@@ -1044,7 +1044,7 @@ int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy pol
 	return ret;
 };
 
-void scion_print_addr(const struct sockaddr *addr, scion_ia ia)
+void scion_addr_print(const struct sockaddr *addr, scion_ia ia)
 {
 	if (addr == NULL) {
 		return;

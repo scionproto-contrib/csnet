@@ -76,4 +76,4 @@ int scion_setsockerrcb(struct scion_socket *scion_sock, scion_socket_scmp_error_
 
 int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy policy);
 
-void scion_print_addr(const struct sockaddr *addr, scion_ia ia);
+void scion_addr_print(const struct sockaddr *addr, scion_ia ia);
