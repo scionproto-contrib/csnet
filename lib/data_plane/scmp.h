@@ -37,4 +37,4 @@ int scion_scmp_echo_deserialize(const uint8_t *buf, uint16_t buf_len, struct sci
 
 int scion_scmp_echo_serialize(const struct scion_scmp_echo *scmp_echo, uint8_t *buf, uint16_t buf_len);
 
-void scion_scmp_echo_free_internal(struct scion_scmp_echo *scmp_echo);
+void scion_scmp_echo_free_members(struct scion_scmp_echo *scmp_echo);

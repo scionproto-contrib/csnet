@@ -23,7 +23,7 @@
 static bool has_nine_hops(struct scion_path *path, void *ctx)
 {
 	(void)ctx;
-	return scion_path_get_hops(path) == 9;
+	return scion_path_get_numhops(path) == 9;
 }
 
 static int compare_mtu(struct scion_path *path_one, struct scion_path *path_two, void *ctx)

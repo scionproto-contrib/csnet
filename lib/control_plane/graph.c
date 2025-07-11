@@ -23,8 +23,8 @@
 #include "common/info_field.h"
 #include "common/isd_as.h"
 #include "common/path_segment.h"
-#include "control_plane/fetch.h"
 #include "control_plane/graph.h"
+#include "control_plane/path_collection.h"
 #include "control_plane/path_metadata.h"
 #include "data_plane/path.h"
 #include "util/endian.h"
@@ -1487,7 +1487,7 @@ static bool scion_contains_loop(struct scion_path *path)
 // To compare paths, we use the list of ifids, which we encode in an uint16_t array.
 // The first element of the array is the total number of elements in the array,
 // including the size element.
-static bool scion_check_duplicate_path(struct scion_list *ifids_list, scion_interface_id *ifids)
+static bool scion_check_duplicate_path(struct scion_list *ifids_list, scion_ifid *ifids)
 {
 	int ret;
 	if (ifids_list->size == 0) {
@@ -1501,7 +1501,7 @@ static bool scion_check_duplicate_path(struct scion_list *ifids_list, scion_inte
 			continue;
 		}
 		if (curr_ifids[0] == ifids[0]) {
-			ret = memcmp(curr_ifids, ifids, ifids[0] * sizeof(scion_interface_id));
+			ret = memcmp(curr_ifids, ifids, ifids[0] * sizeof(scion_ifid));
 			if (ret == 0) {
 				return true;
 			}
@@ -1540,8 +1540,8 @@ static int scion_path_solution_list_to_path_list(struct scion_list *path_solutio
 			path->src = src;
 
 			// Generate ifids array to check duplicate paths.
-			scion_interface_id *ifids = malloc((path->metadata->interfaces_len + 1) * sizeof(scion_interface_id));
-			ifids[0] = (scion_interface_id)(path->metadata->interfaces_len + 1);
+			scion_ifid *ifids = malloc((path->metadata->interfaces_len + 1) * sizeof(scion_ifid));
+			ifids[0] = (scion_ifid)(path->metadata->interfaces_len + 1);
 
 			for (size_t i = 0; i < path->metadata->interfaces_len; i++) {
 				struct scion_path_interface *curr_intf = &path->metadata->interfaces[i];

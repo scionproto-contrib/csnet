@@ -141,7 +141,7 @@ uint32_t scion_path_byte_size(struct scion_path *path, bool print_details);
 
 int scion_path_reverse(struct scion_path *path);
 
-size_t scion_path_get_hops(const struct scion_path *path);
+size_t scion_path_get_numhops(const struct scion_path *path);
 
 /*
  * FUNCTION: scion_path_serialize

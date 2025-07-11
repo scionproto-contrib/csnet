@@ -146,7 +146,7 @@ void scion_path_collection_print(struct scion_path_collection *paths)
 				continue;
 			}
 
-			size_t current_length = scion_path_get_hops(path);
+			size_t current_length = scion_path_get_numhops(path);
 
 			if (current_length > length) {
 				length = current_length;

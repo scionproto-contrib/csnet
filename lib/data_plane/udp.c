@@ -24,7 +24,7 @@ uint16_t scion_udp_len(struct scion_udp *udp)
 	return SCION_UDP_HDR_LEN + udp->data_length;
 }
 
-void scion_udp_free_internal(struct scion_udp *udp)
+void scion_udp_free_members(struct scion_udp *udp)
 {
 	if (udp == NULL) {
 		return;

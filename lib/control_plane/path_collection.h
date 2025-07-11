@@ -22,7 +22,7 @@
 #define SCION_FETCH_OPT_DEBUG 1
 
 /**
- * FUNCTION: scion_fetch_paths
+ * FUNCTION: scion_path_collection_fetch
  * -----------------
  * Returns a list of available paths between a SCION network and a given destination AS by
  * fetching the required path segments from the local Control Server.
@@ -36,4 +36,4 @@
  * Returns:
  *      - An integer status code, 0 for success or an error code as defined in error.h.
  */
-int scion_fetch_paths(struct scion_network *network, scion_ia dst, uint opt, struct scion_path_collection **paths);
+int scion_path_collection_fetch(struct scion_network *network, scion_ia dst, uint opt, struct scion_path_collection **paths);

@@ -355,7 +355,7 @@ int scion_path_reverse(struct scion_path *path);
  * @param[in] path The path.
  * @return The number of hops of the path.
  */
-size_t scion_path_get_hops(const struct scion_path *path);
+size_t scion_path_get_numhops(const struct scion_path *path);
 
 /**
  * Frees a path.
@@ -387,7 +387,7 @@ void scion_path_free(struct scion_path *path);
 /**
  * An interface identifier.
  */
-typedef uint64_t scion_interface_id;
+typedef uint64_t scion_ifid;
 
 /**
  * @struct scion_path_interface
@@ -398,7 +398,7 @@ struct scion_path_interface {
 	/**
 	 * The identifier of the interface.
 	 */
-	scion_interface_id id;
+	scion_ifid id;
 	/**
 	 * The AS identifier.
 	 */
@@ -689,7 +689,7 @@ void scion_path_collection_print(struct scion_path_collection *paths);
  * @param[out] paths The collection of paths found.
  * @return 0 on success, a negative error code on failure.
  */
-int scion_fetch_paths(struct scion_network *network, scion_ia dst, uint opt, struct scion_path_collection **paths);
+int scion_path_collection_fetch(struct scion_network *network, scion_ia dst, uint opt, struct scion_path_collection **paths);
 
 /**
  * A function that implements the path selection policy by filtering and/or sorting the available paths contained
@@ -937,7 +937,7 @@ int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy pol
  * @param[in] addr The address.
  * @param[in] ia The IA.
  */
-void scion_print_addr(const struct sockaddr *addr, scion_ia ia);
+void scion_addr_print(const struct sockaddr *addr, scion_ia ia);
 
 /**
  * Gets the type of a SCMP message.
@@ -1029,10 +1029,10 @@ int scion_scmp_echo_serialize(const struct scion_scmp_echo *scmp_echo, uint8_t *
 int scion_scmp_echo_deserialize(const uint8_t *buf, uint16_t buf_len, struct scion_scmp_echo *scmp_echo);
 
 /**
- * Frees the SCMP echo message internally.
+ * Frees the intrenal memebers of a SCMP echo message.
  * @param[in] scmp_echo The SCMP echo message.
  */
-void scion_scmp_echo_free_internal(struct scion_scmp_echo *scmp_echo);
+void scion_scmp_echo_free_members(struct scion_scmp_echo *scmp_echo);
 
 #ifdef __cplusplus
 }

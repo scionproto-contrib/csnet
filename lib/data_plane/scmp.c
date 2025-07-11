@@ -110,7 +110,7 @@ int scion_scmp_echo_serialize(const struct scion_scmp_echo *scmp_echo, uint8_t *
 	return 0;
 }
 
-void scion_scmp_echo_free_internal(struct scion_scmp_echo *scmp_echo)
+void scion_scmp_echo_free_members(struct scion_scmp_echo *scmp_echo)
 {
 	free(scmp_echo->data);
 	scmp_echo->data = NULL;

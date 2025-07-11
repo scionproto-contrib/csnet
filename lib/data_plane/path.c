@@ -23,7 +23,7 @@
 #include "common/hop_field.h"
 #include "common/info_field.h"
 #include "common/isd_as.h"
-#include "control_plane/fetch.h"
+#include "control_plane/path_collection.h"
 #include "data_plane/path.h"
 #include "util/endian.h"
 #include "util/list.h"
@@ -226,7 +226,7 @@ void scion_path_print(const struct scion_path *path)
 	}
 }
 
-size_t scion_path_get_hops(const struct scion_path *path)
+size_t scion_path_get_numhops(const struct scion_path *path)
 {
 	assert(path != NULL);
 

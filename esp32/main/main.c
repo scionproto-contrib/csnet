@@ -63,7 +63,7 @@ static void configure_led(void)
 static bool select_path(struct scion_path *path, void *ctx)
 {
 	struct scion_path_metadata *metadata = scion_path_get_metadata(path);
-	return scion_path_get_hops(path) == 8 && metadata->mtu == 1400;
+	return scion_path_get_numhops(path) == 8 && metadata->mtu == 1400;
 }
 
 static void example_task(void *args)
@@ -150,7 +150,7 @@ static void example_task(void *args)
 
 	// ### Showpaths ###
 	struct scion_path_collection *paths;
-	ret = scion_fetch_paths(network, dst_ia, SCION_FETCH_OPT_DEBUG, &paths);
+	ret = scion_path_collection_fetch(network, dst_ia, SCION_FETCH_OPT_DEBUG, &paths);
 	if (ret != 0) {
 		printf("ERROR: Failed to fetch paths with error code: %d\n", ret);
 		goto cleanup_socket;
