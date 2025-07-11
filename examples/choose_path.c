@@ -22,7 +22,7 @@
 static bool select_path(struct scion_path *path, void *ctx)
 {
 	const struct scion_path_metadata *metadata = scion_path_get_metadata(path);
-	return scion_path_get_hops(path) == 8 && metadata->mtu == 1400;
+	return scion_path_get_numhops(path) == 8 && metadata->mtu == 1400;
 }
 
 int main(int argc, char *argv[])

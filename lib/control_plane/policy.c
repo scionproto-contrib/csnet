@@ -24,8 +24,8 @@
 static int compare_hops(struct scion_path *path_one, struct scion_path *path_two, void *ctx)
 {
 	(void)ctx;
-	size_t hops_one = scion_path_get_hops(path_one);
-	size_t hops_two = scion_path_get_hops(path_two);
+	size_t hops_one = scion_path_get_numhops(path_one);
+	size_t hops_two = scion_path_get_numhops(path_two);
 
 	return (hops_one > hops_two) - (hops_one < hops_two);
 }

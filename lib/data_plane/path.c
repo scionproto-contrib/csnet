@@ -226,7 +226,7 @@ void scion_path_print(const struct scion_path *path)
 	}
 }
 
-size_t scion_path_get_hops(const struct scion_path *path)
+size_t scion_path_get_numhops(const struct scion_path *path)
 {
 	assert(path != NULL);
 

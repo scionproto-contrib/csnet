@@ -355,7 +355,7 @@ int scion_path_reverse(struct scion_path *path);
  * @param[in] path The path.
  * @return The number of hops of the path.
  */
-size_t scion_path_get_hops(const struct scion_path *path);
+size_t scion_path_get_numhops(const struct scion_path *path);
 
 /**
  * Frees a path.
