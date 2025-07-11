@@ -123,15 +123,15 @@ uint16_t scion_packet_addr_hdr_len(struct scion_packet *packet);
 size_t scion_packet_len(struct scion_packet *packet);
 
 /*
- * FUNCTION: scion_packet_free_internal
+ * FUNCTION: scion_packet_free_members
  * -------------------
- * Frees, if applicable, and set all internal values to 0 or NULL of a scion_packet struct, without freeing the struct
+ * Frees, if applicable, and set all internal members to 0 or NULL of a scion_packet struct, without freeing the struct
  * itself.
  *
  * Arguments:
  *      - struct scion_packet *packet: Pointer to the SCION packet.
  */
-void scion_packet_free_internal(struct scion_packet *packet);
+void scion_packet_free_members(struct scion_packet *packet);
 
 /*
  * FUNCTION: scion_packet_free

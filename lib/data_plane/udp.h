@@ -28,15 +28,15 @@ struct scion_udp {
 };
 
 /*
- * FUNCTION: scion_udp_free_internal
+ * FUNCTION: scion_udp_free_members
  * -------------------
- * Frees, if applicable, and set all internal values to 0 or NULL of a scion_udp struct, without freeing the struct
+ * Frees, if applicable, and set all internal members to 0 or NULL of a scion_udp struct, without freeing the struct
  * itself.
  *
  * Arguments:
  *      - struct scion_udp *udp: Pointer to the udp packet.
  */
-void scion_udp_free_internal(struct scion_udp *udp);
+void scion_udp_free_members(struct scion_udp *udp);
 
 /*
  * FUNCTION: scion_udp_free

@@ -50,7 +50,7 @@ size_t scion_packet_len(struct scion_packet *packet)
 	return scion_packet_hdr_len(packet) + packet->payload_len;
 }
 
-void scion_packet_free_internal(struct scion_packet *packet)
+void scion_packet_free_members(struct scion_packet *packet)
 {
 	if (packet == NULL) {
 		return;
@@ -82,7 +82,7 @@ void scion_packet_free(struct scion_packet *packet)
 	if (packet == NULL) {
 		return;
 	}
-	scion_packet_free_internal(packet);
+	scion_packet_free_members(packet);
 	free(packet);
 }
 

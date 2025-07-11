@@ -1029,10 +1029,10 @@ int scion_scmp_echo_serialize(const struct scion_scmp_echo *scmp_echo, uint8_t *
 int scion_scmp_echo_deserialize(const uint8_t *buf, uint16_t buf_len, struct scion_scmp_echo *scmp_echo);
 
 /**
- * Frees the SCMP echo message internally.
+ * Frees the intrenal memebers of a SCMP echo message.
  * @param[in] scmp_echo The SCMP echo message.
  */
-void scion_scmp_echo_free_internal(struct scion_scmp_echo *scmp_echo);
+void scion_scmp_echo_free_members(struct scion_scmp_echo *scmp_echo);
 
 #ifdef __cplusplus
 }

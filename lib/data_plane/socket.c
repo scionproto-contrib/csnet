@@ -461,11 +461,11 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 		packet.payload = (uint8_t *)malloc(packet.payload_len);
 		ret = scion_udp_serialize(&udp_packet, packet.payload, &packet.payload_len);
 		if (ret != 0) {
-			scion_udp_free_internal(&udp_packet);
+			scion_udp_free_members(&udp_packet);
 			goto cleanup_packet;
 		}
 
-		scion_udp_free_internal(&udp_packet);
+		scion_udp_free_members(&udp_packet);
 
 	} else if (scion_sock->protocol == SCION_PROTO_SCMP) {
 		if (size > UINT16_MAX) {
@@ -556,7 +556,7 @@ cleanup_packet_buf:
 
 cleanup_packet:
 	packet.path = NULL; // To avoid free'ing socket->path
-	scion_packet_free_internal(&packet);
+	scion_packet_free_members(&packet);
 
 	return ret;
 }
@@ -741,7 +741,7 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
 			recv_len = udp.data_length > size ? (uint16_t)size : udp.data_length;
 			(void)memcpy(buf, udp.data, recv_len);
 
-			scion_udp_free_internal(&udp);
+			scion_udp_free_members(&udp);
 		} else if (packet.next_hdr == 202) {
 			// SCMP message
 			src_port = 0; // No port on SCMP
@@ -837,11 +837,11 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
 
 		if (path != NULL) {
 			*path = packet.path;
-			packet.path = NULL; // prevent path from being freed by scion_packet_free_internal
+			packet.path = NULL; // prevent path from being freed by scion_packet_free_members
 		}
 
 cleanup_packet:
-		scion_packet_free_internal(&packet);
+		scion_packet_free_members(&packet);
 
 		// Return on error
 		if (ret < 0) {
