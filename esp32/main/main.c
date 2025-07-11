@@ -150,7 +150,7 @@ static void example_task(void *args)
 
 	// ### Showpaths ###
 	struct scion_path_collection *paths;
-	ret = scion_fetch_paths(network, dst_ia, SCION_FETCH_OPT_DEBUG, &paths);
+	ret = scion_path_collection_fetch(network, dst_ia, SCION_FETCH_OPT_DEBUG, &paths);
 	if (ret != 0) {
 		printf("ERROR: Failed to fetch paths with error code: %d\n", ret);
 		goto cleanup_socket;

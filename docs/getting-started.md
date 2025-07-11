@@ -80,7 +80,7 @@ Some of the key differences between SCION sockets and BSD sockets are:
   is a combination of the ISD identifier and the AS number (e.g. `2-ff00:0:222`). The IA can be found in the
   `isd_as` field of the `topology.json` of an AS.
 - When sending data to a destination host, the path the packet should take through the SCION network can be
-  explicitly defined. Available paths to a specific destination AS can be retrieved with `scion_fetch_paths()`.
+  explicitly defined. Available paths to a specific destination AS can be retrieved with `scion_path_collection_fetch()`.
 
 ### Freeing resources
 

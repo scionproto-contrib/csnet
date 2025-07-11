@@ -26,8 +26,8 @@
 
 #include "common/isd_as.h"
 #include "common/path_collection.h"
-#include "control_plane/fetch.h"
 #include "control_plane/network.h"
+#include "control_plane/path_collection.h"
 #include "control_plane/policy.h"
 #include "control_plane/topology.h"
 #include "data_plane/packet.h"
@@ -216,7 +216,7 @@ static int fetch_paths(struct scion_socket *scion_sock, scion_ia dst_ia, struct 
 	assert(paths);
 	int ret;
 
-	ret = scion_fetch_paths(scion_sock->network, dst_ia, scion_sock->debug ? SCION_FETCH_OPT_DEBUG : 0, paths);
+	ret = scion_path_collection_fetch(scion_sock->network, dst_ia, scion_sock->debug ? SCION_FETCH_OPT_DEBUG : 0, paths);
 	if (ret != 0) {
 		return ret;
 	}

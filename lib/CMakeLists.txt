@@ -50,12 +50,12 @@ add_library(scion STATIC
         common/isd_as.c
         common/path_segment.c
         common/path_collection.c
-        control_plane/fetch.c
         control_plane/graph.c
         control_plane/segment.c
         control_plane/topology.c
         control_plane/network.c
         control_plane/policy.c
+        control_plane/path_collection.c
         control_plane/path_metadata.c
         control_plane/bootstrapper.c
         data_plane/packet.c

@@ -16,16 +16,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "control_plane/fetch.h"
 #include "control_plane/graph.h"
 #include "control_plane/network.h"
+#include "control_plane/path_collection.h"
 #include "control_plane/segment.h"
 #include "control_plane/topology.h"
 #include "data_plane/path.h"
 #include "util/list.h"
 
 /**
- * FUNCTION: scion_fetch_paths
+ * FUNCTION: scion_path_collection_fetch
  * -----------------
  * Returns a list of available paths between a given source AS and a given destination AS by
  * fetching the required path segments from the local Control Server.
@@ -39,7 +39,7 @@
  * Returns:
  *      - An integer status code, 0 for success or an error code as defined in error.h.
  */
-int scion_fetch_paths(struct scion_network *network, scion_ia dst, uint opt, struct scion_path_collection **paths)
+int scion_path_collection_fetch(struct scion_network *network, scion_ia dst, uint opt, struct scion_path_collection **paths)
 {
 	assert(network);
 	assert(paths);

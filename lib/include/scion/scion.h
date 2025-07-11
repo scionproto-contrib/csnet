@@ -689,7 +689,7 @@ void scion_path_collection_print(struct scion_path_collection *paths);
  * @param[out] paths The collection of paths found.
  * @return 0 on success, a negative error code on failure.
  */
-int scion_fetch_paths(struct scion_network *network, scion_ia dst, uint opt, struct scion_path_collection **paths);
+int scion_path_collection_fetch(struct scion_network *network, scion_ia dst, uint opt, struct scion_path_collection **paths);
 
 /**
  * A function that implements the path selection policy by filtering and/or sorting the available paths contained

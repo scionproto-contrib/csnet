@@ -476,7 +476,7 @@ int main(int argc, char **argv)
 	}
 
 	struct scion_path_collection *paths;
-	ret = scion_fetch_paths(network, dst_ia, SCION_FETCH_OPT_DEBUG, &paths);
+	ret = scion_path_collection_fetch(network, dst_ia, SCION_FETCH_OPT_DEBUG, &paths);
 	if (ret != 0) {
 		fprintf(stderr, "Error: could not fetch paths (%s, code %d)\n", scion_strerror(ret), ret);
 		goto cleanup_socket;

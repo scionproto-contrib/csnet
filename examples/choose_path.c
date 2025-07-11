@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
 
 	// ### Select path and set path ###
 	struct scion_path_collection *paths;
-	ret = scion_fetch_paths(network, dst_ia, SCION_FETCH_OPT_DEBUG, &paths);
+	ret = scion_path_collection_fetch(network, dst_ia, SCION_FETCH_OPT_DEBUG, &paths);
 	if (ret != 0) {
 		printf("ERROR: Failed to fetch paths with error code: %d\n", ret);
 		ret = EXIT_FAILURE;
