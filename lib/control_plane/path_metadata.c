@@ -319,7 +319,7 @@ struct scion_geo_coordinates *collect_geo_coordinates(
 				struct scion_map_key_value_pair *kvp = current_key_value->value;
 
 				struct scion_path_interface interface = { .ia = as_entry->local,
-					.id = *(scion_interface_id *)kvp->key };
+					.id = *(scion_ifid *)kvp->key };
 
 				scion_map_put(iface_geos, &interface, kvp->value);
 

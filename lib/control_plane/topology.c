@@ -372,7 +372,7 @@ int scion_topology_from_file(struct scion_topology **topology, const char *path)
 }
 
 int scion_topology_next_underlay_hop(
-	struct scion_topology *topology, scion_interface_id ifid, struct scion_underlay *underlay)
+	struct scion_topology *topology, scion_ifid ifid, struct scion_underlay *underlay)
 {
 	assert(topology);
 	assert(topology->border_routers);

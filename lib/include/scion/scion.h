@@ -387,7 +387,7 @@ void scion_path_free(struct scion_path *path);
 /**
  * An interface identifier.
  */
-typedef uint64_t scion_interface_id;
+typedef uint64_t scion_ifid;
 
 /**
  * @struct scion_path_interface
@@ -398,7 +398,7 @@ struct scion_path_interface {
 	/**
 	 * The identifier of the interface.
 	 */
-	scion_interface_id id;
+	scion_ifid id;
 	/**
 	 * The AS identifier.
 	 */

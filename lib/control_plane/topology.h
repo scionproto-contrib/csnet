@@ -22,7 +22,7 @@
 #include "scion/scion.h"
 #include "util/list.h"
 
-#define SCION_INTERFACE_ANY ((scion_interface_id)0)
+#define SCION_INTERFACE_ANY ((scion_ifid)0)
 
 struct scion_topology {
 	scion_ia ia;
@@ -34,7 +34,7 @@ struct scion_topology {
 };
 
 struct scion_border_router {
-	scion_interface_id ifid;
+	scion_ifid ifid;
 	struct sockaddr_storage addr;
 	socklen_t addr_len;
 };
@@ -48,7 +48,7 @@ struct scion_border_router {
  * @return 0 on success, a negative error code on failure.
  */
 int scion_topology_next_underlay_hop(
-	struct scion_topology *topology, scion_interface_id ifid, struct scion_underlay *underlay);
+	struct scion_topology *topology, scion_ifid ifid, struct scion_underlay *underlay);
 
 /*
  * FUNCTION: scion_topology_is_local_as_core
