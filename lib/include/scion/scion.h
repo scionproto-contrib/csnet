@@ -689,7 +689,8 @@ void scion_path_collection_print(struct scion_path_collection *paths);
  * @param[out] paths The collection of paths found.
  * @return 0 on success, a negative error code on failure.
  */
-int scion_path_collection_fetch(struct scion_network *network, scion_ia dst, uint opt, struct scion_path_collection **paths);
+int scion_path_collection_fetch(
+	struct scion_network *network, scion_ia dst, uint opt, struct scion_path_collection **paths);
 
 /**
  * A function that implements the path selection policy by filtering and/or sorting the available paths contained
@@ -825,6 +826,10 @@ ssize_t scion_send(struct scion_socket *scion_sock, const void *buf, size_t size
 ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t size, int flags,
 	const struct sockaddr *dst_addr, socklen_t addrlen, scion_ia dst_ia, struct scion_path *path);
 
+// TODO document me
+ssize_t scion_sendmsg(
+	struct scion_socket *scion_sock, const struct msghdr *msg, int flags, scion_ia dst_ia, struct scion_path *path);
+
 /**
  * Receives a packet on the SCION socket.
  * @param[in,out] scion_sock The socket.
@@ -857,6 +862,10 @@ ssize_t scion_recv(struct scion_socket *scion_sock, void *buf, size_t size, int 
  */
 ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, int flags, struct sockaddr *src_addr,
 	socklen_t *addrlen, scion_ia *src_ia, struct scion_path **path);
+
+// TODO document me
+ssize_t scion_recvmsg(
+	struct scion_socket *scion_sock, struct msghdr *msg, int flags, scion_ia *src_ia, struct scion_path **path);
 
 /**
  * Closes a SCION socket.
