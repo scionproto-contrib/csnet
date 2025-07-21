@@ -27,6 +27,9 @@ target_link_libraries(scmp_error_example PRIVATE scion)
 add_executable(scmp_error_generator_example scmp_error_generator.c)
 target_link_libraries(scmp_error_generator_example PRIVATE scion)
 
+add_executable(messages messages.c)
+target_link_libraries(messages PRIVATE scion)
+
 # Fetch libev
 ExternalProject_Add(
         libev

@@ -216,7 +216,8 @@ static int fetch_paths(struct scion_socket *scion_sock, scion_ia dst_ia, struct 
 	assert(paths);
 	int ret;
 
-	ret = scion_path_collection_fetch(scion_sock->network, dst_ia, scion_sock->debug ? SCION_FETCH_OPT_DEBUG : 0, paths);
+	ret = scion_path_collection_fetch(
+		scion_sock->network, dst_ia, scion_sock->debug ? SCION_FETCH_OPT_DEBUG : 0, paths);
 	if (ret != 0) {
 		return ret;
 	}
@@ -351,8 +352,8 @@ int scion_connect(struct scion_socket *scion_sock, const struct sockaddr *addr, 
 	return 0;
 }
 
-static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *buf, size_t size, int flags,
-	const struct sockaddr *dst_addr, socklen_t dst_addr_len, struct scion_path *path)
+static ssize_t scion_sendmsg_path(
+	struct scion_socket *scion_sock, struct msghdr *msg, int flags, struct scion_path *path)
 {
 	assert(scion_sock->protocol == SCION_PROTO_UDP || scion_sock->protocol == SCION_PROTO_SCMP);
 	assert(path);
@@ -374,14 +375,15 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 	packet.path_type = (uint8_t)path->path_type;
 
 	// Destination
-	if (dst_addr->sa_family == AF_INET) {
+	struct sockaddr *dst_addr = msg->msg_name;
+	if (dst_addr->sa_family == AF_INET && msg->msg_namelen == sizeof(struct sockaddr_in)) {
 		// IPv4
 		packet.dst_addr_type = SCION_ADDR_TYPE_T4IP;
 		packet.raw_dst_addr_length = 4;
 		packet.raw_dst_addr = (uint8_t *)malloc(packet.raw_dst_addr_length);
 		struct sockaddr_in *dst_sockaddr = (struct sockaddr_in *)dst_addr;
 		(void)memcpy(packet.raw_dst_addr, &(dst_sockaddr->sin_addr.s_addr), packet.raw_dst_addr_length);
-	} else if (dst_addr->sa_family == AF_INET6) {
+	} else if (dst_addr->sa_family == AF_INET6 && msg->msg_namelen == sizeof(struct sockaddr_in6)) {
 		// IPv6
 		packet.dst_addr_type = SCION_ADDR_TYPE_T16IP;
 		packet.raw_dst_addr_length = 16;
@@ -424,18 +426,28 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 	}
 
 	// Create payload, depending on the protocol.
+	size_t data_len = 0;
+	for (size_t i = 0; i < (size_t)msg->msg_iovlen; i++) {
+		data_len += msg->msg_iov[i].iov_len;
+	}
+
 	if (scion_sock->protocol == SCION_PROTO_UDP) {
 		// Create UDP packet
 		struct scion_udp udp_packet = { 0 };
-		if (size > UINT16_MAX) {
+		if (data_len > UINT16_MAX) {
 			ret = SCION_ERR_MSG_TOO_LARGE;
 			goto cleanup_packet;
 		}
-		udp_packet.data_length = (uint16_t)size;
+		udp_packet.data_length = (uint16_t)data_len;
 
-		if (size > 0) {
-			udp_packet.data = (uint8_t *)malloc(size);
-			(void)memcpy(udp_packet.data, buf, size);
+		if (data_len > 0) {
+			udp_packet.data = (uint8_t *)malloc(data_len);
+
+			size_t offset = 0;
+			for (size_t i = 0; i < (size_t)msg->msg_iovlen; i++) {
+				(void)memcpy(udp_packet.data + offset, msg->msg_iov[i].iov_base, msg->msg_iov[i].iov_len);
+				offset += msg->msg_iov[i].iov_len;
+			}
 		} else {
 			udp_packet.data = NULL;
 		}
@@ -466,17 +478,21 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 		}
 
 		scion_udp_free_members(&udp_packet);
-
 	} else if (scion_sock->protocol == SCION_PROTO_SCMP) {
-		if (size > UINT16_MAX) {
+		if (data_len > UINT16_MAX) {
 			ret = SCION_ERR_MSG_TOO_LARGE;
 			goto cleanup_packet;
 		}
-		packet.payload_len = (uint16_t)size;
+		packet.payload_len = (uint16_t)data_len;
 
-		if (size > 0) {
+		if (data_len > 0) {
 			packet.payload = (uint8_t *)malloc(packet.payload_len);
-			(void)memcpy(packet.payload, buf, size);
+
+			size_t offset = 0;
+			for (size_t i = 0; i < (size_t)msg->msg_iovlen; i++) {
+				(void)memcpy(packet.payload + offset, msg->msg_iov[i].iov_base, msg->msg_iov[i].iov_len);
+				offset += msg->msg_iov[i].iov_len;
+			}
 		} else {
 			packet.payload = NULL;
 		}
@@ -501,7 +517,7 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 		next_hop_addr_length = path->underlay_next_hop.addrlen;
 	} else if (path->path_type == SCION_PATH_TYPE_EMPTY) {
 		next_hop_addr = dst_addr;
-		next_hop_addr_length = dst_addr_len;
+		next_hop_addr_length = msg->msg_namelen;
 	} else {
 		ret = SCION_ERR_PATH_TYPE_INVALID;
 		goto cleanup_packet_buf;
@@ -513,7 +529,23 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 	}
 
 	do {
-		ret = sendto(scion_sock->socket_fd, packet_buf, packet_length, flags, next_hop_addr, next_hop_addr_length);
+		struct iovec iov[1];
+		iov[0].iov_len = packet_length;
+		iov[0].iov_base = packet_buf;
+
+		struct msghdr underlying_msg = { 0 };
+		underlying_msg.msg_name = (void *)next_hop_addr;
+		underlying_msg.msg_namelen = next_hop_addr_length;
+
+		underlying_msg.msg_iovlen = 1;
+		underlying_msg.msg_iov = iov;
+
+		underlying_msg.msg_control = msg->msg_control;
+		underlying_msg.msg_controllen = msg->msg_controllen;
+
+		underlying_msg.msg_flags = msg->msg_flags;
+
+		ret = sendmsg(scion_sock->socket_fd, &underlying_msg, flags);
 	} while (ret == -1 && errno == EINTR);
 
 	if (ret < 0) {
@@ -547,7 +579,7 @@ static ssize_t scion_sendto_path(struct scion_socket *scion_sock, const void *bu
 			// Packet partially transmitted
 			ret = SCION_ERR_SEND_FAIL;
 		} else {
-			ret = (ssize_t)size;
+			ret = (ssize_t)data_len;
 		}
 	}
 
@@ -561,15 +593,14 @@ cleanup_packet:
 	return ret;
 }
 
-static ssize_t scion_sendto_connected_path(struct scion_socket *scion_sock, const void *buf, size_t size, int flags,
-	const struct sockaddr *dst_addr, socklen_t dst_addr_len)
+static ssize_t scion_sendmsg_connected_path(struct scion_socket *scion_sock, struct msghdr *msg, int flags)
 {
 	struct scion_path *path = scion_path_collection_first(scion_sock->paths);
 	if (path == NULL) {
 		return SCION_ERR_NO_PATHS;
 	}
 
-	ssize_t ret = scion_sendto_path(scion_sock, buf, size, flags, dst_addr, dst_addr_len, path);
+	ssize_t ret = scion_sendmsg_path(scion_sock, msg, flags, path);
 
 	if (ret == SCION_ERR_PATH_EXPIRED) {
 		ret = refresh_connected_paths(scion_sock);
@@ -582,7 +613,7 @@ static ssize_t scion_sendto_connected_path(struct scion_socket *scion_sock, cons
 			return SCION_ERR_NO_PATHS;
 		}
 
-		ret = scion_sendto_path(scion_sock, buf, size, flags, dst_addr, dst_addr_len, path);
+		ret = scion_sendmsg_path(scion_sock, msg, flags, path);
 	}
 
 	return ret;
@@ -604,6 +635,29 @@ ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t si
 {
 	assert(scion_sock);
 	assert(size == 0 || buf);
+
+	struct iovec iov = { 0 };
+	iov.iov_base = (void *)buf;
+	iov.iov_len = size;
+
+	struct msghdr msg = { .msg_name = (void *)dst_addr,
+		.msg_namelen = addrlen,
+		.msg_iov = &iov,
+		.msg_iovlen = 1,
+		.msg_control = NULL,
+		.msg_controllen = 0,
+		.msg_flags = 0 };
+
+	return scion_sendmsg(scion_sock, &msg, flags, dst_ia, path);
+}
+
+ssize_t scion_sendmsg(
+	struct scion_socket *scion_sock, const struct msghdr *msg, int flags, scion_ia dst_ia, struct scion_path *path)
+{
+	assert(msg);
+
+	struct msghdr underlying_msg = *msg;
+
 	ssize_t ret;
 
 	if (path == NULL && scion_sock->network == NULL) {
@@ -619,13 +673,13 @@ ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t si
 		return ret;
 	}
 
-	if (dst_addr == NULL) {
+	if (msg->msg_name == NULL) {
 		if (!scion_sock->is_connected) {
 			return SCION_ERR_NOT_CONNECTED;
 		}
 
-		dst_addr = (struct sockaddr *)&scion_sock->dst_addr;
-		addrlen = scion_sock->dst_addr_len;
+		underlying_msg.msg_name = (struct sockaddr *)&scion_sock->dst_addr;
+		underlying_msg.msg_namelen = scion_sock->dst_addr_len;
 		dst_ia = scion_sock->dst_ia;
 	}
 
@@ -643,7 +697,7 @@ ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t si
 	bool cleanup_path = false;
 	if (path == NULL) {
 		if (scion_sock->is_connected && scion_sock->dst_ia == dst_ia) {
-			return scion_sendto_connected_path(scion_sock, buf, size, flags, dst_addr, addrlen);
+			return scion_sendmsg_connected_path(scion_sock, &underlying_msg, flags);
 		}
 
 		struct scion_path_collection *paths;
@@ -662,7 +716,7 @@ ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t si
 		cleanup_path = true;
 	}
 
-	ret = scion_sendto_path(scion_sock, buf, size, flags, dst_addr, addrlen, path);
+	ret = scion_sendmsg_path(scion_sock, &underlying_msg, flags, path);
 
 	if (cleanup_path) {
 		scion_path_free(path);
@@ -679,28 +733,82 @@ ssize_t scion_recv(struct scion_socket *scion_sock, void *buf, size_t size, int 
 ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, int flags, struct sockaddr *src_addr,
 	socklen_t *addrlen, scion_ia *src_ia, struct scion_path **path)
 {
-	ssize_t ret;
-	uint16_t recv_len = 0;
-
 	assert(scion_sock);
 	assert(buf);
+
+	struct msghdr msg = { 0 };
+	msg.msg_name = src_addr;
+
+	if (src_addr != NULL) {
+		assert(addrlen);
+		msg.msg_namelen = *addrlen;
+	}
+
+	struct iovec iov = { 0 };
+	iov.iov_base = buf;
+	iov.iov_len = size;
+
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+
+	msg.msg_control = NULL;
+	msg.msg_controllen = 0;
+
+	msg.msg_flags = 0;
+
+	ssize_t ret = scion_recvmsg(scion_sock, &msg, flags, src_ia, path);
+
+	if (ret > 0) {
+		if (addrlen) {
+			*addrlen = msg.msg_namelen;
+		}
+	}
+
+	return ret;
+}
+
+ssize_t scion_recvmsg(
+	struct scion_socket *scion_sock, struct msghdr *msg, int flags, scion_ia *src_ia, struct scion_path **path)
+{
+	assert(scion_sock);
+	assert(msg);
+
+	ssize_t ret;
+	uint16_t recv_len = 0;
 
 	if ((flags & IMPLEMENTED_RECV_FLAGS) != flags) {
 		return SCION_ERR_FLAG_NOT_IMPLEMENTED;
 	}
 
+	size_t buf_len = 0;
+	for (size_t i = 0; i < (size_t)msg->msg_iovlen; i++) {
+		buf_len += msg->msg_iov[i].iov_len;
+	}
+
 	bool received_anticipated_packet = false;
 	while (!received_anticipated_packet) {
-		uint8_t packet_buf[size + SCION_MAX_HDR_LEN];
+		uint8_t packet_buf[buf_len + SCION_MAX_HDR_LEN];
 		struct sockaddr_storage sender_addr;
 		socklen_t sender_addr_len;
 
 		struct sockaddr_storage underlay_addr;
-		socklen_t underlay_addr_len = sizeof(underlay_addr);
+
+		struct msghdr raw_msg = { 0 };
+		raw_msg.msg_name = &underlay_addr;
+		raw_msg.msg_namelen = sizeof(underlay_addr);
+
+		struct iovec iov = { 0 };
+		iov.iov_base = packet_buf;
+		iov.iov_len = sizeof(packet_buf);
+
+		raw_msg.msg_iov = &iov;
+		raw_msg.msg_iovlen = 1;
+
+		raw_msg.msg_control = msg->msg_control;
+		raw_msg.msg_controllen = msg->msg_controllen;
 
 		do {
-			ret = recvfrom(scion_sock->socket_fd, packet_buf, sizeof(packet_buf), flags,
-				(struct sockaddr *)&underlay_addr, &underlay_addr_len);
+			ret = recvmsg(scion_sock->socket_fd, &raw_msg, flags);
 		} while (ret == -1 && errno == EINTR);
 
 		if (ret < 0) {
@@ -721,9 +829,10 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
 			// Ignore packet
 			continue;
 		}
-		packet.path->underlay_next_hop = (struct scion_underlay){
-			.addr = underlay_addr, .addrlen = underlay_addr_len, .addr_family = scion_sock->local_addr_family
-		};
+
+		packet.path->underlay_next_hop.addr_family = scion_sock->local_addr_family;
+		packet.path->underlay_next_hop.addrlen = raw_msg.msg_namelen;
+		(void)memcpy(&packet.path->underlay_next_hop.addr, raw_msg.msg_name, raw_msg.msg_namelen);
 
 		uint16_t src_port;
 
@@ -738,15 +847,43 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
 			}
 
 			src_port = udp.src_port;
-			recv_len = udp.data_length > size ? (uint16_t)size : udp.data_length;
-			(void)memcpy(buf, udp.data, recv_len);
+			recv_len = udp.data_length > buf_len ? (uint16_t)buf_len : udp.data_length;
+
+			size_t offset = 0;
+			for (size_t i = 0; i < (size_t)msg->msg_iovlen; i++) {
+				size_t remaining_len = recv_len - offset;
+
+				if (remaining_len == 0) {
+					break;
+				}
+
+				size_t curr_recv_len = msg->msg_iov[i].iov_len > remaining_len ? remaining_len :
+																				 msg->msg_iov[i].iov_len;
+				(void)memcpy(msg->msg_iov[i].iov_base, udp.data + offset, curr_recv_len);
+
+				offset += curr_recv_len;
+			}
 
 			scion_udp_free_members(&udp);
 		} else if (packet.next_hdr == 202) {
 			// SCMP message
 			src_port = 0; // No port on SCMP
-			recv_len = packet.payload_len > size ? (uint16_t)size : packet.payload_len;
-			(void)memcpy(buf, packet.payload, recv_len);
+			recv_len = packet.payload_len > buf_len ? (uint16_t)buf_len : packet.payload_len;
+
+			size_t offset = 0;
+			for (size_t i = 0; i < (size_t)msg->msg_iovlen; i++) {
+				size_t remaining_len = recv_len - offset;
+
+				if (remaining_len == 0) {
+					break;
+				}
+
+				size_t curr_recv_len = msg->msg_iov[i].iov_len > remaining_len ? remaining_len :
+																				 msg->msg_iov[i].iov_len;
+				(void)memcpy(msg->msg_iov[i].iov_base, packet.payload + offset, curr_recv_len);
+
+				offset += curr_recv_len;
+			}
 		} else {
 			// Ignore packet
 			goto cleanup_packet;
@@ -773,10 +910,10 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
 		}
 
 		// SCMP error received
-		if (packet.next_hdr == SCION_PROTO_SCMP && scion_scmp_is_error(buf, recv_len)) {
+		if (packet.next_hdr == SCION_PROTO_SCMP && scion_scmp_is_error(packet.payload, recv_len)) {
 			// Trigger SCMP error callback
 			if (scion_sock->scmp_error_cb != NULL) {
-				scion_sock->scmp_error_cb(buf, recv_len, scion_sock->scmp_error_ctx);
+				scion_sock->scmp_error_cb(packet.payload, recv_len, scion_sock->scmp_error_ctx);
 			}
 
 			// Ignore packet
@@ -819,16 +956,16 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
 			}
 		}
 
-		if (src_addr != NULL) {
-			assert(addrlen);
+		msg->msg_flags = raw_msg.msg_flags;
 
-			if (*addrlen < sender_addr_len) {
+		if (msg->msg_name != NULL) {
+			if (msg->msg_namelen < sender_addr_len) {
 				ret = SCION_ERR_ADDR_BUF_TOO_SMALL;
 				goto cleanup_packet;
 			}
 
-			*addrlen = sender_addr_len;
-			(void)memcpy(src_addr, &sender_addr, sender_addr_len);
+			msg->msg_namelen = sender_addr_len;
+			(void)memcpy(msg->msg_name, &sender_addr, sender_addr_len);
 		}
 
 		if (src_ia != NULL) {
