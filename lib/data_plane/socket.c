@@ -559,6 +559,8 @@ static ssize_t scion_sendmsg_path(
 			ret = SCION_ERR_MEM_ALLOC_FAIL;
 		} else if (errno == ENOBUFS) {
 			ret = SCION_ERR_OUTPUT_QUEUE_FULL;
+		} else if (errno == EMSGSIZE) {
+			ret = SCION_ERR_MSG_TOO_LARGE;
 		} else {
 			(void)fprintf(stderr, "ERROR: encountered an unexpected error when sending packets (%s, code %d)\n",
 				strerror(errno), errno);
