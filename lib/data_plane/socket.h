@@ -57,10 +57,16 @@ ssize_t scion_send(struct scion_socket *scion_sock, const void *buf, size_t size
 ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t size, int flags,
 	const struct sockaddr *dst_addr, socklen_t addrlen, scion_ia dst_ia, struct scion_path *path);
 
+ssize_t scion_sendmsg(
+	struct scion_socket *scion_sock, const struct msghdr *msg, int flags, scion_ia dst_ia, struct scion_path *path);
+
 ssize_t scion_recv(struct scion_socket *scion_sock, void *buf, size_t size, int flags);
 
 ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, int flags, struct sockaddr *src_addr,
 	socklen_t *addrlen, scion_ia *src_ia, struct scion_path **path);
+
+ssize_t scion_recvmsg(
+	struct scion_socket *scion_sock, struct msghdr *msg, int flags, scion_ia *src_ia, struct scion_path **path);
 
 int scion_close(struct scion_socket *scion_sock);
 

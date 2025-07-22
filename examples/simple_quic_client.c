@@ -347,16 +347,24 @@ static int client_read(struct client *c)
 {
 	uint8_t buf[65536];
 	struct sockaddr_storage addr;
-	socklen_t addrlen = sizeof(addr);
-
+	struct iovec iov = {
+		.iov_base = buf,
+		.iov_len = sizeof(buf),
+	};
+	struct msghdr msg = { 0 };
 	ssize_t nread;
 	ngtcp2_path path;
 	ngtcp2_pkt_info pi = { 0 };
 	int rv;
 
+	msg.msg_name = &addr;
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+
 	for (;;) {
-		nread = scion_recvfrom(
-			c->socket, buf, sizeof(buf), MSG_DONTWAIT, (struct sockaddr *)&addr, &addrlen, NULL, NULL);
+		msg.msg_namelen = sizeof(addr);
+
+		nread = scion_recvmsg(c->socket, &msg, MSG_DONTWAIT, NULL, NULL);
 
 		if (nread < 0) {
 			if (nread != SCION_ERR_WOULD_BLOCK) {
@@ -368,9 +376,8 @@ static int client_read(struct client *c)
 
 		path.local.addrlen = c->local_addrlen;
 		path.local.addr = (struct sockaddr *)&c->local_addr;
-
-		path.remote.addrlen = addrlen;
-		path.remote.addr = (struct sockaddr *)&addr;
+		path.remote.addrlen = msg.msg_namelen;
+		path.remote.addr = msg.msg_name;
 
 		rv = ngtcp2_conn_read_pkt(c->conn, &path, &pi, buf, (size_t)nread, timestamp());
 		if (rv != 0) {
@@ -391,10 +398,20 @@ static int client_read(struct client *c)
 
 static int client_send_packet(struct client *c, const uint8_t *data, size_t datalen)
 {
-	int nwrite = scion_send(c->socket, data, datalen, 0);
+	struct iovec iov = {
+		.iov_base = (uint8_t *)data,
+		.iov_len = datalen,
+	};
+	struct msghdr msg = { 0 };
+	ssize_t nwrite;
+
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+
+	nwrite = scion_sendmsg(c->socket, &msg, 0, 0, NULL);
 
 	if (nwrite < 0) {
-		printf("ERROR: could not send message (code: %d)\n", nwrite);
+		printf("ERROR: could not send message (code: %zu)\n", nwrite);
 
 		return nwrite;
 	}
@@ -661,6 +678,8 @@ static void client_free(struct client *c)
 	SSL_free(c->ssl);
 	SSL_CTX_free(c->ssl_ctx);
 	scion_close(c->socket);
+	scion_network_free(c->network);
+	scion_topology_free(c->topology);
 }
 
 int main(void)
