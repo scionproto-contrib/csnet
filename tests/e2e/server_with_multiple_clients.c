@@ -53,7 +53,9 @@ void *server_fn(void *arg)
 
 	struct scion_socket *scion_sock;
 
-	assert(scion_socket(&scion_sock, scion_network_get_local_addr_family(network), SCION_PROTO_UDP, network) == 0);
+	assert(scion_socket(
+			   &scion_sock, scion_network_get_local_addr_family(network), SCION_SOCK_DGRAM, SCION_PROTO_UDP, network)
+		   == 0);
 	pthread_cleanup_push((void (*)(void *))scion_close, scion_sock);
 	assert(scion_bind(scion_sock, host->server_addr, host->server_addr_len) == 0);
 
@@ -108,7 +110,9 @@ void *client_fn(void *arg)
 
 	struct scion_socket *scion_sock;
 
-	assert(scion_socket(&scion_sock, scion_network_get_local_addr_family(network), SCION_PROTO_UDP, network) == 0);
+	assert(scion_socket(
+			   &scion_sock, scion_network_get_local_addr_family(network), SCION_SOCK_DGRAM, SCION_PROTO_UDP, network)
+		   == 0);
 	pthread_cleanup_push((void (*)(void *))scion_close, scion_sock);
 
 	int ret = scion_connect(scion_sock, client->server_addr, client->server_addr_len, client->server_ia);

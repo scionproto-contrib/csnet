@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
 	scion_ia dst_ia = scion_topology_get_local_ia(topology);
 
 	struct scion_socket *scion_sock;
-	ret = scion_socket(&scion_sock, SCION_AF_INET, SCION_PROTO_UDP, network);
+	ret = scion_socket(&scion_sock, SCION_AF_INET, SCION_SOCK_DGRAM, SCION_PROTO_UDP, network);
 	if (ret != 0) {
 		printf("ERROR: Socket setup failed with error code: %d\n", ret);
 		ret = EXIT_FAILURE;
