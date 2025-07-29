@@ -187,6 +187,16 @@ enum scion_error {
 	 * The bootstrapping process failed. Make sure the network is configured correctly.
 	 */
 	SCION_ERR_BOOTSTRAPPING_FAIL = -32,
+	/**
+	 * The socket type is not supported.
+	 *
+	 * @see @link scion_sock_type @endlink
+	 */
+	SCION_ERR_SOCK_TYPE_UNKNOWN = -33,
+	/**
+	 * The protocol is not compatible with the socket type.
+	 */
+	SCION_ERR_PROTO_INCOMPATIBLE = -34,
 	// Internal errors
 	SCION_ERR_NOT_ENOUGH_DATA = -201,
 	SCION_ERR_PACKET_FIELD_INVALID = -202,
@@ -215,6 +225,23 @@ enum scion_addr_family {
 	 * IPv6 addresses.
 	 */
 	SCION_AF_INET6 = AF_INET6
+};
+
+/**
+ * The socket types that are supported.
+ *
+ * May be combined with @link scion_sock_flag @endlink
+ */
+enum scion_sock_type {
+	/**
+	 * Datagram socket type.
+	 *
+	 */
+	SCION_SOCK_DGRAM = SOCK_DGRAM,
+	/**
+	 * Raw socket type.
+	 */
+	SCION_SOCK_RAW = SOCK_RAW,
 };
 
 /**
@@ -766,13 +793,15 @@ typedef void scion_socket_scmp_error_cb(uint8_t *buf, size_t size, void *ctx);
  * Initializes a SCION socket.
  * @param[out] scion_sock The resulting SCION socket.
  * @param[in] addr_family The address family to use.
+ * @param[in] type The @link scion_sock_type @endlink of the socket. Can be bitwise ORed with SCION_NONBLOCK to make
+ * socket non-blocking.
  * @param[in] protocol The protocol to use.
  * @param[in] network The network to use. If NULL, the socket is in networkless mode. Networkless sockets cannot be
  * connected, must always be bound manually before sending and always need an explicit path when sending.
  * @return 0 on success, a negative error code on failure.
  */
-int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_family, enum scion_proto protocol,
-	struct scion_network *network);
+int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_family, int type,
+	enum scion_proto protocol, struct scion_network *network);
 
 /**
  * Binds a SCION socket to an address.
@@ -826,7 +855,17 @@ ssize_t scion_send(struct scion_socket *scion_sock, const void *buf, size_t size
 ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t size, int flags,
 	const struct sockaddr *dst_addr, socklen_t addrlen, scion_ia dst_ia, struct scion_path *path);
 
-// TODO document me
+/**
+ * Sends a message to a destination.
+ * @param[in,out] scion_sock The socket.
+ * @param[in] msg The message to send.
+ * @param[in] flags The send flags to use. Must be 0 if no flags should be used.
+ * @param[in] dst_ia The destination IA. If it is 0, the connected destination IA is used.
+ * @param[in] path The path to use. If NULL, a suitable path is automatically used.
+ * @return The amount of data sent on success, a negative error code on failure.
+ *
+ * @note The currently supported send flags are MSG_CONFIRM, MSG_DONTWAIT and MSG_MORE.
+ */
 ssize_t scion_sendmsg(
 	struct scion_socket *scion_sock, const struct msghdr *msg, int flags, scion_ia dst_ia, struct scion_path *path);
 
@@ -847,7 +886,7 @@ ssize_t scion_recv(struct scion_socket *scion_sock, void *buf, size_t size, int 
 /**
  * Receives a packet on the SCION socket.
  * @param[in,out] scion_sock The socket.
- * @param[in] buf The buffer to store the received packet.
+ * @param[out] buf The buffer to store the received packet.
  * @param[in] size Must contain the size of the provided data buffer when calling. Contains the size of the data
  * received on return.
  * @param[in] flags The receive flags to use. Must be 0 if no flags should be used.
@@ -863,7 +902,17 @@ ssize_t scion_recv(struct scion_socket *scion_sock, void *buf, size_t size, int 
 ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, int flags, struct sockaddr *src_addr,
 	socklen_t *addrlen, scion_ia *src_ia, struct scion_path **path);
 
-// TODO document me
+/**
+ * Receives a message on the SCION socket.
+ * @param[in,out] scion_sock The socket.
+ * @param[in,out] msg The received message.
+ * @param[in] flags The receive flags to use. Must be 0 if no flags should be used.
+ * @param[out] src_ia The sender IA. If NULL, the IA is not returned.
+ * @param[out] path The path the packet took. If NULL, the path is not returned.
+ * @return The amount of data received on success, a negative error code on failure.
+ *
+ * @note The currently supported receive flags are MSG_DONTWAIT and MSG_PEEK.
+ */
 ssize_t scion_recvmsg(
 	struct scion_socket *scion_sock, struct msghdr *msg, int flags, scion_ia *src_ia, struct scion_path **path);
 

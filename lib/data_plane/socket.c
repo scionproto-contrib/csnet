@@ -49,6 +49,8 @@
 #define IMPLEMENTED_RECV_FLAGS (MSG_DONTWAIT | MSG_PEEK)
 #define PATH_EXPIRATION_THRESHOLD_IN_SECONDS 60
 
+#define SOCK_TYPE_MASK 0xF
+
 static bool sockaddr_eq(enum scion_proto protocol, struct sockaddr *this_addr, struct sockaddr *that_addr)
 {
 	bool ignore_port = protocol == SCION_PROTO_SCMP;
@@ -225,8 +227,8 @@ static int fetch_paths(struct scion_socket *scion_sock, scion_ia dst_ia, struct 
 	return ret;
 }
 
-int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_family, enum scion_proto protocol,
-	struct scion_network *network)
+int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_family, int type,
+	enum scion_proto protocol, struct scion_network *network)
 {
 	assert(scion_sock);
 	int ret;
@@ -250,13 +252,33 @@ int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_f
 	}
 	scion_sock_storage->local_addr_family = addr_family;
 
+	// Get rid of the flags
+	int socket_type = type & SOCK_TYPE_MASK;
+
+	if (socket_type == SCION_SOCK_DGRAM) {
+		// DGRAM sockets must have protocol UDP
+		if (protocol != SCION_PROTO_UDP) {
+			ret = SCION_ERR_PROTO_INCOMPATIBLE;
+			goto cleanup_socket_storage;
+		}
+	} else if (socket_type == SCION_SOCK_RAW) {
+		// Any protocol is allowed
+	} else {
+		ret = SCION_ERR_SOCK_TYPE_UNKNOWN;
+		goto cleanup_socket_storage;
+	}
+
+	scion_sock_storage->type = type;
+	// Add original flags to datagram socket
+	int underlying_socket_type = SOCK_DGRAM | (type & ~SOCK_TYPE_MASK);
+
 	if (protocol != SCION_PROTO_UDP && protocol != SCION_PROTO_SCMP) {
 		ret = SCION_ERR_PROTO_UNKNOWN;
 		goto cleanup_socket_storage;
 	}
 	scion_sock_storage->protocol = protocol;
 
-	scion_sock_storage->socket_fd = socket((int)addr_family, SOCK_DGRAM, 0);
+	scion_sock_storage->socket_fd = socket((int)addr_family, underlying_socket_type, 0);
 
 	if (scion_sock_storage->socket_fd == -1) {
 		(void)fprintf(stderr, "ERROR: encountered an unexpected error when creating the socket (%s, code %d)\n",

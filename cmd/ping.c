@@ -400,7 +400,7 @@ int main(int argc, char **argv)
 	assert(local_addr_family == SCION_AF_INET || local_addr_family == SCION_AF_INET6);
 
 	struct scion_socket *socket;
-	ret = scion_socket(&socket, local_addr_family, SCION_PROTO_SCMP, network);
+	ret = scion_socket(&socket, local_addr_family, SCION_SOCK_RAW, SCION_PROTO_SCMP, network);
 	if (ret != 0) {
 		fprintf(stderr, "Error: could not create socket (%s, code %d)\n", scion_strerror(ret), ret);
 		ret = 2;

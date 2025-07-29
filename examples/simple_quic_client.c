@@ -108,7 +108,7 @@ static int create_sock(struct sockaddr *addr, socklen_t *paddrlen, struct scion_
 		*paddrlen = sizeof(struct sockaddr_in6);
 	}
 
-	return scion_socket(socket, SCION_AF_INET, SCION_PROTO_UDP, network);
+	return scion_socket(socket, SCION_AF_INET, SCION_SOCK_DGRAM, SCION_PROTO_UDP, network);
 }
 
 static int connect_sock(struct sockaddr *local_addr, socklen_t *plocal_addrlen, struct scion_socket *socket,

@@ -28,6 +28,7 @@ typedef void scion_socket_scmp_error_cb(uint8_t *buf, size_t size, void *ctx);
 struct scion_socket {
 	int socket_fd;
 	enum scion_addr_family local_addr_family;
+	int type;
 	enum scion_proto protocol;
 	struct scion_network *network;
 	struct sockaddr_storage src_addr;
@@ -45,8 +46,8 @@ struct scion_socket {
 	bool debug;
 };
 
-int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_family, enum scion_proto protocol,
-	struct scion_network *network);
+int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_family, int type,
+	enum scion_proto protocol, struct scion_network *network);
 
 int scion_bind(struct scion_socket *scion_sock, const struct sockaddr *addr, socklen_t addrlen);
 
