@@ -44,7 +44,7 @@ if (BUILD_TESTING)
 endif ()
 
 if (BUILD_DOCS)
-    # CSNET public docs
+    # csnet public docs
     include(FindDoxygen)
 
     find_package(Doxygen REQUIRED doxygen)

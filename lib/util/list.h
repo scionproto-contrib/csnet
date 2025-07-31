@@ -15,7 +15,7 @@
 /**
  * @file list.h
  *
- * The list util of CSNET.
+ * The list util of csnet.
  */
 
 #pragma once

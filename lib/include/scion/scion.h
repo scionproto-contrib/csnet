@@ -15,7 +15,7 @@
 /**
  * @file scion.h
  *
- * The CSNET library.
+ * The csnet library.
  */
 
 #pragma once
@@ -39,7 +39,7 @@ extern "C" {
 #define SCION_IA_STRLEN 21
 
 /**
- * Possible error codes returned by the CSNET library.
+ * Possible error codes returned by the csnet library.
  *
  * Errors codes smaller than -200 are internal error codes.
  */

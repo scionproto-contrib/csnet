@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide will help you get started using the CSNET library in your C application. You can either follow this
+This guide will help you get started using the csnet library in your C application. You can either follow this
 step-by-step walkthrough or refer to the example programs in the `./examples` directory. The complete API documentation
 is available [here](https://scionproto-contrib.github.io/csnet/scion_8h.html).
 
@@ -8,12 +8,12 @@ In this guide, we will show how to connect to the **locally running** test netwo
 should have already set up. In case you want to connect to a different SCION network, you have to provide your own
 `topology.json` in the instructions below.
 
-> **Note**: Ensure that you have built and installed the CSNET library and that a **local** SCION network is running, as
+> **Note**: Ensure that you have built and installed the csnet library and that a **local** SCION network is running, as
 > described in the [main README](../README.md#building-and-installation).
 
 ### Including the Header
 
-To use CSNET in your C application, include the following public header:
+To use csnet in your C application, include the following public header:
 
 ```C
 #include <scion/scion.h>
@@ -50,7 +50,7 @@ This network object will be used to create new SCION sockets that are able to co
 
 ### Creating a Socket
 
-The CSNET library currently supports UDP and SCMP (SCION’s equivalent of ICMP) sockets. Similarly to BSD sockets, a
+The csnet library currently supports UDP and SCMP (SCION’s equivalent of ICMP) sockets. Similarly to BSD sockets, a
 SCION socket can be created as follows:
 
 ```C
@@ -98,5 +98,5 @@ When linking your application, link against the following libraries:
 - `libprotobuf-c.a`
 - `libscion.a`
 
-These libraries are produced during the CSNET installation process.
+These libraries are produced during the csnet installation process.
 
