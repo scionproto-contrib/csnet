@@ -323,14 +323,14 @@ void scion_topology_free(struct scion_topology *topo);
 
 /**
  * Tries to automatically bootstrap the topology and store it.
- * @param[in] topology_output_path The path used to store the topology file.
+ * @param[in] topology_path The path used to store the topology file.
  * @return 0 on success, a negative error code on failure.
  *
  * @note Currently, only the DNS bootstrapping method is supported.
  *
  * @see [End Host Bootstrapping - DNS](https://docs.scion.org/en/latest/dev/design/endhost-bootstrap.html#dns)
  */
-int scion_bootstrap(const char *topology_output_path);
+int scion_bootstrap(const char *topology_path);
 
 /**
  * @struct scion_network
