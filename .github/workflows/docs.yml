@@ -1,10 +1,13 @@
 name: Public API Docs
 on:
   # Runs on pushes targeting the default branch
+  # Only runs when new tag is created (release)
   push:
     branches: [ "main" ]
+    tags:
+      - '*'
 
-  # Allows you to run this workflow manually from the Actions tab
+      # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
