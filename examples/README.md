@@ -21,4 +21,11 @@ The following examples are available:
 
 - `scmp_error.c`: Shows how to catch SCMP errors when sending packets. Requires a running `scmp_error_generator.c`.
 
+- `policy.c`: Shows how to use a custom path policy. Requires a running `scripts/run-testserver.sh`.
+
+- `bootstrapper.c`: Shows how to use the bootstrapper. Requires you to be in a network where DNS-bootstrapping is
+  configured, e.g. in the ETHZ network (via VPN for example).
+
+- `messages.c`: Shows how to use send and receive messages. Requires a running `scripts/run-testserver.sh`.
+
 - `features.c`: Showcases some additional features of the library. Requires a running `scripts/run-testserver.sh`.
