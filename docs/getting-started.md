@@ -6,7 +6,7 @@ is available [here](https://scionproto-contrib.github.io/csnet/scion_8h.html).
 
 In this guide, we will show how to connect to the **locally running** test network in `./network/scion-testnet` that you
 should have already set up. In case you want to connect to a different SCION network, you have to provide your own
-`topology.json` in the instructions below.
+`topology.json`.
 
 > **Note**: Ensure that you have built and installed the csnet library and that a **local** SCION network is running, as
 > described in the [main README](../README.md#building-and-installation).
@@ -55,11 +55,11 @@ SCION socket can be created as follows:
 
 ```C
 struct scion_socket *scion_sock;
-ret = scion_socket(&scion_sock, SCION_AF_IPV4, SCION_PROTO_UDP, network);
+ret = scion_socket(&scion_sock, SCION_AF_INET, SCION_SOCK_DGRAM, SCION_PROTO_UDP, network);
 ```
 
-The socket is created by providing the local address family (in this case `SCION_AF_IPV4`), the socket protocol (in this
-cas `SCION_PROTO_UDP`) and the local network.
+The socket is created by providing the local address family (in this case `SCION_AF_INET`), the socket type (in this
+case `SCION_SOCK_DGRAM`), the socket protocol (in this case `SCION_PROTO_UDP`) and the local network.
 
 #### Socket Operations
 
@@ -69,7 +69,9 @@ Similarly to BSD sockets, SCION sockets can:
 - `scion_connect()` — connect the socket to a remote address
 - `scion_send()`, `scion_recv()` — send/receive data over a connected socket
 - `scion_sendto()` — send data to a specific destination and path
-- `scion_recvfrom()` — receive data along with additional information such as sender and incoming path
+- `scion_recvfrom()` — receive data along with additional information such as the sender address and the incoming path
+- `scion_sendmsg()` — send a message to a specific destination and path
+- `scion_recvmsg()` — receive a message along with the incoming path
 
 #### Key Differences from BSD Sockets
 
@@ -80,7 +82,8 @@ Some of the key differences between SCION sockets and BSD sockets are:
   is a combination of the ISD identifier and the AS number (e.g. `2-ff00:0:222`). The IA can be found in the
   `isd_as` field of the `topology.json` of an AS.
 - When sending data to a destination host, the path the packet should take through the SCION network can be
-  explicitly defined. Available paths to a specific destination AS can be retrieved with `scion_path_collection_fetch()`.
+  explicitly defined. Available paths to a specific destination AS can be retrieved with
+  `scion_path_collection_fetch()`.
 
 ### Freeing resources
 
@@ -93,10 +96,11 @@ Be sure to free all dynamically allocated resources when they are no longer need
 
 When linking your application, link against the following libraries:
 
+- `libscion.a`
 - `libnghttp2.a`
 - `libz.a`
 - `libprotobuf-c.a`
-- `libscion.a`
+- `libcurl.a`
 
 These libraries are produced during the csnet installation process.
 
