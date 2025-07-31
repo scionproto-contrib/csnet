@@ -643,7 +643,6 @@ static ssize_t scion_sendmsg_connected_path(struct scion_socket *scion_sock, str
 	return ret;
 }
 
-// TODO: Check Ipv4 Encapsulated in IPv6
 ssize_t scion_send(struct scion_socket *scion_sock, const void *buf, size_t size, int flags)
 {
 	if (scion_sock->network == NULL) {
@@ -653,7 +652,6 @@ ssize_t scion_send(struct scion_socket *scion_sock, const void *buf, size_t size
 	return scion_sendto(scion_sock, buf, size, flags, NULL, 0, 0, NULL);
 }
 
-// TODO: Check Ipv4 Encapsulated in IPv6
 ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t size, int flags,
 	const struct sockaddr *dst_addr, socklen_t addrlen, scion_ia dst_ia, struct scion_path *path)
 {

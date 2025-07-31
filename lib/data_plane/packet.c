@@ -252,7 +252,6 @@ int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_pa
 	packet->path->dst = packet->dst_ia;
 	packet->path->src = packet->src_ia;
 	packet->path->path_type = packet->path_type;
-	// TODO: metadata calculation
 	packet->path->metadata = NULL;
 	// TODO: correct weight calculation?
 	packet->path->weight = 0;

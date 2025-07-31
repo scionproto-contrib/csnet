@@ -1,6 +1,8 @@
 /.vscode
 /.idea
 /cmake-build-*
+/build
+/build-*
 /dist
 /docs/api
 /network

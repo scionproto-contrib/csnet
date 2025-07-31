@@ -171,7 +171,6 @@ int scion_path_reverse(struct scion_path *path)
 			return ret;
 		}
 
-		// TODO: implement reversing metadata
 		scion_path_metadata_free(path->metadata);
 		path->metadata = NULL;
 		return 0;

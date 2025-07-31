@@ -1,7 +1,7 @@
 set(DEPENDENCY_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/dependencies)
 
-add_executable(bootstrapper bootstrapper.c)
-target_link_libraries(bootstrapper PRIVATE scion)
+add_executable(bootstrapper_example bootstrapper.c)
+target_link_libraries(bootstrapper_example PRIVATE scion)
 
 add_executable(paths_example paths.c)
 target_link_libraries(paths_example PRIVATE scion)
@@ -27,8 +27,8 @@ target_link_libraries(scmp_error_example PRIVATE scion)
 add_executable(scmp_error_generator_example scmp_error_generator.c)
 target_link_libraries(scmp_error_generator_example PRIVATE scion)
 
-add_executable(messages messages.c)
-target_link_libraries(messages PRIVATE scion)
+add_executable(messages_example messages.c)
+target_link_libraries(messages_example PRIVATE scion)
 
 # Fetch libev
 ExternalProject_Add(
