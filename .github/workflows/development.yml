@@ -20,6 +20,9 @@ jobs:
           - os: macOS-latest
             build_type: Debug
             c_compiler: clang
+          - os: ubuntu-latest
+            build_type: Release
+            c_compiler: gcc
 
     runs-on: ${{ matrix.os }}
 
