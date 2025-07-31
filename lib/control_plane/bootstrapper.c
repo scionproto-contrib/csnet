@@ -667,7 +667,7 @@ cleanup_resolver:
 	return ret;
 }
 
-int scion_bootstrap(const char *topology_output_path)
+int scion_bootstrap(const char *topology_path)
 {
 	char *topology_buffer = NULL;
 	size_t topology_buffer_len = 0;
@@ -678,7 +678,7 @@ int scion_bootstrap(const char *topology_output_path)
 		goto cleanup_topology_buffer;
 	}
 
-	FILE *topology_output_stream = fopen(topology_output_path, "w");
+	FILE *topology_output_stream = fopen(topology_path, "w");
 	if (topology_output_stream == NULL) {
 		ret = SCION_ERR_FILE_NOT_FOUND;
 		goto cleanup_topology_buffer;

@@ -14,4 +14,4 @@
 
 #pragma once
 
-int scion_bootstrap(const char *topology_output_path);
+int scion_bootstrap(const char *topology_path);
