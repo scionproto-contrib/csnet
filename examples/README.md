@@ -1,6 +1,6 @@
 ## Examples
 
-This directory contains examples for using the CSNET library on UNIX-like systems. As mentioned in
+This directory contains examples for using the csnet library on UNIX-like systems. As mentioned in
 the [main README](../README.md#requirements), running the examples **requires a running SCION network**. Some examples
 have additional requirements documented below.
 

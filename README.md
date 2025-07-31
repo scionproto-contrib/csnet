@@ -1,9 +1,9 @@
-# CSNET
+# csnet
 
-CSNET is a C application programming library for communicating over a SCION network. More information about SCION can be
-found [here](https://docs.scion.org/en/latest/overview.html). CSNET exposes
+csnet is a C application programming library for communicating over a SCION network. More information about SCION can be
+found [here](https://docs.scion.org/en/latest/overview.html). csnet exposes
 a [BSD-socket-like](https://en.wikipedia.org/wiki/Berkeley_sockets) API to send and receive
-SCION packets. CSNET provides similar functionalities
+SCION packets. csnet provides similar functionalities
 to [snet (Go)](https://pkg.go.dev/github.com/scionproto/scion/pkg/snet), [PAN (Go)](https://pkg.go.dev/github.com/netsec-ethz/scion-apps/pkg/pan), [JPAN (Java)](https://github.com/scionproto-contrib/jpan)
 and
 [scion-rs (Rust)](https://github.com/MystenLabs/scion-rs).
@@ -16,7 +16,7 @@ and
 - Explicit SCION path selection
 - SCION ping tool
 
-To get started with CSNET follow the building and installation instructions below and afterward continue with
+To get started with csnet follow the building and installation instructions below and afterward continue with
 the [Getting Started Guide](./docs/getting-started.md).
 
 ## Requirements

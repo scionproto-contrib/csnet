@@ -7,7 +7,7 @@ achieve this is to explicitly bind a socket to an address other than the wildcar
 In cases where a socket is implicitly or explicitly bound to the wildcard address the library tries automatically
 determine the
 source address with different methods. This automatic source address determination makes the following assumption:
-> in the network (AS) all communication partners (hosts and border routers) can reach the host running CSNET with **one
+> in the network (AS) all communication partners (hosts and border routers) can reach the host running csnet with **one
 > and the same** address
 
 The source address of a socket is determined as follows:
