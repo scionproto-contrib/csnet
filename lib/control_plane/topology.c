@@ -51,10 +51,15 @@ static void *scion_memrchr(const void *s, int c, size_t n)
 #define scion_memrchr memrchr
 #endif
 
+#define MAXTOK 1024
+
 void scion_free_border_router(struct scion_border_router *br)
 {
 	if (br == NULL) {
 		return;
+	}
+	if (br->ifids != NULL) {
+		free(br->ifids);
 	}
 	free(br);
 }
@@ -71,19 +76,91 @@ void scion_topology_free(struct scion_topology *topo)
 	free(topo);
 }
 
-// Taken from:
-// https://github.com/zserge/jsmn/blob/25647e692c7906b96ffd2b05ca54c097948e879c/example/simple.c#L15
-// minimally adapted.
-static bool jsoneq(const char *json, jsmntok_t *tok, const char *s)
-{
-	assert(tok->end - tok->start > 0);
-	uint len = (uint)(tok->end - tok->start);
+/* ---------- helpers ---------- */
 
-	if (tok->type == JSMN_STRING && strlen(s) == len && strncmp(json + tok->start, s, len) == 0) {
-		return true;
-	}
-	return false;
+static int json_eq(const char *json, const jsmntok_t *tok, const char *s)
+{
+	size_t len = strlen(s);
+
+	return tok->type == JSMN_STRING && (size_t)(tok->end - tok->start) == len
+		   && strncmp(json + tok->start, s, len) == 0;
 }
+
+/* skip token including children */
+static int tok_skip(jsmntok_t *tok, int i)
+{
+	int j = i + 1;
+
+	if (tok[i].type == JSMN_OBJECT) {
+		for (int n = 0; n < tok[i].size * 2; n++)
+			j = tok_skip(tok, j);
+	} else if (tok[i].type == JSMN_ARRAY) {
+		for (int n = 0; n < tok[i].size; n++)
+			j = tok_skip(tok, j);
+	}
+
+	return j;
+}
+
+/* find value token for key inside object */
+static int object_find(const char *json, jsmntok_t *tok, int obj, const char *key)
+{
+	if (tok[obj].type != JSMN_OBJECT)
+		return -1;
+
+	int i = obj + 1;
+
+	for (int n = 0; n < tok[obj].size; n++) {
+		int k = i;
+		int v = i + 1;
+
+		if (json_eq(json, &tok[k], key))
+			return v;
+
+		i = tok_skip(tok, v);
+	}
+
+	return -1;
+}
+
+/* copy token into buffer */
+static void tok_str(const char *json, jsmntok_t *tok, int idx, char *dst, size_t cap)
+{
+	if (idx < 0) {
+		dst[0] = 0;
+		return;
+	}
+
+	int len = tok[idx].end - tok[idx].start;
+
+	if ((size_t)len >= cap)
+		len = (int)cap - 1;
+
+	memcpy(dst, json + tok[idx].start, (size_t)len);
+	dst[len] = 0;
+}
+
+static int array_contains(const char *json, jsmntok_t *tok, int arr_idx, const char *wanted)
+{
+	if (arr_idx < 0)
+		return 0;
+
+	if (tok[arr_idx].type != JSMN_ARRAY)
+		return 0;
+
+	int i = arr_idx + 1;
+
+	for (int n = 0; n < tok[arr_idx].size; n++) {
+		if (json_eq(json, &tok[i], wanted))
+			return 1;
+
+		i = tok_skip(tok, i);
+	}
+
+	return 0;
+}
+
+/* ---------- parsing ---------- */
 
 static int parse_address(char *buff, size_t buff_len, struct sockaddr_storage *addr, socklen_t *addr_len)
 {
@@ -146,6 +223,134 @@ static int parse_address(char *buff, size_t buff_len, struct sockaddr_storage *a
 	return 0;
 }
 
+static int parse_interfaces(const char *json, jsmntok_t *tok, int interfaces_idx, struct scion_border_router *br)
+{
+	if (interfaces_idx < 0)
+		return SCION_ERR_TOPOLOGY_INVALID;
+
+	int i = interfaces_idx + 1;
+	br->ifids = malloc((long unsigned int)tok[interfaces_idx].size * sizeof(scion_ifid));
+	br->ifid_len = (size_t)tok[interfaces_idx].size;
+	for (int n = 0; n < tok[interfaces_idx].size; n++) {
+		char ifid[32];
+		tok_str(json, tok, i, ifid, sizeof(ifid));
+
+		int ifobj = i + 1;
+
+		// extract and add interface number of current border router
+		br->ifids[n] = strtoul(ifid, NULL, 10);
+
+		i = tok_skip(tok, ifobj);
+	}
+	return EXIT_SUCCESS;
+}
+
+static int parse_control_service(const char *json, jsmntok_t *tok, int cs_idx, struct scion_topology *topo)
+{
+	if (cs_idx < 0)
+		return SCION_ERR_TOPOLOGY_INVALID;
+
+	if (tok[cs_idx].type != JSMN_OBJECT)
+		return SCION_ERR_TOPOLOGY_INVALID;
+
+	int i = cs_idx + 1;
+	for (int n = 0; n < tok[cs_idx].size; n++) {
+		// control service instance name
+		char name[64];
+		tok_str(json, tok, i, name, sizeof(name));
+
+		int obj = i + 1;
+
+		// extract and parse control service address
+		char addr[64];
+		tok_str(json, tok, object_find(json, tok, obj, "addr"), addr, sizeof(addr));
+		size_t addrStrLen = strnlen(addr, 64);
+		parse_address(addr, addrStrLen, &topo->cs_addr, &topo->cs_addr_len);
+
+		i = tok_skip(tok, obj);
+		// JSON structure would allow multiple control services, but currently only 1 is supported.
+		return EXIT_SUCCESS;
+	}
+	return SCION_ERR_TOPOLOGY_INVALID;
+}
+
+static int parse_border_routers(const char *json, jsmntok_t *tok, int br_idx, struct scion_topology *topo)
+{
+	if (br_idx < 0)
+		return SCION_ERR_TOPOLOGY_INVALID;
+
+	int i = br_idx + 1;
+	for (int n = 0; n < tok[br_idx].size; n++) {
+		// border router instance name
+		char name[64];
+		tok_str(json, tok, i, name, sizeof(name));
+
+		int obj = i + 1;
+
+		struct scion_border_router *br = calloc(1, sizeof(*br));
+		if (!br) {
+			return SCION_ERR_TOPOLOGY_INVALID;
+		}
+		// extract and parse internal border router address
+		char internal[64];
+		tok_str(json, tok, object_find(json, tok, obj, "internal_addr"), internal, sizeof(internal));
+
+		size_t addrStrLen = strnlen(internal, 64);
+		int ret = parse_address(internal, addrStrLen, &br->addr, &br->addr_len);
+		if (ret != 0) {
+			return SCION_ERR_TOPOLOGY_INVALID;
+		}
+
+		if (parse_interfaces(json, tok, object_find(json, tok, obj, "interfaces"), br) < 0) {
+			return SCION_ERR_TOPOLOGY_INVALID;
+		}
+
+		scion_list_append(topo->border_routers, br);
+		i = tok_skip(tok, obj);
+	}
+	return EXIT_SUCCESS;
+}
+
+int parse_topology(const char *json, size_t bufSize, struct scion_topology *topo)
+{
+	int ret = EXIT_SUCCESS;
+	jsmn_parser parser;
+	jsmntok_t tok[MAXTOK];
+
+	jsmn_init(&parser);
+
+	int r = jsmn_parse(&parser, json, strnlen(json, bufSize), tok, MAXTOK);
+
+	if (r < 0) {
+		ret = SCION_ERR_TOPOLOGY_INVALID;
+		return ret;
+	}
+	// Try extracting Core attribute
+	int attributes = object_find(json, tok, 0, "attributes");
+	int is_core = array_contains(json, tok, attributes, "core");
+	topo->local_core = is_core;
+
+	// Extract and parse ISD-AS
+	char isd_as[16];
+	tok_str(json, tok, object_find(json, tok, 0, "isd_as"), isd_as, sizeof(isd_as));
+	size_t isd_as_str_len = strnlen(isd_as, 16);
+	ret = scion_ia_parse(isd_as, isd_as_str_len, &topo->ia);
+	if (ret != 0) {
+		return SCION_ERR_TOPOLOGY_INVALID;
+	}
+
+	// Extract and parse control service
+	ret = parse_control_service(json, tok, object_find(json, tok, 0, "control_service"), topo);
+	if (ret < 0) {
+		return ret;
+	}
+	// Take the address familiy of the control service as address familiy of the topology
+	topo->local_addr_family = topo->cs_addr.ss_family;
+	// Extract and parse border routers
+	ret = parse_border_routers(json, tok, object_find(json, tok, 0, "border_routers"), topo);
+	return ret;
+}
+
 static int scion_topology_from_stream(struct scion_topology **topology, FILE *f)
 {
 	int ret;
@@ -188,159 +393,8 @@ static int scion_topology_from_stream(struct scion_topology **topology, FILE *f)
 		goto cleanup_topology;
 	}
 	raw_json[size] = 0x00;
+	ret = parse_topology(raw_json, size, topology_storage);
 
-	jsmn_parser parser;
-	jsmntok_t tokens[256];
-	jsmn_init(&parser);
-
-	ret = jsmn_parse(
-		&parser, (const char *)raw_json, strlen((const char *)raw_json), tokens, sizeof(tokens) / sizeof(tokens[0]));
-	if (ret < 0) {
-		ret = SCION_ERR_TOPOLOGY_INVALID;
-		goto cleanup_json;
-	}
-	if (ret < 1 || tokens[0].type != JSMN_OBJECT) {
-		ret = SCION_ERR_TOPOLOGY_INVALID;
-		goto cleanup_json;
-	}
-
-	bool found = false;
-	int actual_tokens = ret;
-	ret = 0;
-	int i = 1;
-	jsmntok_t t;
-
-	while (i < actual_tokens) {
-		// Local AS is a CORE AS
-		if (jsoneq((const char *)raw_json, &tokens[i], "core")) {
-			// Local AS is a CORE AS
-			topology_storage->local_core = true;
-			i++;
-
-		} else if (jsoneq((const char *)raw_json, &tokens[i], "isd_as")) {
-			// Local ISD-AS number
-			i++;
-			if (tokens[i].type == JSMN_STRING) {
-				t = tokens[i];
-				uint16_t len = (uint16_t)(t.end - t.start);
-				ret = scion_ia_parse(raw_json + t.start, len, &topology_storage->ia);
-				if (ret != 0) {
-					ret = SCION_ERR_TOPOLOGY_INVALID;
-					goto cleanup_json;
-				}
-			}
-
-		} else if (jsoneq((const char *)raw_json, &tokens[i], "control_service")) {
-			// Get Control Server IP and PORT. If multiple, take first.
-			found = false;
-
-			// Forward to address
-			while (i < actual_tokens && !found) {
-				if (jsoneq((const char *)raw_json, &tokens[i], "addr")) {
-					found = true;
-				}
-				i++;
-			}
-
-			// Handle Control Server IP and PORT
-			if (tokens[i].type == JSMN_STRING) {
-				t = tokens[i];
-				size_t len = (size_t)(t.end - t.start);
-
-				ret = parse_address(
-					raw_json + t.start, len, &topology_storage->cs_addr, &topology_storage->cs_addr_len);
-				if (ret != 0) {
-					goto cleanup_json;
-				}
-			}
-
-		} else if (jsoneq((const char *)raw_json, &tokens[i], "border_routers")) {
-			// Get IP and PORT of all Border Routers
-			i++;
-			if (i < actual_tokens) { // Check that we haven't reached the end.
-				t = tokens[i];
-				uint32_t end_ptr = (uint32_t)t.end;
-				i++;
-				bool end_reached = false;
-				// Border Routers
-
-				while (i < actual_tokens && !end_reached) {
-					// Skip to next BR internal_addr or check end of BR list
-					found = false;
-					while (i < actual_tokens && !found && !end_reached) {
-						t = tokens[i];
-						if (jsoneq((const char *)raw_json, &tokens[i], "internal_addr")) {
-							found = true;
-						}
-						if ((uint32_t)t.start >= end_ptr) {
-							end_reached = true;
-						} else {
-							i++;
-						}
-					}
-
-					if (i < actual_tokens && !end_reached) {
-						if (tokens[i].type != JSMN_STRING) {
-							// Found wrong field
-							ret = SCION_ERR_TOPOLOGY_INVALID;
-							goto cleanup_json;
-						}
-						if (i + 3 >= actual_tokens) {
-							// no IFID field
-							ret = SCION_ERR_TOPOLOGY_INVALID;
-							goto cleanup_json;
-						}
-
-						struct scion_border_router *br = malloc(sizeof(*br));
-						br->addr_len = 0;
-
-						// BR IP and PORT
-						t = tokens[i];
-						size_t len = (size_t)(t.end - t.start);
-
-						ret = parse_address(raw_json + t.start, len, &br->addr, &br->addr_len);
-						if (ret != 0) {
-							scion_free_border_router(br);
-							goto cleanup_json;
-						}
-
-						// Use border router address family as topology address family (we assume that the whole
-						// topology has the same address family anyway)
-						topology_storage->local_addr_family = br->addr.ss_family;
-
-						// BR IFID
-						// jump to IFID
-						while (!jsoneq((const char *)raw_json, &tokens[i], "interfaces")) {
-							i++;
-						}
-						i += 2;
-
-						if (tokens[i].type != JSMN_STRING) {
-							// Found wrong field
-							scion_free_border_router(br);
-							ret = SCION_ERR_TOPOLOGY_INVALID;
-							goto cleanup_json;
-						}
-						t = tokens[i];
-						len = (uint)(t.end - t.start);
-						char ifid[len + 1];
-						(void)memcpy(ifid, raw_json + t.start, len);
-						ifid[len] = 0x00;
-						br->ifid = strtoul(ifid, NULL, 10);
-
-						scion_list_append(topology_storage->border_routers, br);
-
-						i++;
-					}
-				}
-			}
-
-		} else {
-			i++;
-		}
-	}
-
-cleanup_json:
 	free(raw_json);
 
 cleanup_topology:
@@ -371,8 +425,7 @@ int scion_topology_from_file(struct scion_topology **topology, const char *path)
 	return ret;
 }
 
-int scion_topology_next_underlay_hop(
-	struct scion_topology *topology, scion_ifid ifid, struct scion_underlay *underlay)
+int scion_topology_next_underlay_hop(struct scion_topology *topology, scion_ifid ifid, struct scion_underlay *underlay)
 {
 	assert(topology);
 	assert(topology->border_routers);
@@ -382,11 +435,20 @@ int scion_topology_next_underlay_hop(
 	while (curr) {
 		struct scion_border_router *br = curr->value;
 		if (br != NULL) {
-			if (ifid == SCION_INTERFACE_ANY || br->ifid == ifid) {
+			if (ifid == SCION_INTERFACE_ANY) {
 				underlay->addr = br->addr;
 				underlay->addrlen = br->addr_len;
 				underlay->addr_family = br->addr.ss_family;
 				return 0;
+			}
+			for (size_t i = 0; i < br->ifid_len; i++) {
+				scion_ifid currInterface = br->ifids[i];
+				if (currInterface == ifid) {
+					underlay->addr = br->addr;
+					underlay->addrlen = br->addr_len;
+					underlay->addr_family = br->addr.ss_family;
+					return 0;
+				}
 			}
 		}
 		curr = curr->next;

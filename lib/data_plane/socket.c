@@ -1191,7 +1191,7 @@ int scion_setsockerrcb(struct scion_socket *scion_sock, scion_socket_scmp_error_
 
 int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy policy)
 {
-	assert(scion_socket);
+	assert(scion_sock);
 	int ret = 0;
 
 	scion_sock->policy = policy;
