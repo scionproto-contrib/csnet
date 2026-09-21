@@ -143,6 +143,8 @@ void scion_path_collection_print(struct scion_path_collection *paths)
 				(void)printf("[%" PRIu16 "]: Path priniting unavailable due to missing metadata."
 							 "(IMPORTANT: deserialized paths can never be printed as the metadata is never present)\n",
 					i);
+				i++;
+				curr = curr->next;
 				continue;
 			}
 
