@@ -338,7 +338,7 @@ struct scion_geo_coordinates *collect_geo_coordinates(
 
 		if (geo != NULL) {
 			geos[i] = *geo;
-			geos[i].address = strdup(geos[i].address);
+			geos[i].address = geos[i].address != NULL ? strdup(geos[i].address) : NULL;
 		} else {
 			geos[i] = geo_unset;
 		}
