@@ -86,6 +86,11 @@ int scion_udp_deserialize(const uint8_t *buf, uint16_t len, struct scion_udp *ud
 	udp->dst_port = be16toh(*(uint16_t *)(buf + 2));
 	uint16_t udp_len = be16toh(*(uint16_t *)(buf + 4));
 
+	if (udp_len < SCION_UDP_HDR_LEN) {
+		// declared length shorter than the header itself
+		return SCION_ERR_PACKET_FIELD_INVALID;
+	}
+
 	if (len < udp_len) {
 		// incomplete packet
 		return SCION_ERR_NOT_ENOUGH_DATA;
