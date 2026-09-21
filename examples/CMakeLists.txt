@@ -75,4 +75,5 @@ target_link_libraries(simple_quic_client PRIVATE
         ${DEPENDENCY_INSTALL_DIR}/lib/libev.a
         ${DEPENDENCY_INSTALL_DIR}/lib/libssl.a
         ${DEPENDENCY_INSTALL_DIR}/lib/libcrypto.a
+        m
 )
