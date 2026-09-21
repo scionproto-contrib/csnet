@@ -251,10 +251,7 @@ void scion_list_filter(struct scion_list *list, struct scion_list_predicate pred
 
 void *scion_list_get(struct scion_list *list, size_t n)
 {
-	if (list == NULL) {
-		return NULL;
-	}
-	if (n > list->size - 1) {
+	if (list == NULL || n >= list->size) {
 		return NULL;
 	}
 
