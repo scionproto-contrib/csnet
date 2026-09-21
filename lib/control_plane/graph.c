@@ -704,6 +704,11 @@ static int traverse_segment(struct dmg *graph, struct input_segment *seg)
 	struct scion_as_entry **as_entries = path_seg->as_entries;
 	size_t as_entries_length = path_seg->as_entries_length;
 
+	if (as_entries_length == 0) {
+		// as_entries_length - 1 below would underflow and index far out of bounds
+		return SCION_ERR_GENERIC;
+	}
+
 	if (seg->type == CORE_SEGMENT) {
 		ret = vertex_from_ia(as_entries[as_entries_length - 1]->local, &src);
 		if (ret != 0) {
