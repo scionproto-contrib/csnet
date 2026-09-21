@@ -123,8 +123,11 @@ struct scion_path **scion_path_collection_as_array(struct scion_path_collection 
 
 void scion_path_collection_print(struct scion_path_collection *paths)
 {
+	if (!paths) {
+		return;
+	}
 	struct scion_list *list = paths->list;
-	if (!paths || !list || list->size == 0) {
+	if (!list || list->size == 0) {
 		return;
 	}
 	(void)printf("Available paths:\n");
