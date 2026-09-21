@@ -59,7 +59,9 @@ int scion_scmp_echo_deserialize(const uint8_t *buf, uint16_t buf_len, struct sci
 	}
 
 	uint8_t type = scion_scmp_get_type(buf, buf_len);
-	assert(type == SCION_ECHO_TYPE_REQUEST || type == SCION_ECHO_TYPE_REPLY);
+	if (type != SCION_ECHO_TYPE_REQUEST && type != SCION_ECHO_TYPE_REPLY) {
+		return SCION_ERR_PACKET_FIELD_INVALID;
+	}
 
 	if (buf[1] != 0) {
 		return SCION_ERR_SCMP_CODE_INVALID;
