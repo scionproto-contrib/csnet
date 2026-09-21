@@ -1533,7 +1533,9 @@ static int scion_path_solution_list_to_path_list(struct scion_list *path_solutio
 	struct scion_list_node *curr = path_solutions->first;
 	while (curr) {
 		struct path_solution *path_sol = curr->value;
-		struct scion_path *path = malloc(sizeof(*path));
+		// Zero-initialized so raw_path/metadata are NULL if scion_path_solution_to_path
+		// returns early on an error path, making the scion_path_free below safe.
+		struct scion_path *path = calloc(1, sizeof(*path));
 		ret = scion_path_solution_to_path(path_sol, path, topology);
 		if (ret != 0) {
 			// scion_path_solution_to_path might fail, in that case the current path is likely garbage.
