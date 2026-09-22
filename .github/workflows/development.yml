@@ -8,6 +8,7 @@ on:
 
 jobs:
   build:
+    name: Build & Unit Tests
     strategy:
       # Set fail-fast to false to ensure that feedback is delivered for all matrix combinations. Consider changing this to true when your workflow is stable.
       fail-fast: false
@@ -63,6 +64,10 @@ jobs:
       - name: Build
         run: cmake --build ${{ steps.strings.outputs.build-dir }} --config ${{ matrix.build_type }} --parallel
 
+      - name: Run Unit Tests
+        working-directory: ${{ steps.strings.outputs.build-dir }}
+        run: ctest --extra-verbose --output-on-failure -C ${{ matrix.build_type }} -L unit
+
       - name: Tar build
         if: matrix.os == 'ubuntu-latest' && matrix.build_type == 'Debug' && matrix.c_compiler == 'gcc'
         run: tar -cf build.tar build
@@ -72,8 +77,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build
-          path:
-            build.tar
+          path: build.tar
 
   build-esp32:
     runs-on: ubuntu-latest
@@ -87,25 +91,6 @@ jobs:
           esp_idf_version: 'v5.4'
           target: 'esp32s3'
           path: 'esp32'
-  
-  unit-tests:
-    needs: build
-
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Retrieve build
-        uses: actions/download-artifact@v4
-        with:
-          name: build
-          path: .
-
-      - name: Untar build
-        run: tar -xf build.tar
-
-      - name: Run Tests
-        working-directory: ${{ needs.build.outputs.build-dir }}
-        run: ctest --build-config Debug -L unit --output-on-failure
 
   e2e-tests:
     needs: build
@@ -115,8 +100,10 @@ jobs:
     env:
       SCION_PATH: ${{ github.workspace }}/network/scion
       SCION_TESTNET_PATH: ${{ github.workspace }}/network/scion-testnet
-    
+
     steps:
+      - uses: actions/checkout@v4
+
       - name: Retrieve SCION repo versions
         id: scion-repos
         run: |
@@ -128,6 +115,7 @@ jobs:
           echo "scion-testnet-url=$SCION_TESTNET_URL" >> $GITHUB_OUTPUT
           echo "scion-testnet-ref=$(git ls-remote $SCION_TESTNET_URL HEAD | cut -f1)" >> $GITHUB_OUTPUT
           echo "scion-testnet-path=$SCION_TESTNET_PATH" >> $GITHUB_OUTPUT
+
       - name: Retrieve build
         uses: actions/download-artifact@v4
         with:
@@ -171,5 +159,5 @@ jobs:
           go build test-server.go
 
       - name: Run Tests
-        working-directory: ${{ needs.build.outputs.build-dir }}
+        working-directory: ${{ github.workspace }}/build
         run: sudo NETWORK_STARTUP_TIME=10 TEST_SERVER_STARTUP_TIME=20 ctest --build-config Debug -L e2e --output-on-failure
