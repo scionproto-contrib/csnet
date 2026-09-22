@@ -1,5 +1,7 @@
 # csnet
 
+[![Development Workflow](../../actions/workflows/development.yml/badge.svg)](../../actions/workflows/development.yml)
+
 csnet is a C application programming library for communicating over a SCION network. More information about SCION can be
 found [here](https://docs.scion.org/en/latest/overview.html). csnet exposes
 a [BSD-socket-like](https://en.wikipedia.org/wiki/Berkeley_sockets) API to send and receive
