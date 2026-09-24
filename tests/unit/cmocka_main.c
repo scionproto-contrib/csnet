@@ -15,6 +15,7 @@
 #include <stdlib.h>
 
 #include "common/test_isd_as.h"
+#include "data_plane/test_deserialization.h"
 #include "data_plane/test_path.h"
 #include "data_plane/test_serialization.h"
 #include "util/test_list.h"
@@ -28,6 +29,7 @@ int main(void)
 	failed += run_list_tests();
 	failed += run_path_tests();
 	failed += run_serialization_tests();
+	failed += run_deserialization_tests();
 	failed += run_map_tests();
 
 	return failed == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

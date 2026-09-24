@@ -14,9 +14,4 @@
 
 #pragma once
 
-int scion_test_deserialize_udp(void);
-int scion_test_deserialize_meta_hdr(void);
-int scion_test_deserialize_info_field(void);
-int scion_test_deserialize_hop_field(void);
-int scion_test_deserialize_path(void);
-int scion_test_deserialize_scion_packet(void);
+int run_deserialization_tests(void);
