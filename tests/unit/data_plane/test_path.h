@@ -14,5 +14,4 @@
 
 #pragma once
 
-int scion_test_reverse_path(void);
-int scion_test_init_raw_path(void);
+int run_path_tests(void);

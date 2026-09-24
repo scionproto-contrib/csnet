@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cmocka.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -24,7 +24,7 @@
 #include "test_path.h"
 #include "util/list.h"
 
-int scion_test_init_raw_path(void)
+static void test_init_raw_path(void **)
 {
 	struct scion_path_meta_hdr hdr;
 	hdr.curr_inf = 0;
@@ -150,9 +150,7 @@ int scion_test_init_raw_path(void)
 	scion_list_free(info_fields);
 	scion_list_free(hop_fields);
 
-	if (ret != 0) {
-		return ret;
-	}
+	assert_int_equal(ret, 0);
 
 	// clang-format off
 	const uint8_t test_buf[] = {
@@ -172,18 +170,13 @@ int scion_test_init_raw_path(void)
 	};
 	// clang-format on
 
-	if (raw_path.length != sizeof(test_buf)) {
-		free(raw_path.raw);
-		return 1;
-	}
+	assert_uint_equal(raw_path.length, sizeof(test_buf));
+	assert_memory_equal(raw_path.raw, test_buf, raw_path.length);
 
-	ret = (memcmp(raw_path.raw, &test_buf, raw_path.length) != 0);
 	free(raw_path.raw);
-
-	return ret;
 }
 
-int scion_test_reverse_path(void)
+static void test_reverse_path(void **)
 {
 	// clang-format off
     // Path from AS 222 to AS 133
@@ -240,9 +233,16 @@ int scion_test_reverse_path(void)
 	raw_path.raw = (uint8_t *)&raw_path_buf;
 
 	int ret = scion_path_raw_reverse(&raw_path);
-	if (ret < 0) {
-		return ret;
-	}
+	assert_true(ret >= 0);
 
-	return (memcmp(&test_buf, &raw_path_buf, sizeof(test_buf)) != 0);
+	assert_memory_equal(test_buf, raw_path_buf, sizeof(test_buf));
+}
+
+int run_path_tests(void)
+{
+	const struct CMUnitTest tests[] = {
+		cmocka_unit_test(test_init_raw_path),
+		cmocka_unit_test(test_reverse_path),
+	};
+	return cmocka_run_group_tests(tests, NULL, NULL);
 }
