@@ -34,7 +34,8 @@ struct scion_topology {
 };
 
 struct scion_border_router {
-	scion_ifid ifid;
+	scion_ifid *ifids;
+	size_t ifid_len;
 	struct sockaddr_storage addr;
 	socklen_t addr_len;
 };
@@ -47,8 +48,7 @@ struct scion_border_router {
  * @param[out] underlay The underlay of the next hop.
  * @return 0 on success, a negative error code on failure.
  */
-int scion_topology_next_underlay_hop(
-	struct scion_topology *topology, scion_ifid ifid, struct scion_underlay *underlay);
+int scion_topology_next_underlay_hop(struct scion_topology *topology, scion_ifid ifid, struct scion_underlay *underlay);
 
 /*
  * FUNCTION: scion_topology_is_local_as_core
