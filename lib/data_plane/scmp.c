@@ -101,7 +101,7 @@ int scion_scmp_echo_serialize(const struct scion_scmp_echo *scmp_echo, uint8_t *
 
 	*(buf) = (uint8_t)scmp_echo->type;
 	*(buf + 1) = 0;
-	*(buf + 2) = 0; // TODO checksum
+	*(uint16_t *)(buf + 2) = 0; // TODO checksum
 	*(uint16_t *)(buf + 4) = htobe16(scmp_echo->id);
 	*(uint16_t *)(buf + 6) = htobe16(scmp_echo->seqno);
 
