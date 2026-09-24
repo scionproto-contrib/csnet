@@ -1,3 +1,14 @@
+set(DEPENDENCY_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/dependencies)
+
+# Fetch cmocka (https://cmocka.org/), a unit testing framework for C.
+ExternalProject_Add(
+        cmocka
+        GIT_REPOSITORY https://gitlab.com/cmocka/cmocka.git
+        GIT_TAG cmocka-2.0.2
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DWITH_EXAMPLES=OFF
+        BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libcmocka.a
+)
+
 set(test_list
         list_create
         list_append
