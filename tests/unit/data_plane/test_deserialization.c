@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cmocka.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -24,10 +24,8 @@
 #include "data_plane/udp.h"
 #include "test_deserialization.h"
 
-int scion_test_deserialize_udp(void)
+static void test_deserialize_udp(void **)
 {
-	int ret = 0;
-
 	struct scion_udp udp;
 
 	const uint8_t buf[] = {
@@ -41,28 +39,16 @@ int scion_test_deserialize_udp(void)
 		0x00,
 	};
 
-	ret = scion_udp_deserialize(buf, 8, &udp);
-	if (ret != 0) {
-		return ret;
-	}
+	assert_int_equal(scion_udp_deserialize(buf, 8, &udp), 0);
 
-	if (udp.src_port != 31337) {
-		ret = 1;
-	} else if (udp.dst_port != 31000) {
-		ret = 2;
-	} else if (udp.data_length != 0) {
-		ret = 3;
-	} else if (udp.data != NULL) {
-		ret = 5;
-	}
-
-	return ret;
+	assert_uint_equal(udp.src_port, 31337);
+	assert_uint_equal(udp.dst_port, 31000);
+	assert_uint_equal(udp.data_length, 0);
+	assert_null(udp.data);
 }
 
-int scion_test_deserialize_meta_hdr(void)
+static void test_deserialize_meta_hdr(void **)
 {
-	int ret = 0;
-
 	struct scion_path_meta_hdr hdr;
 
 	const uint8_t buf[] = {
@@ -72,31 +58,17 @@ int scion_test_deserialize_meta_hdr(void)
 		0xc4,
 	};
 
-	ret = scion_path_meta_hdr_deserialize((uint8_t *)&buf, &hdr);
+	assert_int_equal(scion_path_meta_hdr_deserialize((uint8_t *)&buf, &hdr), 0);
 
-	if (ret != 0) {
-		return ret;
-	}
-
-	if (hdr.curr_inf != 2) {
-		ret = 1;
-	} else if (hdr.curr_hf != 7) {
-		ret = 2;
-	} else if (hdr.seg_len[0] != 3) {
-		ret = 3;
-	} else if (hdr.seg_len[1] != 3) {
-		ret = 4;
-	} else if (hdr.seg_len[2] != 4) {
-		ret = 5;
-	}
-
-	return ret;
+	assert_uint_equal(hdr.curr_inf, 2);
+	assert_uint_equal(hdr.curr_hf, 7);
+	assert_uint_equal(hdr.seg_len[0], 3);
+	assert_uint_equal(hdr.seg_len[1], 3);
+	assert_uint_equal(hdr.seg_len[2], 4);
 }
 
-int scion_test_deserialize_info_field(void)
+static void test_deserialize_info_field(void **)
 {
-	int ret = 0;
-
 	struct scion_info_field info_field;
 
 	const uint8_t buf[] = {
@@ -110,28 +82,16 @@ int scion_test_deserialize_info_field(void)
 		0xff,
 	};
 
-	ret = scion_info_field_deserialize((uint8_t *)&buf, &info_field);
-	if (ret != 0) {
-		return ret;
-	}
+	assert_int_equal(scion_info_field_deserialize((uint8_t *)&buf, &info_field), 0);
 
-	if (info_field.peer != false) {
-		ret = 1;
-	} else if (info_field.cons_dir != true) {
-		ret = 2;
-	} else if (info_field.seg_id != 0x3bfa) {
-		ret = 3;
-	} else if (info_field.timestamp != 1731596031) {
-		ret = 4;
-	}
-
-	return ret;
+	assert_false(info_field.peer);
+	assert_true(info_field.cons_dir);
+	assert_uint_equal(info_field.seg_id, 0x3bfa);
+	assert_uint_equal(info_field.timestamp, 1731596031);
 }
 
-int scion_test_deserialize_hop_field(void)
+static void test_deserialize_hop_field(void **)
 {
-	int ret = 0;
-
 	struct scion_hop_field hop_field;
 
 	const uint8_t buf[] = {
@@ -158,33 +118,19 @@ int scion_test_deserialize_hop_field(void)
 		0xbe,
 	};
 
-	ret = scion_hop_field_deserialize((uint8_t *)&buf, &hop_field);
-	if (ret != 0) {
-		return ret;
-	}
+	assert_int_equal(scion_hop_field_deserialize((uint8_t *)&buf, &hop_field), 0);
 
-	if (hop_field.ingress_router_alert != false) {
-		ret = 1;
-	} else if (hop_field.egress_router_alert != false) {
-		ret = 2;
-	} else if (hop_field.exp_time != 63) {
-		ret = 3;
-	} else if (hop_field.cons_ingress != 301) {
-		ret = 4;
-	} else if (hop_field.cons_egress != 0) {
-		ret = 5;
-	} else if (memcmp(&hop_field.mac, &mac, sizeof(mac)) != 0) {
-		ret = 6;
-	}
-
-	return ret;
+	assert_false(hop_field.ingress_router_alert);
+	assert_false(hop_field.egress_router_alert);
+	assert_uint_equal(hop_field.exp_time, 63);
+	assert_uint_equal(hop_field.cons_ingress, 301);
+	assert_uint_equal(hop_field.cons_egress, 0);
+	assert_memory_equal(hop_field.mac, mac, sizeof(mac));
 }
 
-int scion_test_deserialize_path(void)
+static void test_deserialize_path(void **)
 {
 	// Path from AS 221 to AS 121 in the test topology
-
-	int ret = 0;
 
 	// clang-format off
 	const uint8_t buf[] = {
@@ -208,207 +154,116 @@ int scion_test_deserialize_path(void)
 	struct scion_list *info_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
 	struct scion_list *hop_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
 
-	ret = scion_path_deserialize((uint8_t *)&buf, &hdr, info_fields, hop_fields);
-	if (ret != 0) {
-		return ret;
-	}
+	assert_int_equal(scion_path_deserialize((uint8_t *)&buf, &hdr, info_fields, hop_fields), 0);
 
-	if (hdr.curr_inf != 2) {
-		ret = 1;
-	} else if (hdr.curr_hf != 5) {
-		ret = 2;
-	} else if (hdr.seg_len[0] != 2) {
-		ret = 3;
-	} else if (hdr.seg_len[1] != 2) {
-		ret = 4;
-	} else if (hdr.seg_len[2] != 2) {
-		ret = 5;
-	}
+	assert_uint_equal(hdr.curr_inf, 2);
+	assert_uint_equal(hdr.curr_hf, 5);
+	assert_uint_equal(hdr.seg_len[0], 2);
+	assert_uint_equal(hdr.seg_len[1], 2);
+	assert_uint_equal(hdr.seg_len[2], 2);
 
-	if (info_fields->size != 3) {
-		ret = 10;
-	} else if (hop_fields->size != 6) {
-		ret = 100;
-	}
-
-	if (ret != 0) {
-		scion_list_free(info_fields);
-		scion_list_free(hop_fields);
-		return ret;
-	}
+	assert_uint_equal(info_fields->size, 3);
+	assert_uint_equal(hop_fields->size, 6);
 
 	// Info Fields
 	struct scion_list_node *curr = info_fields->first;
 	struct scion_info_field *curr_if = (struct scion_info_field *)curr->value;
-
-	if (curr_if == NULL) {
-		ret = 11;
-	} else if (curr_if->peer != false) {
-		ret = 12;
-	} else if (curr_if->cons_dir != false) {
-		ret = 13;
-	} else if (curr_if->seg_id != 0x9890) {
-		ret = 14;
-	} else if (curr_if->timestamp != 0x67375efc) {
-		ret = 15;
-	}
+	assert_non_null(curr_if);
+	assert_false(curr_if->peer);
+	assert_false(curr_if->cons_dir);
+	assert_uint_equal(curr_if->seg_id, 0x9890);
+	assert_uint_equal(curr_if->timestamp, 0x67375efc);
 
 	curr = curr->next;
 	curr_if = (struct scion_info_field *)curr->value;
-
-	if (curr_if == NULL) {
-		ret = 21;
-	} else if (curr_if->peer != false) {
-		ret = 22;
-	} else if (curr_if->cons_dir != false) {
-		ret = 23;
-	} else if (curr_if->seg_id != 0x8c1d) {
-		ret = 24;
-	} else if (curr_if->timestamp != 0x67375eb3) {
-		ret = 25;
-	}
+	assert_non_null(curr_if);
+	assert_false(curr_if->peer);
+	assert_false(curr_if->cons_dir);
+	assert_uint_equal(curr_if->seg_id, 0x8c1d);
+	assert_uint_equal(curr_if->timestamp, 0x67375eb3);
 
 	curr = curr->next;
 	curr_if = (struct scion_info_field *)curr->value;
-
-	if (curr_if == NULL) {
-		ret = 31;
-	} else if (curr_if->peer != false) {
-		ret = 32;
-	} else if (curr_if->cons_dir != true) {
-		ret = 33;
-	} else if (curr_if->seg_id != 0xdc39) {
-		ret = 34;
-	} else if (curr_if->timestamp != 0x67375eae) {
-		ret = 35;
-	}
+	assert_non_null(curr_if);
+	assert_false(curr_if->peer);
+	assert_true(curr_if->cons_dir);
+	assert_uint_equal(curr_if->seg_id, 0xdc39);
+	assert_uint_equal(curr_if->timestamp, 0x67375eae);
 
 	// Hop Fields
 	curr = hop_fields->first;
 	struct scion_hop_field *curr_hf = (struct scion_hop_field *)curr->value;
 	uint8_t mac_0[6] = { 0x87, 0x2d, 0x92, 0x63, 0xd1, 0x97 };
-	if (curr_hf == NULL) {
-		ret = 101;
-	} else if (curr_hf->ingress_router_alert != false) {
-		ret = 102;
-	} else if (curr_hf->egress_router_alert != false) {
-		ret = 103;
-	} else if (curr_hf->exp_time != 63) {
-		ret = 104;
-	} else if (curr_hf->cons_ingress != 2) {
-		ret = 105;
-	} else if (curr_hf->cons_egress != 0) {
-		ret = 106;
-	} else if (memcmp(&mac_0, &curr_hf->mac, sizeof(mac_0)) != 0) {
-		ret = 107;
-	}
+	assert_non_null(curr_hf);
+	assert_false(curr_hf->ingress_router_alert);
+	assert_false(curr_hf->egress_router_alert);
+	assert_uint_equal(curr_hf->exp_time, 63);
+	assert_uint_equal(curr_hf->cons_ingress, 2);
+	assert_uint_equal(curr_hf->cons_egress, 0);
+	assert_memory_equal(curr_hf->mac, mac_0, sizeof(mac_0));
 
 	curr = curr->next;
 	curr_hf = (struct scion_hop_field *)curr->value;
 	uint8_t mac_1[6] = { 0xae, 0xe2, 0x32, 0xfe, 0xe4, 0xdf };
-	if (curr_hf == NULL) {
-		ret = 111;
-	} else if (curr_hf->ingress_router_alert != false) {
-		ret = 112;
-	} else if (curr_hf->egress_router_alert != false) {
-		ret = 113;
-	} else if (curr_hf->exp_time != 63) {
-		ret = 114;
-	} else if (curr_hf->cons_ingress != 0) {
-		ret = 115;
-	} else if (curr_hf->cons_egress != 500) {
-		ret = 116;
-	} else if (memcmp(&mac_1, &curr_hf->mac, sizeof(mac_1)) != 0) {
-		ret = 117;
-	}
+	assert_non_null(curr_hf);
+	assert_false(curr_hf->ingress_router_alert);
+	assert_false(curr_hf->egress_router_alert);
+	assert_uint_equal(curr_hf->exp_time, 63);
+	assert_uint_equal(curr_hf->cons_ingress, 0);
+	assert_uint_equal(curr_hf->cons_egress, 500);
+	assert_memory_equal(curr_hf->mac, mac_1, sizeof(mac_1));
 
 	curr = curr->next;
 	curr_hf = (struct scion_hop_field *)curr->value;
 	uint8_t mac_2[6] = { 0x31, 0x76, 0xc2, 0x99, 0x18, 0xf2 };
-	if (curr_hf == NULL) {
-		ret = 121;
-	} else if (curr_hf->ingress_router_alert != false) {
-		ret = 122;
-	} else if (curr_hf->egress_router_alert != false) {
-		ret = 123;
-	} else if (curr_hf->exp_time != 63) {
-		ret = 124;
-	} else if (curr_hf->cons_ingress != 502) {
-		ret = 125;
-	} else if (curr_hf->cons_egress != 0) {
-		ret = 126;
-	} else if (memcmp(&mac_2, &curr_hf->mac, sizeof(mac_2)) != 0) {
-		ret = 127;
-	}
+	assert_non_null(curr_hf);
+	assert_false(curr_hf->ingress_router_alert);
+	assert_false(curr_hf->egress_router_alert);
+	assert_uint_equal(curr_hf->exp_time, 63);
+	assert_uint_equal(curr_hf->cons_ingress, 502);
+	assert_uint_equal(curr_hf->cons_egress, 0);
+	assert_memory_equal(curr_hf->mac, mac_2, sizeof(mac_2));
 
 	curr = curr->next;
 	curr_hf = (struct scion_hop_field *)curr->value;
 	uint8_t mac_3[6] = { 0xe1, 0x00, 0x16, 0xdf, 0xd5, 0x4b };
-	if (curr_hf == NULL) {
-		ret = 131;
-	} else if (curr_hf->ingress_router_alert != false) {
-		ret = 132;
-	} else if (curr_hf->egress_router_alert != false) {
-		ret = 133;
-	} else if (curr_hf->exp_time != 63) {
-		ret = 134;
-	} else if (curr_hf->cons_ingress != 0) {
-		ret = 135;
-	} else if (curr_hf->cons_egress != 3) {
-		ret = 136;
-	} else if (memcmp(&mac_3, &curr_hf->mac, sizeof(mac_3)) != 0) {
-		ret = 137;
-	}
+	assert_non_null(curr_hf);
+	assert_false(curr_hf->ingress_router_alert);
+	assert_false(curr_hf->egress_router_alert);
+	assert_uint_equal(curr_hf->exp_time, 63);
+	assert_uint_equal(curr_hf->cons_ingress, 0);
+	assert_uint_equal(curr_hf->cons_egress, 3);
+	assert_memory_equal(curr_hf->mac, mac_3, sizeof(mac_3));
 
 	curr = curr->next;
 	curr_hf = (struct scion_hop_field *)curr->value;
 	uint8_t mac_4[6] = { 0x25, 0x66, 0x37, 0x02, 0x8d, 0xda };
-	if (curr_hf == NULL) {
-		ret = 141;
-	} else if (curr_hf->ingress_router_alert != false) {
-		ret = 142;
-	} else if (curr_hf->egress_router_alert != false) {
-		ret = 143;
-	} else if (curr_hf->exp_time != 63) {
-		ret = 144;
-	} else if (curr_hf->cons_ingress != 0) {
-		ret = 145;
-	} else if (curr_hf->cons_egress != 4) {
-		ret = 146;
-	} else if (memcmp(&mac_4, &curr_hf->mac, sizeof(mac_4)) != 0) {
-		ret = 147;
-	}
+	assert_non_null(curr_hf);
+	assert_false(curr_hf->ingress_router_alert);
+	assert_false(curr_hf->egress_router_alert);
+	assert_uint_equal(curr_hf->exp_time, 63);
+	assert_uint_equal(curr_hf->cons_ingress, 0);
+	assert_uint_equal(curr_hf->cons_egress, 4);
+	assert_memory_equal(curr_hf->mac, mac_4, sizeof(mac_4));
 
 	curr = curr->next;
 	curr_hf = (struct scion_hop_field *)curr->value;
 	uint8_t mac_5[6] = { 0x2c, 0xad, 0xf3, 0x51, 0xb8, 0xbd };
-	if (curr_hf == NULL) {
-		ret = 151;
-	} else if (curr_hf->ingress_router_alert != false) {
-		ret = 152;
-	} else if (curr_hf->egress_router_alert != false) {
-		ret = 153;
-	} else if (curr_hf->exp_time != 63) {
-		ret = 154;
-	} else if (curr_hf->cons_ingress != 3) {
-		ret = 155;
-	} else if (curr_hf->cons_egress != 0) {
-		ret = 156;
-	} else if (memcmp(&mac_5, &curr_hf->mac, sizeof(mac_5)) != 0) {
-		ret = 157;
-	}
+	assert_non_null(curr_hf);
+	assert_false(curr_hf->ingress_router_alert);
+	assert_false(curr_hf->egress_router_alert);
+	assert_uint_equal(curr_hf->exp_time, 63);
+	assert_uint_equal(curr_hf->cons_ingress, 3);
+	assert_uint_equal(curr_hf->cons_egress, 0);
+	assert_memory_equal(curr_hf->mac, mac_5, sizeof(mac_5));
 
 	scion_list_free(info_fields);
 	scion_list_free(hop_fields);
-
-	return ret;
 }
 
-int scion_test_deserialize_scion_packet(void)
+static void test_deserialize_scion_packet(void **)
 {
 	// Path from AS 221 to AS 121 in the test topology
-
-	int ret = 0;
 
 	// clang-format off
 	const uint8_t buf[] = {
@@ -459,46 +314,25 @@ int scion_test_deserialize_scion_packet(void)
 	// clang-format on
 
 	struct scion_packet packet = { 0 };
-	ret = scion_packet_deserialize(buf, sizeof(buf), &packet);
-	if (ret != 0) {
-		return ret;
-	}
+	assert_int_equal(scion_packet_deserialize(buf, sizeof(buf), &packet), 0);
 
-	if (packet.version != 0) {
-		ret = 1;
-	} else if (packet.traffic_class != 0) {
-		ret = 2;
-	} else if (packet.flow_id != 1) {
-		ret = 3;
-	} else if (packet.next_hdr != SCION_PROTO_UDP) {
-		ret = 4;
-	} else if (packet.payload_len != 11) {
-		ret = 6;
-	} else if (packet.path_type != SCION_PATH_TYPE_SCION) {
-		ret = 7;
-	} else if (packet.dst_addr_type != SCION_ADDR_TYPE_T4IP) {
-		ret = 8;
-	} else if (packet.src_addr_type != SCION_ADDR_TYPE_T4IP) {
-		ret = 9;
-	} else if (packet.dst_ia != 0x1ff0000000121) {
-		ret = 10;
-	} else if (packet.src_ia != 0x2ff0000000221) {
-		ret = 11;
-	} else if (packet.raw_dst_addr_length != 4) {
-		ret = 12;
-	} else if (memcmp(&dst_host, packet.raw_dst_addr, packet.raw_dst_addr_length) != 0) {
-		ret = 13;
-	} else if (packet.raw_src_addr_length != 4) {
-		ret = 14;
-	} else if (memcmp(&src_host, packet.raw_src_addr, packet.raw_src_addr_length) != 0) {
-		ret = 15;
-	} else if (packet.path->raw_path->length != sizeof(path_buf)) {
-		ret = 16;
-	} else if (memcmp(&path_buf, packet.path->raw_path->raw, sizeof(path_buf)) != 0) {
-		ret = 17;
-	} else if (memcmp(&udp_buf, packet.payload, sizeof(udp_buf)) != 0) {
-		ret = 18;
-	}
+	assert_uint_equal(packet.version, 0);
+	assert_uint_equal(packet.traffic_class, 0);
+	assert_uint_equal(packet.flow_id, 1);
+	assert_uint_equal(packet.next_hdr, SCION_PROTO_UDP);
+	assert_uint_equal(packet.payload_len, 11);
+	assert_uint_equal(packet.path_type, SCION_PATH_TYPE_SCION);
+	assert_uint_equal(packet.dst_addr_type, SCION_ADDR_TYPE_T4IP);
+	assert_uint_equal(packet.src_addr_type, SCION_ADDR_TYPE_T4IP);
+	assert_uint_equal(packet.dst_ia, 0x1ff0000000121);
+	assert_uint_equal(packet.src_ia, 0x2ff0000000221);
+	assert_uint_equal(packet.raw_dst_addr_length, 4);
+	assert_memory_equal(dst_host, packet.raw_dst_addr, packet.raw_dst_addr_length);
+	assert_uint_equal(packet.raw_src_addr_length, 4);
+	assert_memory_equal(src_host, packet.raw_src_addr, packet.raw_src_addr_length);
+	assert_uint_equal(packet.path->raw_path->length, sizeof(path_buf));
+	assert_memory_equal(path_buf, packet.path->raw_path->raw, sizeof(path_buf));
+	assert_memory_equal(udp_buf, packet.payload, sizeof(udp_buf));
 
 	free(packet.raw_dst_addr);
 	free(packet.raw_src_addr);
@@ -506,6 +340,17 @@ int scion_test_deserialize_scion_packet(void)
 	free(packet.path->raw_path);
 	free(packet.path);
 	free(packet.payload);
+}
 
-	return ret;
+int run_deserialization_tests(void)
+{
+	const struct CMUnitTest tests[] = {
+		cmocka_unit_test(test_deserialize_udp),
+		cmocka_unit_test(test_deserialize_meta_hdr),
+		cmocka_unit_test(test_deserialize_info_field),
+		cmocka_unit_test(test_deserialize_hop_field),
+		cmocka_unit_test(test_deserialize_path),
+		cmocka_unit_test(test_deserialize_scion_packet),
+	};
+	return cmocka_run_group_tests(tests, NULL, NULL);
 }
