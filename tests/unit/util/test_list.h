@@ -14,12 +14,4 @@
 
 #pragma once
 
-int scion_test_list_create(void);
-int scion_test_list_append(void);
-int scion_test_list_append_all(void);
-int scion_test_list_append_all_null(void);
-int scion_test_list_pop(void);
-int scion_test_list_reverse(void);
-int scion_test_list_free(void);
-int scion_test_list_free_value(void);
-int scion_test_list_free_value_custom(void);
+int run_list_tests(void);

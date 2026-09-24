@@ -15,6 +15,7 @@
 #include <stdlib.h>
 
 #include "common/test_isd_as.h"
+#include "util/test_list.h"
 #include "util/test_map.h"
 
 int main(void)
@@ -22,6 +23,7 @@ int main(void)
 	int failed = 0;
 
 	failed += run_isd_as_tests();
+	failed += run_list_tests();
 	failed += run_map_tests();
 
 	return failed == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

@@ -13,6 +13,7 @@ ExternalProject_Add(
 add_executable(unit_tests
         cmocka_main.c
         common/test_isd_as.c
+        util/test_list.c
         util/test_map.c
 )
 add_dependencies(unit_tests cmocka)
