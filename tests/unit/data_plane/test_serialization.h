@@ -14,10 +14,4 @@
 
 #pragma once
 
-int scion_test_serialize_udp(void);
-int scion_test_serialize_meta_hdr(void);
-int scion_test_serialize_info_field(void);
-int scion_test_serialize_hop_field(void);
-int scion_test_serialize_path(void);
-int scion_test_serialize_scion_packet(void);
-int scion_test_serialize_scmp_echo(void);
+int run_serialization_tests(void);
