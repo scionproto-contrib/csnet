@@ -12,45 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cmocka.h>
+#include <stdint.h>
+
 #include "test_map.h"
 #include "util/map.h"
 
-#include <stdint.h>
-
-int scion_test_map_example(void)
+static void test_map_example(void **)
 {
-	int ret = 0;
-
 	struct scion_map *map = scion_map_create(
 		(struct scion_map_key_config){ .size = sizeof(uint32_t), .serialize = NULL }, SCION_MAP_NO_FREE_VALUES);
 
 	int values[] = { 100, -1, 3, 16 };
-
 	uint32_t keys[] = { 3, 4 };
-	if (scion_map_get(map, &keys[0]) != NULL) {
-		ret = 1;
-		goto cleanup_map;
-	}
+
+	assert_null(scion_map_get(map, &keys[0]));
 
 	scion_map_put(map, &keys[0], &values[0]);
-	if (scion_map_get(map, &keys[0]) != &values[0]) {
-		ret = 2;
-		goto cleanup_map;
-	}
+	assert_ptr_equal(scion_map_get(map, &keys[0]), &values[0]);
 
 	scion_map_put(map, &keys[0], &values[1]);
-	if (scion_map_get(map, &keys[0]) != &values[1]) {
-		ret = 3;
-		goto cleanup_map;
-	}
+	assert_ptr_equal(scion_map_get(map, &keys[0]), &values[1]);
 
 	scion_map_put(map, &keys[1], &values[2]);
-	if (scion_map_get(map, &keys[0]) != &values[1] || scion_map_get(map, &keys[1]) != &values[2]) {
-		ret = 4;
-	}
+	assert_ptr_equal(scion_map_get(map, &keys[0]), &values[1]);
+	assert_ptr_equal(scion_map_get(map, &keys[1]), &values[2]);
 
-cleanup_map:
 	scion_map_free(map);
+}
 
-	return ret;
+int run_map_tests(void)
+{
+	const struct CMUnitTest tests[] = {
+		cmocka_unit_test(test_map_example),
+	};
+	return cmocka_run_group_tests(tests, NULL, NULL);
 }
