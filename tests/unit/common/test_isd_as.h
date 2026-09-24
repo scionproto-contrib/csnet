@@ -14,10 +14,4 @@
 
 #pragma once
 
-int scion_test_ia_from_isd_as(void);
-int scion_test_ia_from_isd_as_too_large_as(void);
-int scion_test_get_isd(void);
-int scion_test_get_as(void);
-int scion_test_to_wildcard(void);
-int scion_test_is_wildcard(void);
-int scion_test_parse_ia(void);
+int run_isd_as_tests(void);
