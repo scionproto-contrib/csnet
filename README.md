@@ -1,6 +1,8 @@
 # csnet
 
 [![Development Workflow](../../actions/workflows/development.yml/badge.svg)](../../actions/workflows/development.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://github.com/scionproto-contrib/csnet/blob/main/LICENSE)
+[![Version](https://img.shields.io/github/release/scionproto-contrib/csnet.svg?label=version)](https://github.com/scionproto-contrib/csnet/releases/latest)
 
 csnet is a C application programming library for communicating over a SCION network. More information about SCION can be
 found [here](https://docs.scion.org/en/latest/overview.html). csnet exposes
