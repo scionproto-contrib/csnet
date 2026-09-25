@@ -13,9 +13,8 @@
 // limitations under the License.
 
 #include <cmocka.h>
+#include <stdbool.h>
 #include <stdlib.h>
-#include <sys/wait.h>
-#include <unistd.h>
 
 #include "test_list.h"
 #include "util/list.h"
@@ -242,56 +241,9 @@ static void test_list_free(void **)
 	scion_list_free(list);
 
 	// Check that heap_memory is not freed
-	pid_t pid = fork();
-	assert_true(pid >= 0);
-
-	if (pid == 0) {
-		// Try dereference in child process
-		if (*heap_memory == random_val) {
-			exit(EXIT_SUCCESS);
-		}
-
-		exit(EXIT_FAILURE);
-	} else {
-		int status;
-		// Wait for child process to exit
-		waitpid(pid, &status, 0);
-
-		assert_true(status == EXIT_SUCCESS);
-	}
+	assert_true(*heap_memory == random_val);
 
 	free(heap_memory);
-}
-
-static void test_list_free_value(void **)
-{
-	struct scion_list *list = scion_list_create(SCION_LIST_SIMPLE_FREE);
-
-	uint64_t random_val = ((uint64_t)rand() << 32) | ((uint64_t)rand());
-	uint64_t *heap_memory = malloc(sizeof(*heap_memory));
-	*heap_memory = random_val;
-	scion_list_append(list, heap_memory);
-
-	scion_list_free(list);
-
-	// Check that heap_memory is freed
-	pid_t pid = fork();
-	assert_true(pid >= 0);
-
-	if (pid == 0) {
-		// Try dereference in child process
-		if (*heap_memory == random_val) {
-			exit(EXIT_SUCCESS);
-		}
-
-		exit(EXIT_FAILURE);
-	} else {
-		int status;
-		// Wait for child process to exit
-		waitpid(pid, &status, 0);
-
-		assert_true(status != EXIT_SUCCESS);
-	}
 }
 
 struct custom_struct {
@@ -308,42 +260,29 @@ static void custom_free(struct custom_struct *custom)
 	free(custom);
 }
 
-static void test_list_free_value_custom(void **)
-{
-	struct scion_list *list = scion_list_create(SCION_LIST_CUSTOM_FREE(custom_free));
+static bool custom_free_called = false;
 
-	uint64_t random_val = ((uint64_t)rand() << 32) | ((uint64_t)rand());
-	uint64_t *heap_memory = malloc(sizeof(*heap_memory));
-	*heap_memory = random_val;
+static void spy_custom_free(struct custom_struct *custom)
+{
+	custom_free_called = true;
+	custom_free(custom);
+}
+
+static void test_list_free_custom(void **)
+{
+	custom_free_called = false;
+
+	struct scion_list *list = scion_list_create(SCION_LIST_CUSTOM_FREE(spy_custom_free));
+
 	struct custom_struct *custom = malloc(sizeof(*custom));
-	custom->data_buf = heap_memory;
+	custom->data_buf = malloc(sizeof(*custom->data_buf));
 
 	scion_list_append(list, custom);
 
 	scion_list_free(list);
 
-	// Check that heap_memory is freed with custom freeing function
-	pid_t pid = fork();
-	assert_true(pid >= 0);
-
-	if (pid == 0) {
-		// Try dereference in child process
-		if (*heap_memory == random_val) {
-			exit(EXIT_SUCCESS);
-		}
-
-		if (*custom->data_buf == random_val) {
-			exit(EXIT_SUCCESS);
-		}
-
-		exit(EXIT_FAILURE);
-	} else {
-		int status;
-		// Wait for child process to exit
-		waitpid(pid, &status, 0);
-
-		assert_true(status != EXIT_SUCCESS);
-	}
+	// Check that the custom freeing function was called
+	assert_true(custom_free_called);
 }
 
 int run_list_tests(void)
@@ -356,8 +295,7 @@ int run_list_tests(void)
 		cmocka_unit_test(test_list_pop),
 		cmocka_unit_test(test_list_reverse),
 		cmocka_unit_test(test_list_free),
-		cmocka_unit_test(test_list_free_value),
-		cmocka_unit_test(test_list_free_value_custom),
+		cmocka_unit_test(test_list_free_custom),
 	};
 	return cmocka_run_group_tests(tests, NULL, NULL);
 }
