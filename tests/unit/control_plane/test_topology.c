@@ -39,6 +39,12 @@ static struct scion_topology *load_topology(const char *filename)
 	return topo;
 }
 
+static int teardown_topology(void **state)
+{
+	scion_topology_free(*state);
+	return 0;
+}
+
 static void assert_load_rejected(const char *filename)
 {
 	char path[512];
@@ -57,9 +63,10 @@ static scion_ia parse_ia(const char *str)
 	return ia;
 }
 
-static void test_topology_minimal(void **)
+static void test_topology_minimal(void **state)
 {
 	struct scion_topology *topo = load_topology("minimal.json");
+	*state = topo;
 
 	assert_true(scion_topology_get_local_ia(topo) == parse_ia("1-ff00:0:111"));
 	assert_false(scion_topology_is_local_as_core(topo));
@@ -69,40 +76,35 @@ static void test_topology_minimal(void **)
 	assert_int_equal(scion_topology_next_underlay_hop(topo, 1, &underlay), 0);
 	assert_int_equal(scion_topology_next_underlay_hop(topo, SCION_INTERFACE_ANY, &underlay), 0);
 	assert_int_equal(scion_topology_next_underlay_hop(topo, 99, &underlay), SCION_ERR_TOPOLOGY_INVALID);
-
-	scion_topology_free(topo);
 }
 
-static void test_topology_core_as(void **)
+static void test_topology_core_as(void **state)
 {
 	struct scion_topology *topo = load_topology("core_as.json");
+	*state = topo;
 
 	assert_true(scion_topology_is_local_as_core(topo));
-
-	scion_topology_free(topo);
 }
 
-static void test_topology_ipv6_addresses(void **)
+static void test_topology_ipv6_addresses(void **state)
 {
 	struct scion_topology *topo = load_topology("ipv6.json");
+	*state = topo;
 
 	struct scion_underlay underlay;
 	assert_int_equal(scion_topology_next_underlay_hop(topo, 7, &underlay), 0);
 	assert_int_equal(underlay.addr_family, SCION_AF_INET6);
-
-	scion_topology_free(topo);
 }
 
 // local_addr_family is derived from the control service address, not from
 // any border router - this holds even when a border router has a different
 // address family than the control service.
-static void test_topology_address_family_comes_from_control_service(void **)
+static void test_topology_address_family_comes_from_control_service(void **state)
 {
 	struct scion_topology *topo = load_topology("mixed_address_family.json");
+	*state = topo;
 
 	assert_int_equal(topo->local_addr_family, SCION_AF_INET);
-
-	scion_topology_free(topo);
 }
 
 static void test_topology_missing_isd_as_is_rejected(void **)
@@ -163,15 +165,10 @@ static void test_topology_nonexistent_file_is_rejected(void **)
 // finishing the current one's "interfaces" object. Each border router
 // here has two interfaces (104+101, 105+103, 100+102); only the first
 // of each pair is kept.
-static void test_topology_multiple_interfaces_per_border_router(void **)
+static void test_topology_multiple_interfaces_per_border_router(void **state)
 {
-	char path[512];
-	testdata_path(path, sizeof(path), "multiple_interfaces_per_border_router.json");
-
-	struct scion_topology *topo = NULL;
-	int ret = scion_topology_from_file(&topo, path);
-	assert_int_equal(ret, 0);
-	assert_non_null(topo);
+	struct scion_topology *topo = load_topology("multiple_interfaces_per_border_router.json");
+	*state = topo;
 
 	const scion_ifid all_ifids[] = { 104, 101, 105, 103, 100, 102 };
 	for (size_t i = 0; i < sizeof(all_ifids) / sizeof(all_ifids[0]); i++) {
@@ -179,8 +176,6 @@ static void test_topology_multiple_interfaces_per_border_router(void **)
 		int hop_ret = scion_topology_next_underlay_hop(topo, all_ifids[i], &underlay);
 		assert_int_equal(hop_ret, 0);
 	}
-
-	scion_topology_free(topo);
 }
 
 static void test_topology_missing_interfaces_is_rejected(void **)
@@ -191,10 +186,10 @@ static void test_topology_missing_interfaces_is_rejected(void **)
 int run_topology_tests(void)
 {
 	const struct CMUnitTest tests[] = {
-		cmocka_unit_test(test_topology_minimal),
-		cmocka_unit_test(test_topology_core_as),
-		cmocka_unit_test(test_topology_ipv6_addresses),
-		cmocka_unit_test(test_topology_address_family_comes_from_control_service),
+		cmocka_unit_test_teardown(test_topology_minimal, teardown_topology),
+		cmocka_unit_test_teardown(test_topology_core_as, teardown_topology),
+		cmocka_unit_test_teardown(test_topology_ipv6_addresses, teardown_topology),
+		cmocka_unit_test_teardown(test_topology_address_family_comes_from_control_service, teardown_topology),
 		cmocka_unit_test(test_topology_missing_isd_as_is_rejected),
 		cmocka_unit_test(test_topology_missing_control_service_is_rejected),
 		cmocka_unit_test(test_topology_missing_border_routers_is_rejected),
@@ -205,7 +200,7 @@ int run_topology_tests(void)
 		cmocka_unit_test(test_topology_invalid_json_is_rejected),
 		cmocka_unit_test(test_topology_empty_file_is_rejected),
 		cmocka_unit_test(test_topology_nonexistent_file_is_rejected),
-		cmocka_unit_test(test_topology_multiple_interfaces_per_border_router),
+		cmocka_unit_test_teardown(test_topology_multiple_interfaces_per_border_router, teardown_topology),
 		cmocka_unit_test(test_topology_missing_interfaces_is_rejected),
 	};
 
