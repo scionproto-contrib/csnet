@@ -1,0 +1,9 @@
+{
+  "isd_as": "1-ff00:0:111",
+  "border_routers": {
+    "br1-ff00_0_111-1": {
+      "internal_addr": "127.0.0.2:31002",
+      "interfaces": { "1": { "isd_as": "1-ff00:0:120" } }
+    }
+  }
+}
