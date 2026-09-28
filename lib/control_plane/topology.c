@@ -437,9 +437,7 @@ int scion_topology_from_file(struct scion_topology **topology, const char *path)
 	}
 
 	int ret = scion_topology_from_stream(topology, f);
-	if (ret < 0) {
-		(void)fclose(f);
-	}
+	(void)fclose(f);
 
 	return ret;
 }
