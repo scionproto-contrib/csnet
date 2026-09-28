@@ -34,7 +34,8 @@ struct scion_topology {
 };
 
 struct scion_border_router {
-	scion_ifid ifid;
+	scion_ifid *ifids;
+	size_t ifid_len;
 	struct sockaddr_storage addr;
 	socklen_t addr_len;
 };

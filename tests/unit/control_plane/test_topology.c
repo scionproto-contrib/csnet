@@ -160,11 +160,10 @@ static void test_topology_nonexistent_file_is_rejected(void **)
 	assert_null(topo);
 }
 
-// Bug: scion_topology_from_file only keeps the first interface of each
-// border router - it jumps back to the next border router instead of
-// finishing the current one's "interfaces" object. Each border router
-// here has two interfaces (104+101, 105+103, 100+102); only the first
-// of each pair is kept.
+// Regression test for a bug where scion_topology_from_file only kept the
+// first interface of each border router. multiple_interfaces_per_border_router.json
+// has two interfaces per border router (104+101, 105+103, 100+102); all six
+// must be reachable via scion_topology_next_underlay_hop.
 static void test_topology_multiple_interfaces_per_border_router(void **state)
 {
 	struct scion_topology *topo = load_topology("multiple_interfaces_per_border_router.json");
