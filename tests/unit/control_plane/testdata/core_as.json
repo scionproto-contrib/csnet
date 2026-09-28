@@ -1,0 +1,20 @@
+{
+  "attributes": ["core"],
+  "isd_as": "2-ff00:0:1",
+  "control_service": {
+    "cs1-ff00_0_1-1": { "addr": "127.0.0.10:31000" }
+  },
+  "border_routers": {
+    "br1-ff00_0_1-1": {
+      "internal_addr": "127.0.0.11:31002",
+      "interfaces": {
+        "5": {
+          "underlay": { "local": "127.0.0.12:50000", "remote": "127.0.0.13:50000" },
+          "isd_as": "2-ff00:0:2",
+          "link_to": "core",
+          "mtu": 1472
+        }
+      }
+    }
+  }
+}

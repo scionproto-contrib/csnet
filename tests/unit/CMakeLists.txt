@@ -13,6 +13,7 @@ ExternalProject_Add(
 add_executable(unit_tests
         cmocka_main.c
         common/test_isd_as.c
+        control_plane/test_topology.c
         data_plane/test_deserialization.c
         data_plane/test_path.c
         data_plane/test_serialization.c
@@ -20,6 +21,10 @@ add_executable(unit_tests
         util/test_map.c
 )
 add_dependencies(unit_tests cmocka)
+
+target_compile_definitions(unit_tests PRIVATE
+        TEST_TOPOLOGY_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/control_plane/testdata"
+)
 
 # Link SCION library and cmocka to tests
 target_link_libraries(unit_tests PRIVATE scion ${DEPENDENCY_INSTALL_DIR}/lib/libcmocka.a)
