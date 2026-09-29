@@ -1423,6 +1423,10 @@ static int scion_path_solution_to_path(
 	}
 
 	// Set First Hop IFID
+	if (all_interfaces->first == NULL) {
+		ret = SCION_ERR_NO_PATHS;
+		goto exit;
+	}
 	struct scion_path_interface *intf = (struct scion_path_interface *)all_interfaces->first->value;
 	ret = scion_topology_next_underlay_hop(topology, intf->id, &path->underlay_next_hop);
 	if (ret != 0) {
@@ -1529,6 +1533,7 @@ static int scion_path_solution_list_to_path_list(struct scion_list *path_solutio
 	struct scion_list *ifids_list = scion_list_create(SCION_LIST_SIMPLE_FREE);
 	bool duplicate;
 	bool contains_loop;
+	size_t paths_added = 0;
 
 	struct scion_list_node *curr = path_solutions->first;
 	while (curr) {
@@ -1567,12 +1572,13 @@ static int scion_path_solution_list_to_path_list(struct scion_list *path_solutio
 			} else {
 				scion_list_append(ifids_list, ifids);
 				scion_list_append(paths, path);
+				paths_added++;
 			}
 		}
 		curr = curr->next;
 	}
 	scion_list_free(ifids_list);
-	return 0;
+	return paths_added > 0 ? 0 : SCION_ERR_NO_PATHS;
 }
 
 /*
