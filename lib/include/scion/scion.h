@@ -24,6 +24,7 @@
 extern "C" {
 #endif
 
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/socket.h>
@@ -404,7 +405,7 @@ void scion_path_free(struct scion_path *path);
  * Returns true if the geographical location is unknown.
  * @param geo The geographical location.
  */
-#define SCION_PATH_METADATA_GEO_IS_UNSET(geo) (geo.latitude == NAN && geo.longitude == NAN && geo.address == NULL)
+#define SCION_PATH_METADATA_GEO_IS_UNSET(geo) (isnan(geo.latitude) && isnan(geo.longitude) && geo.address == NULL)
 /**
  * Returns true if the number of internal hops is unknown.
  * @param internal_hops The number of internal hops.
