@@ -26,8 +26,8 @@
 #include "test_graph.h"
 #include "util/list.h"
 
-// Everything a test allocates, so teardown_graph_fixture can free it even if
-// an assertion fails partway through the test.
+// Everything a test allocates, so teardown_graph_fixture can free it even if an assertion fails partway through
+// the test.
 struct graph_test_fixture {
 	struct scion_topology *topo;
 	struct scion_path_segment *segment;
@@ -92,9 +92,8 @@ static struct scion_as_entry *make_as_entry(scion_ia local, uint16_t cons_ingres
 	return entry;
 }
 
-// A CORE segment directly connecting src to dst. scion_build_paths()
-// internally builds the edge from the last as_entries slot to the
-// first, so src goes at index 1 and dst at index 0.
+// A CORE segment directly connecting src to dst. scion_build_paths() internally builds the edge from the last
+// as_entries slot to the first, so src goes at index 1 and dst at index 0.
 static struct scion_path_segment *make_direct_core_segment(scion_ia src, scion_ia dst, scion_ifid ifid)
 {
 	struct scion_as_entry **as_entries = malloc(2 * sizeof(*as_entries));
@@ -135,9 +134,8 @@ static void test_graph_direct_core_path(void **state)
 	assert_int_equal(path->metadata->interfaces_len, 2);
 }
 
-// Regression test: hop fields with no interface IDs used to crash with a
-// NULL deref. Such a path is now rejected, like any other search that
-// yields no usable path.
+// Regression test: hop fields with no interface IDs used to crash with a NULL deref. Such a path is now rejected,
+// like any other search that yields no usable path.
 static void test_graph_all_zero_hop_fields(void **state)
 {
 	struct graph_test_fixture *fixture = calloc(1, sizeof(*fixture));
@@ -156,9 +154,8 @@ static void test_graph_all_zero_hop_fields(void **state)
 	assert_uint_equal(scion_list_size(fixture->paths), 0);
 }
 
-// With no segments at all, src never appears in the graph, so the whole
-// call fails with SCION_ERR_NO_PATHS rather than just yielding an empty
-// path list.
+// With no segments at all, src never appears in the graph, so the whole call fails with SCION_ERR_NO_PATHS rather
+// than just yielding an empty path list.
 static void test_graph_no_segments(void **state)
 {
 	struct graph_test_fixture *fixture = calloc(1, sizeof(*fixture));
