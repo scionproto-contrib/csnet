@@ -96,9 +96,8 @@ static void test_topology_ipv6_addresses(void **state)
 	assert_int_equal(underlay.addr_family, SCION_AF_INET6);
 }
 
-// local_addr_family is derived from the control service address, not from
-// any border router - this holds even when a border router has a different
-// address family than the control service.
+// local_addr_family is derived from the control service address, not from any border router - this holds even
+// when a border router has a different address family than the control service.
 static void test_topology_address_family_comes_from_control_service(void **state)
 {
 	struct scion_topology *topo = load_topology("mixed_address_family.json");
@@ -160,10 +159,9 @@ static void test_topology_nonexistent_file_is_rejected(void **)
 	assert_null(topo);
 }
 
-// Regression test for a bug where scion_topology_from_file only kept the
-// first interface of each border router. multiple_interfaces_per_border_router.json
-// has two interfaces per border router (104+101, 105+103, 100+102); all six
-// must be reachable via scion_topology_next_underlay_hop.
+// Regression test for a bug where scion_topology_from_file only kept the first interface of each border router.
+// multiple_interfaces_per_border_router.json has two interfaces per border router (104+101, 105+103, 100+102);
+// all six must be reachable via scion_topology_next_underlay_hop.
 static void test_topology_multiple_interfaces_per_border_router(void **state)
 {
 	struct scion_topology *topo = load_topology("multiple_interfaces_per_border_router.json");
