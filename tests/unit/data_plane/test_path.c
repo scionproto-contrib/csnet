@@ -600,6 +600,78 @@ static void test_reverse_path_missing_hop_fields(void **)
 	assert_reverse_rejects_raw_path(&hdr, SCION_META_LEN + SCION_INFO_LEN + 2 * SCION_HOP_LEN - 1);
 }
 
+static void test_meta_hdr_init(void **)
+{
+	struct scion_path_meta_hdr hdr = { .curr_inf = 1, .curr_hf = 2, .seg_len = { 3, 4, 5 } };
+	assert_int_equal(scion_path_meta_hdr_init(&hdr), 0);
+
+	assert_uint_equal(hdr.curr_inf, 0);
+	assert_uint_equal(hdr.curr_hf, 0);
+	assert_uint_equal(hdr.seg_len[0], 0);
+	assert_uint_equal(hdr.seg_len[1], 0);
+	assert_uint_equal(hdr.seg_len[2], 0);
+}
+
+static void test_meta_hdr_round_trip_extremes(void **)
+{
+	struct scion_path_meta_hdr hdr = { .curr_inf = 3, .curr_hf = 63, .seg_len = { 63, 63, 63 } };
+
+	uint8_t buf[SCION_META_LEN];
+	assert_int_equal(scion_path_meta_hdr_serialize(&hdr, buf), 0);
+
+	struct scion_path_meta_hdr parsed;
+	assert_int_equal(scion_path_meta_hdr_deserialize(buf, &parsed), 0);
+	assert_uint_equal(parsed.curr_inf, 3);
+	assert_uint_equal(parsed.curr_hf, 63);
+	assert_uint_equal(parsed.seg_len[0], 63);
+	assert_uint_equal(parsed.seg_len[1], 63);
+	assert_uint_equal(parsed.seg_len[2], 63);
+}
+
+// A segment can only be empty if no segment follows it.
+static void test_deserialize_path_inconsistent_segment_lengths(void **)
+{
+	struct scion_path_meta_hdr hdr = { .seg_len = { 1, 0, 2 } };
+
+	uint8_t buf[SCION_META_LEN];
+	assert_int_equal(scion_path_meta_hdr_serialize(&hdr, buf), 0);
+
+	struct scion_list *info_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
+	struct scion_list *hop_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
+	int ret = scion_path_deserialize(buf, sizeof(buf), &hdr, info_fields, hop_fields);
+	scion_list_free(info_fields);
+	scion_list_free(hop_fields);
+
+	assert_int_equal(ret, SCION_ERR_META_HDR_INVALID);
+}
+
+static void test_path_get_numhops(void **)
+{
+	struct scion_path empty = { .path_type = SCION_PATH_TYPE_EMPTY };
+	assert_uint_equal(scion_path_get_numhops(&empty), 0);
+
+	struct scion_path_metadata metadata = { .interfaces_len = 6 };
+	struct scion_path path = { .path_type = SCION_PATH_TYPE_SCION, .metadata = &metadata };
+	assert_uint_equal(scion_path_get_numhops(&path), 4);
+}
+
+static void test_reverse_empty_path(void **)
+{
+	struct scion_path path = { .src = 1, .dst = 2, .path_type = SCION_PATH_TYPE_EMPTY };
+
+	assert_int_equal(scion_path_reverse(&path), 0);
+
+	assert_uint_equal(path.src, 2);
+	assert_uint_equal(path.dst, 1);
+}
+
+static void test_reverse_unknown_path_type(void **)
+{
+	struct scion_path path = { .path_type = 5 };
+
+	assert_int_equal(scion_path_reverse(&path), SCION_ERR_PATH_TYPE_INVALID);
+}
+
 int run_path_tests(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -608,6 +680,12 @@ int run_path_tests(void)
 		cmocka_unit_test(test_reverse_path_shorter_than_meta_hdr),
 		cmocka_unit_test(test_reverse_path_missing_info_fields),
 		cmocka_unit_test(test_reverse_path_missing_hop_fields),
+		cmocka_unit_test(test_meta_hdr_init),
+		cmocka_unit_test(test_meta_hdr_round_trip_extremes),
+		cmocka_unit_test(test_deserialize_path_inconsistent_segment_lengths),
+		cmocka_unit_test(test_path_get_numhops),
+		cmocka_unit_test(test_reverse_empty_path),
+		cmocka_unit_test(test_reverse_unknown_path_type),
 		cmocka_unit_test(test_serialize_meta_hdr),
 		cmocka_unit_test(test_deserialize_meta_hdr),
 		cmocka_unit_test(test_serialize_path),
