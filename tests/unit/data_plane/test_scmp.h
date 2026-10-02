@@ -14,4 +14,4 @@
 
 #pragma once
 
-int run_deserialization_tests(void);
+int run_scmp_tests(void);
