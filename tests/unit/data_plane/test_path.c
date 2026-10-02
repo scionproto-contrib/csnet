@@ -564,11 +564,50 @@ static void test_deserialize_path(void **)
 	scion_list_free(hop_fields);
 }
 
+// scion_path_reverse() parses the raw path using the segment lengths announced in its meta header. A raw path that is
+// shorter than that header claims (e.g. one taken from a malformed packet) must be rejected instead of being read past
+// its end.
+static void assert_reverse_rejects_raw_path(struct scion_path_meta_hdr *hdr, uint16_t raw_length)
+{
+	struct scion_path_raw raw_path = { .length = raw_length, .raw = calloc(raw_length, sizeof(uint8_t)) };
+	if (raw_length >= SCION_META_LEN) {
+		assert_int_equal(scion_path_meta_hdr_serialize(hdr, raw_path.raw), 0);
+	}
+
+	struct scion_path path = { .path_type = SCION_PATH_TYPE_SCION, .raw_path = &raw_path };
+	assert_int_equal(scion_path_reverse(&path), SCION_ERR_NOT_ENOUGH_DATA);
+
+	free(raw_path.raw);
+}
+
+static void test_reverse_path_shorter_than_meta_hdr(void **)
+{
+	struct scion_path_meta_hdr hdr = { 0 };
+	assert_reverse_rejects_raw_path(&hdr, SCION_META_LEN - 1);
+}
+
+static void test_reverse_path_missing_info_fields(void **)
+{
+	// One segment with two hop fields, but only the meta header is present.
+	struct scion_path_meta_hdr hdr = { .seg_len = { 2, 0, 0 } };
+	assert_reverse_rejects_raw_path(&hdr, SCION_META_LEN);
+}
+
+static void test_reverse_path_missing_hop_fields(void **)
+{
+	// One segment with two hop fields, but the second hop field is cut short.
+	struct scion_path_meta_hdr hdr = { .seg_len = { 2, 0, 0 } };
+	assert_reverse_rejects_raw_path(&hdr, SCION_META_LEN + SCION_INFO_LEN + 2 * SCION_HOP_LEN - 1);
+}
+
 int run_path_tests(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(test_init_raw_path),
 		cmocka_unit_test(test_reverse_path),
+		cmocka_unit_test(test_reverse_path_shorter_than_meta_hdr),
+		cmocka_unit_test(test_reverse_path_missing_info_fields),
+		cmocka_unit_test(test_reverse_path_missing_hop_fields),
 		cmocka_unit_test(test_serialize_meta_hdr),
 		cmocka_unit_test(test_deserialize_meta_hdr),
 		cmocka_unit_test(test_serialize_path),
