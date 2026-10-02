@@ -24,6 +24,7 @@ add_executable(unit_tests
         data_plane/test_path.c
         data_plane/test_scmp.c
         data_plane/test_udp.c
+        data_plane/test_underlay.c
         util/test_list.c
         util/test_map.c
 )
