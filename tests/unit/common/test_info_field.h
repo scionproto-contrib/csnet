@@ -14,4 +14,4 @@
 
 #pragma once
 
-int run_serialization_tests(void);
+int run_info_field_tests(void);

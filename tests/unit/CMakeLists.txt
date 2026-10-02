@@ -12,15 +12,18 @@ ExternalProject_Add(
 # Declare test executable
 add_executable(unit_tests
         cmocka_main.c
+        common/test_hop_field.c
+        common/test_info_field.c
         common/test_isd_as.c
         control_plane/test_graph.c
         control_plane/test_path_metadata.c
         control_plane/test_policy.c
         control_plane/test_segment.c
         control_plane/test_topology.c
-        data_plane/test_deserialization.c
+        data_plane/test_packet.c
         data_plane/test_path.c
-        data_plane/test_serialization.c
+        data_plane/test_scmp.c
+        data_plane/test_udp.c
         util/test_list.c
         util/test_map.c
 )

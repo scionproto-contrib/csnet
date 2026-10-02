@@ -14,15 +14,18 @@
 
 #include <stdlib.h>
 
+#include "common/test_hop_field.h"
+#include "common/test_info_field.h"
 #include "common/test_isd_as.h"
 #include "control_plane/test_graph.h"
 #include "control_plane/test_path_metadata.h"
 #include "control_plane/test_policy.h"
 #include "control_plane/test_segment.h"
 #include "control_plane/test_topology.h"
-#include "data_plane/test_deserialization.h"
+#include "data_plane/test_packet.h"
 #include "data_plane/test_path.h"
-#include "data_plane/test_serialization.h"
+#include "data_plane/test_scmp.h"
+#include "data_plane/test_udp.h"
 #include "util/test_list.h"
 #include "util/test_map.h"
 
@@ -30,6 +33,8 @@ int main(void)
 {
 	int failed = 0;
 
+	failed += run_hop_field_tests();
+	failed += run_info_field_tests();
 	failed += run_isd_as_tests();
 	failed += run_graph_tests();
 	failed += run_path_metadata_tests();
@@ -37,9 +42,10 @@ int main(void)
 	failed += run_segment_tests();
 	failed += run_topology_tests();
 	failed += run_list_tests();
+	failed += run_packet_tests();
 	failed += run_path_tests();
-	failed += run_serialization_tests();
-	failed += run_deserialization_tests();
+	failed += run_scmp_tests();
+	failed += run_udp_tests();
 	failed += run_map_tests();
 
 	return failed == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
