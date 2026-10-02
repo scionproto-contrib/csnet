@@ -26,6 +26,7 @@
 #include "data_plane/test_path.h"
 #include "data_plane/test_scmp.h"
 #include "data_plane/test_udp.h"
+#include "data_plane/test_underlay.h"
 #include "util/test_list.h"
 #include "util/test_map.h"
 
@@ -46,6 +47,7 @@ int main(void)
 	failed += run_path_tests();
 	failed += run_scmp_tests();
 	failed += run_udp_tests();
+	failed += run_underlay_tests();
 	failed += run_map_tests();
 
 	return failed == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
