@@ -15,6 +15,7 @@ add_executable(unit_tests
         common/test_isd_as.c
         control_plane/test_graph.c
         control_plane/test_path_metadata.c
+        control_plane/test_policy.c
         control_plane/test_segment.c
         control_plane/test_topology.c
         data_plane/test_deserialization.c

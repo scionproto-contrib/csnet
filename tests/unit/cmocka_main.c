@@ -17,6 +17,7 @@
 #include "common/test_isd_as.h"
 #include "control_plane/test_graph.h"
 #include "control_plane/test_path_metadata.h"
+#include "control_plane/test_policy.h"
 #include "control_plane/test_segment.h"
 #include "control_plane/test_topology.h"
 #include "data_plane/test_deserialization.h"
@@ -32,6 +33,7 @@ int main(void)
 	failed += run_isd_as_tests();
 	failed += run_graph_tests();
 	failed += run_path_metadata_tests();
+	failed += run_policy_tests();
 	failed += run_segment_tests();
 	failed += run_topology_tests();
 	failed += run_list_tests();
