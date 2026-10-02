@@ -109,7 +109,7 @@ int scion_path_raw_reverse(struct scion_path_raw *path)
 	struct scion_list *info_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
 	struct scion_list *hop_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
 
-	ret = scion_path_deserialize(path->raw, &hdr, info_fields, hop_fields);
+	ret = scion_path_deserialize(path->raw, path->length, &hdr, info_fields, hop_fields);
 	if (ret != 0) {
 		goto cleanup_info_and_hop_fields;
 	}
@@ -332,13 +332,18 @@ int scion_path_meta_hdr_deserialize(const uint8_t *buf, struct scion_path_meta_h
 }
 
 int scion_path_deserialize(
-	uint8_t *buf, struct scion_path_meta_hdr *hdr, struct scion_list *info_fields, struct scion_list *hop_fields)
+	uint8_t *buf, size_t buf_len, struct scion_path_meta_hdr *hdr, struct scion_list *info_fields,
+	struct scion_list *hop_fields)
 {
 	assert(buf);
 	assert(hdr);
 	assert(info_fields);
 	assert(hop_fields);
 	int ret;
+
+	if (buf_len < SCION_META_LEN) {
+		return SCION_ERR_NOT_ENOUGH_DATA;
+	}
 
 	ret = scion_path_meta_hdr_deserialize(buf, hdr);
 	if (ret != 0) {
@@ -357,6 +362,10 @@ int scion_path_deserialize(
 			num_inf = (uint8_t)i + 1;
 		}
 		num_hf += hdr->seg_len[i];
+	}
+
+	if (buf_len < SCION_META_LEN + (size_t)num_inf * SCION_INFO_LEN + (size_t)num_hf * SCION_HOP_LEN) {
+		return SCION_ERR_NOT_ENOUGH_DATA;
 	}
 
 	for (uint8_t i = 0; i < num_inf; i++) {
