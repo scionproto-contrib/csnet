@@ -121,18 +121,18 @@ int scion_packet_serialize(struct scion_packet *packet, uint8_t *buf, size_t *bu
 	// Common Header
 	uint32_t first_line = ((uint32_t)packet->version) << 28 | ((uint32_t)packet->traffic_class) << 20
 						  | (packet->flow_id & 0xfffff);
-	*(uint32_t *)buf = htobe32(first_line);
+	scion_store_be32(buf, first_line);
 
 	buf[4] = (uint8_t)packet->next_hdr;
 	// hdr_len is the length of the SCION header in multiples of 4 bytes. The SCION header length is
 	// computed as hdr_len * 4 bytes.
 	buf[5] = (uint8_t)(total_hdr_len / 4);
 
-	*(uint16_t *)(buf + 6) = htobe16(packet->payload_len);
+	scion_store_be16(buf + 6, packet->payload_len);
 
 	buf[8] = (uint8_t)packet->path_type;
 	buf[9] = (uint8_t)(packet->dst_addr_type << 4 | packet->src_addr_type);
-	*(uint16_t *)(buf + 10) = htobe16(0);
+	scion_store_be16(buf + 10, 0);
 
 	// Addr Header
 	uint16_t offset = SCION_CMN_HDR_LEN;
@@ -211,13 +211,13 @@ int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_pa
 		return SCION_ERR_NOT_ENOUGH_DATA;
 	}
 
-	uint32_t firstline = be32toh(*(uint32_t *)buf);
+	uint32_t firstline = scion_load_be32(buf);
 
 	packet->version = (uint8_t)(firstline >> 28 & 0xff);
 	packet->traffic_class = (uint8_t)(firstline >> 20 & 0xff);
 	packet->flow_id = firstline & 0xfffff;
 	packet->next_hdr = buf[4];
-	packet->payload_len = be16toh(*(uint16_t *)(buf + 6));
+	packet->payload_len = scion_load_be16(buf + 6);
 	packet->path_type = buf[8];
 	packet->dst_addr_type = buf[9] >> 4 & 0xf;
 	packet->src_addr_type = buf[9] & 0xf;
