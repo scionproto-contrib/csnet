@@ -14,6 +14,7 @@
 
 #include <cmocka.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "common/hop_field.h"
 #include "test_hop_field.h"
@@ -92,11 +93,52 @@ static void test_deserialize_hop_field(void **)
 	assert_memory_equal(hop_field.mac, mac, sizeof(mac));
 }
 
+static void test_hop_field_router_alerts(void **)
+{
+	const struct {
+		bool ingress;
+		bool egress;
+		uint8_t flags;
+	} cases[] = { { false, false, 0x00 }, { false, true, 0x01 }, { true, false, 0x02 }, { true, true, 0x03 } };
+
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		struct scion_hop_field hop_field = { .ingress_router_alert = cases[i].ingress,
+			.egress_router_alert = cases[i].egress };
+
+		uint8_t buf[SCION_HOP_LEN];
+		scion_hop_field_serialize(buf, &hop_field);
+		assert_uint_equal(buf[0], cases[i].flags);
+
+		struct scion_hop_field parsed;
+		scion_hop_field_deserialize(buf, &parsed);
+		assert_int_equal(parsed.ingress_router_alert, cases[i].ingress);
+		assert_int_equal(parsed.egress_router_alert, cases[i].egress);
+	}
+}
+
+static void test_hop_field_round_trip_extremes(void **)
+{
+	struct scion_hop_field hop_field = { .exp_time = UINT8_MAX, .cons_ingress = UINT16_MAX, .cons_egress = UINT16_MAX };
+	memset(hop_field.mac, 0xff, SCION_MAC_LEN);
+
+	uint8_t buf[SCION_HOP_LEN];
+	scion_hop_field_serialize(buf, &hop_field);
+
+	struct scion_hop_field parsed;
+	scion_hop_field_deserialize(buf, &parsed);
+	assert_uint_equal(parsed.exp_time, UINT8_MAX);
+	assert_uint_equal(parsed.cons_ingress, UINT16_MAX);
+	assert_uint_equal(parsed.cons_egress, UINT16_MAX);
+	assert_memory_equal(parsed.mac, hop_field.mac, SCION_MAC_LEN);
+}
+
 int run_hop_field_tests(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(test_serialize_hop_field),
 		cmocka_unit_test(test_deserialize_hop_field),
+		cmocka_unit_test(test_hop_field_router_alerts),
+		cmocka_unit_test(test_hop_field_round_trip_extremes),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);
