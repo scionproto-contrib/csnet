@@ -209,11 +209,182 @@ static void test_deserialize_scion_packet(void **)
 	free(packet.payload);
 }
 
+// A SCION packet with an empty path, IPv4 addresses and a 3 byte payload "abc".
+// clang-format off
+static const uint8_t empty_path_packet[] = {
+	0x00, 0x00, 0x00, 0x01, 0x11, 0x09, 0x00, 0x03,
+	0x00, 0x00, 0x00, 0x00,
+	0x00, 0x01, 0xff, 0x00, 0x00, 0x00, 0x01, 0x21,
+	0x00, 0x02, 0xff, 0x00, 0x00, 0x00, 0x02, 0x21,
+	0x7f, 0x00, 0x00, 0x66, 0x7f, 0x00, 0x00, 0xbd,
+	0x61, 0x62, 0x63,
+};
+// clang-format on
+
+#define EMPTY_PATH_HDR_LEN 36
+
+static void init_empty_path_packet(struct scion_packet *packet)
+{
+	*packet = (struct scion_packet){ 0 };
+	packet->flow_id = 1;
+	packet->next_hdr = SCION_PROTO_UDP;
+	packet->path_type = SCION_PATH_TYPE_EMPTY;
+	packet->dst_ia = 0x1ff0000000121;
+	packet->src_ia = 0x2ff0000000221;
+
+	packet->dst_addr_type = SCION_ADDR_TYPE_T4IP;
+	packet->raw_dst_addr_length = 4;
+	packet->raw_dst_addr = malloc(4);
+	memcpy(packet->raw_dst_addr, &empty_path_packet[28], 4);
+
+	packet->src_addr_type = SCION_ADDR_TYPE_T4IP;
+	packet->raw_src_addr_length = 4;
+	packet->raw_src_addr = malloc(4);
+	memcpy(packet->raw_src_addr, &empty_path_packet[32], 4);
+
+	packet->payload_len = 3;
+	packet->payload = malloc(3);
+	memcpy(packet->payload, "abc", 3);
+}
+
+static void test_packet_addr_type_len(void **)
+{
+	assert_int_equal(scion_packet_addr_type_len(0), 4);
+	assert_int_equal(scion_packet_addr_type_len(1), 8);
+	assert_int_equal(scion_packet_addr_type_len(2), 12);
+	assert_int_equal(scion_packet_addr_type_len(3), 16);
+}
+
+static void test_serialize_scion_packet_empty_path(void **)
+{
+	struct scion_packet packet;
+	init_empty_path_packet(&packet);
+
+	uint8_t buf[sizeof(empty_path_packet)];
+	size_t buf_len = sizeof(buf);
+	int ret = scion_packet_serialize(&packet, buf, &buf_len);
+	scion_packet_free_members(&packet);
+
+	assert_int_equal(ret, 0);
+	assert_uint_equal(buf_len, sizeof(empty_path_packet));
+	assert_memory_equal(buf, empty_path_packet, sizeof(empty_path_packet));
+}
+
+static void test_serialize_scion_packet_buffer_too_small(void **)
+{
+	struct scion_packet packet;
+	init_empty_path_packet(&packet);
+
+	uint8_t buf[sizeof(empty_path_packet) - 1];
+	size_t buf_len = sizeof(buf);
+	int ret = scion_packet_serialize(&packet, buf, &buf_len);
+	scion_packet_free_members(&packet);
+
+	assert_int_equal(ret, SCION_ERR_BUF_TOO_SMALL);
+}
+
+static void test_serialize_scion_packet_header_too_large(void **)
+{
+	struct scion_packet packet;
+	init_empty_path_packet(&packet);
+
+	// 12 + 24 + 1000 bytes exceeds the largest header the hdr_len field can express.
+	struct scion_path_raw raw_path = { .length = 1000, .raw = NULL };
+	struct scion_path path = { .path_type = SCION_PATH_TYPE_SCION, .raw_path = &raw_path };
+	packet.path_type = SCION_PATH_TYPE_SCION;
+	packet.path = &path;
+
+	uint8_t buf[sizeof(empty_path_packet)];
+	size_t buf_len = sizeof(buf);
+	int ret = scion_packet_serialize(&packet, buf, &buf_len);
+
+	packet.path = NULL;
+	scion_packet_free_members(&packet);
+
+	assert_int_equal(ret, SCION_ERR_MAX_HDR_LEN_EXCEEDED);
+}
+
+static void test_deserialize_scion_packet_empty_path(void **)
+{
+	struct scion_packet packet = { 0 };
+	int ret = scion_packet_deserialize(empty_path_packet, sizeof(empty_path_packet), &packet);
+
+	if (ret == 0) {
+		assert_uint_equal(packet.flow_id, 1);
+		assert_uint_equal(packet.next_hdr, SCION_PROTO_UDP);
+		assert_uint_equal(packet.path_type, SCION_PATH_TYPE_EMPTY);
+		assert_uint_equal(packet.dst_ia, 0x1ff0000000121);
+		assert_uint_equal(packet.src_ia, 0x2ff0000000221);
+		assert_null(packet.path->raw_path);
+		assert_uint_equal(packet.payload_len, 3);
+		assert_memory_equal(packet.payload, "abc", 3);
+	}
+
+	scion_packet_free_members(&packet);
+	assert_int_equal(ret, 0);
+}
+
+static void assert_deserialize_fails(const uint8_t *buf, size_t buf_len, int expected_error)
+{
+	struct scion_packet packet = { 0 };
+	int ret = scion_packet_deserialize(buf, buf_len, &packet);
+	scion_packet_free_members(&packet);
+
+	assert_int_equal(ret, expected_error);
+}
+
+static void test_deserialize_scion_packet_shorter_than_common_header(void **)
+{
+	assert_deserialize_fails(empty_path_packet, SCION_CMN_HDR_LEN - 1, SCION_ERR_NOT_ENOUGH_DATA);
+}
+
+static void test_deserialize_scion_packet_truncated_address_header(void **)
+{
+	assert_deserialize_fails(empty_path_packet, SCION_CMN_HDR_LEN + 15, SCION_ERR_BUF_TOO_SMALL);
+}
+
+static void test_deserialize_scion_packet_truncated_payload(void **)
+{
+	assert_deserialize_fails(empty_path_packet, sizeof(empty_path_packet) - 1, SCION_ERR_NOT_ENOUGH_DATA);
+}
+
+static void test_deserialize_scion_packet_hdr_len_shorter_than_headers(void **)
+{
+	uint8_t buf[sizeof(empty_path_packet)];
+	memcpy(buf, empty_path_packet, sizeof(buf));
+	buf[5] = (EMPTY_PATH_HDR_LEN - 4) / 4;
+
+	assert_deserialize_fails(buf, sizeof(buf), SCION_ERR_PACKET_FIELD_INVALID);
+}
+
+// An empty path has no path header, so a hdr_len announcing extra bytes is malformed. It must not make the payload be
+// read from the wrong offset.
+static void test_deserialize_scion_packet_empty_path_with_path_header(void **)
+{
+	uint8_t buf[sizeof(empty_path_packet) + 4];
+	memcpy(buf, empty_path_packet, EMPTY_PATH_HDR_LEN);
+	buf[5] = (EMPTY_PATH_HDR_LEN + 4) / 4;
+	memcpy(&buf[EMPTY_PATH_HDR_LEN], (uint8_t[]){ 0xde, 0xad, 0xbe, 0xef }, 4);
+	memcpy(&buf[EMPTY_PATH_HDR_LEN + 4], "abc", 3);
+
+	assert_deserialize_fails(buf, sizeof(buf), SCION_ERR_PACKET_FIELD_INVALID);
+}
+
 int run_packet_tests(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(test_serialize_scion_packet),
 		cmocka_unit_test(test_deserialize_scion_packet),
+		cmocka_unit_test(test_packet_addr_type_len),
+		cmocka_unit_test(test_serialize_scion_packet_empty_path),
+		cmocka_unit_test(test_serialize_scion_packet_buffer_too_small),
+		cmocka_unit_test(test_serialize_scion_packet_header_too_large),
+		cmocka_unit_test(test_deserialize_scion_packet_empty_path),
+		cmocka_unit_test(test_deserialize_scion_packet_shorter_than_common_header),
+		cmocka_unit_test(test_deserialize_scion_packet_truncated_address_header),
+		cmocka_unit_test(test_deserialize_scion_packet_truncated_payload),
+		cmocka_unit_test(test_deserialize_scion_packet_hdr_len_shorter_than_headers),
+		cmocka_unit_test(test_deserialize_scion_packet_empty_path_with_path_header),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);
