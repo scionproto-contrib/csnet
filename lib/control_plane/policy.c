@@ -108,7 +108,7 @@ static void sort_lowest_latency(struct scion_path_collection *path_collection, v
 		if (metadata != NULL && metadata->latencies != NULL) {
 			struct timeval *total_latency = calloc(1, sizeof(*total_latency));
 
-			for (size_t j = 0; j < metadata->interfaces_len; j++) {
+			for (size_t j = 0; j + 1 < metadata->interfaces_len; j++) {
 				struct timeval latency = metadata->latencies[j];
 
 				// Set total latency to unknown if entry is missing
@@ -181,7 +181,7 @@ static void sort_highest_bandwidth(struct scion_path_collection *path_collection
 			uint64_t *min_bandwidth = malloc(sizeof(*min_bandwidth));
 			*min_bandwidth = UINT64_MAX;
 
-			for (size_t j = 0; j < metadata->interfaces_len; j++) {
+			for (size_t j = 0; j + 1 < metadata->interfaces_len; j++) {
 				uint64_t bandwidth = metadata->bandwidths[j];
 
 				// Set min bandwidth to 0 if entry is missing
