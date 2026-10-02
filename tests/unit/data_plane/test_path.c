@@ -457,7 +457,7 @@ static void test_deserialize_path(void **)
 	struct scion_list *info_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
 	struct scion_list *hop_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
 
-	assert_int_equal(scion_path_deserialize((uint8_t *)&buf, &hdr, info_fields, hop_fields), 0);
+	assert_int_equal(scion_path_deserialize((uint8_t *)&buf, sizeof(buf), &hdr, info_fields, hop_fields), 0);
 
 	assert_uint_equal(hdr.curr_inf, 2);
 	assert_uint_equal(hdr.curr_hf, 5);

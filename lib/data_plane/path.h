@@ -178,6 +178,7 @@ int scion_path_meta_hdr_serialize(struct scion_path_meta_hdr *hdr, uint8_t *buf)
  *
  * Arguments:
  *      - uint8_t *buf: Pointer to the buffer.
+ *      - size_t buf_len: Length of the buffer in bytes.
  * 		- struct scion_path_meta_hdr *hdr: Pointer to the scion_path_meta_hdr struct into which the Meta header will be
  * deserialized.
  * 		- struct scion_linked_list *info_fields: scion_linked_list into which the list of info fields will be
@@ -189,7 +190,8 @@ int scion_path_meta_hdr_serialize(struct scion_path_meta_hdr *hdr, uint8_t *buf)
  *      - An integer status code, 0 for success or an error code as defined in error.h.
  */
 int scion_path_deserialize(
-	uint8_t *buf, struct scion_path_meta_hdr *hdr, struct scion_list *info_fields, struct scion_list *hop_fields);
+	uint8_t *buf, size_t buf_len, struct scion_path_meta_hdr *hdr, struct scion_list *info_fields,
+	struct scion_list *hop_fields);
 
 int scion_path_meta_hdr_deserialize(const uint8_t *buf, struct scion_path_meta_hdr *hdr);
 
