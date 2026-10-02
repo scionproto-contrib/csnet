@@ -239,6 +239,11 @@ int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_pa
 
 	uint16_t path_hdr_len = hdr_bytes - hdr_bytes_without_path;
 
+	if (packet->path_type == SCION_PATH_TYPE_EMPTY && path_hdr_len != 0) {
+		// an empty path has no path header
+		return SCION_ERR_PACKET_FIELD_INVALID;
+	}
+
 	if ((size_t)(current_offset + path_hdr_len + packet->payload_len) > buf_len) {
 		// missing part of the payload
 		return SCION_ERR_NOT_ENOUGH_DATA;
