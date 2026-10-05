@@ -266,7 +266,7 @@ int scion_path_meta_hdr_serialize(struct scion_path_meta_hdr *hdr, uint8_t *buf)
 	line |= ((uint32_t)(hdr->seg_len[0] & 0x3f)) << 12;
 	line |= ((uint32_t)(hdr->seg_len[1] & 0x3f)) << 6;
 	line |= ((uint32_t)(hdr->seg_len[2] & 0x3f));
-	*(uint32_t *)buf = htobe32(line);
+	scion_store_be32(buf, line);
 	return 0;
 }
 
@@ -322,7 +322,7 @@ int scion_path_meta_hdr_deserialize(const uint8_t *buf, struct scion_path_meta_h
 	assert(buf);
 	assert(hdr);
 
-	uint32_t line = be32toh(*(uint32_t *)buf);
+	uint32_t line = scion_load_be32(buf);
 	hdr->curr_inf = (uint8_t)(line >> 30);
 	hdr->curr_hf = (uint8_t)((line >> 24) & 0x3f);
 	hdr->seg_len[0] = (uint8_t)((line >> 12) & 0x3f);

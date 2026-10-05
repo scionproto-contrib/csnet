@@ -41,8 +41,8 @@ int scion_info_field_serialize(uint8_t *buf, struct scion_info_field *info_field
 		buf[0] |= 0x2;
 	}
 	buf[1] = 0; // reserved
-	*(uint16_t *)(buf + 2) = htobe16(info_field->seg_id);
-	*(uint32_t *)(buf + 4) = htobe32(info_field->timestamp);
+	scion_store_be16(buf + 2, info_field->seg_id);
+	scion_store_be32(buf + 4, info_field->timestamp);
 	return 0;
 }
 
@@ -53,7 +53,7 @@ int scion_info_field_deserialize(const uint8_t *buf, struct scion_info_field *in
 
 	info_field->cons_dir = ((buf[0] & 0x1) == 0x1);
 	info_field->peer = ((buf[0] & 0x2) == 0x2);
-	info_field->seg_id = be16toh(*(uint16_t *)(buf + 2));
-	info_field->timestamp = be32toh(*(uint32_t *)(buf + 4));
+	info_field->seg_id = scion_load_be16(buf + 2);
+	info_field->timestamp = scion_load_be32(buf + 4);
 	return 0;
 }
