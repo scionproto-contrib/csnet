@@ -80,8 +80,8 @@ int scion_scmp_echo_deserialize(const uint8_t *buf, uint16_t buf_len, struct sci
 	}
 
 	scmp_echo->type = type;
-	scmp_echo->id = be16toh(*(uint16_t *)(buf + 4));
-	scmp_echo->seqno = be16toh(*(uint16_t *)(buf + 6));
+	scmp_echo->id = scion_load_be16(buf + 4);
+	scmp_echo->seqno = scion_load_be16(buf + 6);
 
 	if (data_len > 0) {
 		(void)memcpy(scmp_echo->data, buf + 8, data_len);
@@ -101,9 +101,9 @@ int scion_scmp_echo_serialize(const struct scion_scmp_echo *scmp_echo, uint8_t *
 
 	*(buf) = (uint8_t)scmp_echo->type;
 	*(buf + 1) = 0;
-	*(uint16_t *)(buf + 2) = 0; // TODO checksum
-	*(uint16_t *)(buf + 4) = htobe16(scmp_echo->id);
-	*(uint16_t *)(buf + 6) = htobe16(scmp_echo->seqno);
+	scion_store_be16(buf + 2, 0); // TODO checksum
+	scion_store_be16(buf + 4, scmp_echo->id);
+	scion_store_be16(buf + 6, scmp_echo->seqno);
 
 	if (scmp_echo->data_length > 0) {
 		(void)memcpy(buf + SCION_SCMP_ECHO_HDR_LEN, scmp_echo->data, scmp_echo->data_length);

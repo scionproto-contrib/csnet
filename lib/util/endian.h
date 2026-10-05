@@ -14,6 +14,9 @@
 
 #pragma once
 
+#include <stdint.h>
+#include <string.h>
+
 #if defined(__APPLE__)
 #include <libkern/OSByteOrder.h>
 #define htobe16(x) OSSwapHostToBigInt16(x)
@@ -25,3 +28,30 @@
 #else
 #include <endian.h>
 #endif
+
+// Wire data is not necessarily aligned, so multi-byte fields must not be accessed by casting a buffer pointer.
+static inline uint16_t scion_load_be16(const uint8_t *buf)
+{
+	uint16_t value;
+	(void)memcpy(&value, buf, sizeof(value));
+	return be16toh(value);
+}
+
+static inline uint32_t scion_load_be32(const uint8_t *buf)
+{
+	uint32_t value;
+	(void)memcpy(&value, buf, sizeof(value));
+	return be32toh(value);
+}
+
+static inline void scion_store_be16(uint8_t *buf, uint16_t value)
+{
+	uint16_t be_value = htobe16(value);
+	(void)memcpy(buf, &be_value, sizeof(be_value));
+}
+
+static inline void scion_store_be32(uint8_t *buf, uint32_t value)
+{
+	uint32_t be_value = htobe32(value);
+	(void)memcpy(buf, &be_value, sizeof(be_value));
+}

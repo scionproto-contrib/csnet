@@ -60,9 +60,9 @@ int scion_udp_serialize(struct scion_udp *udp, uint8_t *buf, uint16_t *len)
 		return SCION_ERR_BUF_TOO_SMALL;
 	}
 
-	*(uint16_t *)(buf) = htobe16(udp->src_port);
-	*(uint16_t *)(buf + 2) = htobe16(udp->dst_port);
-	*(uint16_t *)(buf + 4) = htobe16(udp_len);
+	scion_store_be16(buf, udp->src_port);
+	scion_store_be16(buf + 2, udp->dst_port);
+	scion_store_be16(buf + 4, udp_len);
 
 	// TODO calculate checksum
 	if (udp->data_length > 0) {
@@ -82,9 +82,9 @@ int scion_udp_deserialize(const uint8_t *buf, uint16_t len, struct scion_udp *ud
 		return SCION_ERR_NOT_ENOUGH_DATA;
 	}
 
-	udp->src_port = be16toh(*(uint16_t *)buf);
-	udp->dst_port = be16toh(*(uint16_t *)(buf + 2));
-	uint16_t udp_len = be16toh(*(uint16_t *)(buf + 4));
+	udp->src_port = scion_load_be16(buf);
+	udp->dst_port = scion_load_be16(buf + 2);
+	uint16_t udp_len = scion_load_be16(buf + 4);
 
 	if (udp_len < SCION_UDP_HDR_LEN) {
 		// declared length shorter than the header itself

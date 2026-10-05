@@ -46,8 +46,8 @@ int scion_hop_field_serialize(uint8_t *buf, struct scion_hop_field *hop_field)
 		buf[0] |= 0x2;
 	}
 	buf[1] = hop_field->exp_time;
-	*(uint16_t *)(buf + 2) = htobe16(hop_field->cons_ingress);
-	*(uint16_t *)(buf + 4) = htobe16(hop_field->cons_egress);
+	scion_store_be16(buf + 2, hop_field->cons_ingress);
+	scion_store_be16(buf + 4, hop_field->cons_egress);
 	(void)memcpy(buf + 6, hop_field->mac, SCION_MAC_LEN);
 	return 0;
 }
@@ -60,8 +60,8 @@ int scion_hop_field_deserialize(uint8_t *buf, struct scion_hop_field *hop_field)
 	hop_field->egress_router_alert = ((buf[0] & 0x1) == 0x1);
 	hop_field->ingress_router_alert = ((buf[0] & 0x2) == 0x2);
 	hop_field->exp_time = buf[1];
-	hop_field->cons_ingress = be16toh(*(uint16_t *)(buf + 2));
-	hop_field->cons_egress = be16toh(*(uint16_t *)(buf + 4));
+	hop_field->cons_ingress = scion_load_be16(buf + 2);
+	hop_field->cons_egress = scion_load_be16(buf + 4);
 	(void)memcpy(hop_field->mac, buf + 6, SCION_MAC_LEN);
 	return 0;
 }
