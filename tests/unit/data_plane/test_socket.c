@@ -544,6 +544,101 @@ static void test_socket_scmp_informational_message_is_not_an_error(void **state)
 	assert_int_equal(record.calls, 0);
 }
 
+static int count_open_file_descriptors(void)
+{
+	int count = 0;
+	for (int fd = 0; fd < 1024; fd++) {
+		if (fcntl(fd, F_GETFD) != -1) {
+			count++;
+		}
+	}
+	return count;
+}
+
+static void test_socket_creation_failure_does_not_leak_the_descriptor(void **state)
+{
+	struct socket_fixture *fixture = *state;
+
+	// Without a border router, scion_socket fails after it has created the underlying socket.
+	scion_list_free(fixture->topology->border_routers);
+	fixture->topology->border_routers = scion_list_create(SCION_LIST_CUSTOM_FREE(free_test_border_router));
+
+	int open_before = count_open_file_descriptors();
+	struct scion_socket *sock;
+	assert_int_equal(scion_socket(&sock, SCION_AF_INET, SCION_SOCK_DGRAM, SCION_PROTO_UDP, fixture->network),
+		SCION_ERR_TOPOLOGY_INVALID);
+	assert_int_equal(count_open_file_descriptors(), open_before);
+}
+
+// A SCION packet with an empty path, a UDP next header and a 3 byte payload.
+// clang-format off
+static const uint8_t well_formed_packet[] = {
+	0x00, 0x00, 0x00, 0x01, 0x11, 0x09, 0x00, 0x03,
+	0x00, 0x00, 0x00, 0x00,
+	0x00, 0x01, 0xff, 0x00, 0x00, 0x00, 0x01, 0x21,
+	0x00, 0x02, 0xff, 0x00, 0x00, 0x00, 0x02, 0x21,
+	0x7f, 0x00, 0x00, 0x01, 0x7f, 0x00, 0x00, 0x01,
+	0x61, 0x62, 0x63,
+};
+// clang-format on
+
+#define WELL_FORMED_HDR_LEN 36
+
+// Sends raw bytes to the underlying socket, as any host that can reach the port could.
+static void inject_packet(const struct sockaddr_in *to, const uint8_t *packet, size_t length)
+{
+	int fd = socket(AF_INET, SOCK_DGRAM, 0);
+	assert_true(fd >= 0);
+	ssize_t sent = sendto(fd, packet, length, 0, (const struct sockaddr *)to, sizeof(*to));
+	close(fd);
+	assert_int_equal(sent, (ssize_t)length);
+}
+
+static void test_socket_receive_skips_malformed_packets(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(sender);
+	bind_loopback(receiver);
+	struct sockaddr_in receiver_addr = bound_address(receiver);
+	set_receive_timeout(receiver, 100);
+
+	// Shorter than the common header.
+	inject_packet(&receiver_addr, well_formed_packet, 5);
+
+	// The address header is cut off.
+	inject_packet(&receiver_addr, well_formed_packet, 27);
+
+	// The payload is shorter than announced.
+	inject_packet(&receiver_addr, well_formed_packet, sizeof(well_formed_packet) - 1);
+
+	// The hdr_len is shorter than the headers.
+	uint8_t bad_hdr_len[sizeof(well_formed_packet)];
+	memcpy(bad_hdr_len, well_formed_packet, sizeof(bad_hdr_len));
+	bad_hdr_len[5] = (WELL_FORMED_HDR_LEN - 4) / 4;
+	inject_packet(&receiver_addr, bad_hdr_len, sizeof(bad_hdr_len));
+
+	// An empty path with a path header.
+	uint8_t extra_path_header[sizeof(well_formed_packet) + 4];
+	memcpy(extra_path_header, well_formed_packet, WELL_FORMED_HDR_LEN);
+	extra_path_header[5] = (WELL_FORMED_HDR_LEN + 4) / 4;
+	memset(&extra_path_header[WELL_FORMED_HDR_LEN], 0xff, 4);
+	memcpy(&extra_path_header[WELL_FORMED_HDR_LEN + 4], "abc", 3);
+	inject_packet(&receiver_addr, extra_path_header, sizeof(extra_path_header));
+
+	// All of them are skipped.
+	char buf[16];
+	assert_int_equal(scion_recv(receiver, buf, sizeof(buf), 0), SCION_ERR_WOULD_BLOCK);
+
+	// The socket keeps working.
+	assert_int_equal(scion_sendto(sender, "ok", 2, 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr),
+						 local_ia_of(fixture), NULL),
+		2);
+	assert_int_equal(scion_recv(receiver, buf, sizeof(buf), 0), 2);
+	assert_memory_equal(buf, "ok", 2);
+}
+
 int run_socket_tests(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -568,6 +663,9 @@ int run_socket_tests(void)
 		cmocka_unit_test_setup_teardown(test_socket_scmp_error_calls_the_callback, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(
 			test_socket_scmp_informational_message_is_not_an_error, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(
+			test_socket_creation_failure_does_not_leak_the_descriptor, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_receive_skips_malformed_packets, setup_fixture, teardown_fixture),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);
