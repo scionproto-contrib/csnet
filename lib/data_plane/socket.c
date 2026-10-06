@@ -298,7 +298,7 @@ int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_f
 		// get arbitrary border router
 		ret = scion_topology_next_underlay_hop(network->topology, SCION_INTERFACE_ANY, &probe_underlay);
 		if (ret != 0) {
-			goto cleanup_socket_storage;
+			goto cleanup_socket_fd;
 		}
 
 		struct sockaddr_storage src_addr;
@@ -306,7 +306,7 @@ int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_f
 		// determine the source address by connecting to the border router
 		ret = scion_underlay_probe(&probe_underlay, (struct sockaddr *)&src_addr, &src_addr_len);
 		if (ret != 0) {
-			goto cleanup_socket_storage;
+			goto cleanup_socket_fd;
 		}
 
 		set_source_address(scion_sock_storage, (struct sockaddr *)&src_addr, src_addr_len, /* with_port */ false);
@@ -315,6 +315,9 @@ int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_f
 	*scion_sock = scion_sock_storage;
 
 	return 0;
+
+cleanup_socket_fd:
+	(void)close(scion_sock_storage->socket_fd);
 
 cleanup_socket_storage:
 	free(scion_sock_storage);
