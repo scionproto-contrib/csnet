@@ -852,6 +852,7 @@ ssize_t scion_recvmsg(
 		ret = scion_packet_deserialize((uint8_t *)&packet_buf, (size_t)ret, &packet);
 		if (ret != 0) {
 			// Ignore packet
+			scion_packet_free_members(&packet);
 			continue;
 		}
 
