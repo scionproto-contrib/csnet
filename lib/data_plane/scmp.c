@@ -43,6 +43,118 @@ bool scion_scmp_is_error(const uint8_t *buf, uint16_t buf_len)
 	return scion_scmp_get_type(buf, buf_len) >> 7 == 0;
 }
 
+const char *scion_scmp_type_str(enum scion_scmp_type type)
+{
+	switch (type) {
+	case SCION_SCMP_TYPE_DESTINATION_UNREACHABLE:
+		return "destination unreachable";
+	case SCION_SCMP_TYPE_PACKET_TOO_BIG:
+		return "packet too big";
+	case SCION_SCMP_TYPE_PARAMETER_PROBLEM:
+		return "parameter problem";
+	case SCION_SCMP_TYPE_EXTERNAL_INTERFACE_DOWN:
+		return "external interface down";
+	case SCION_SCMP_TYPE_INTERNAL_CONNECTIVITY_DOWN:
+		return "internal connectivity down";
+	case SCION_SCMP_TYPE_ECHO_REQUEST:
+		return "echo request";
+	case SCION_SCMP_TYPE_ECHO_REPLY:
+		return "echo reply";
+	}
+
+	return "unknown";
+}
+
+static const char *destination_unreachable_code_str(enum scion_scmp_code_destination_unreachable code)
+{
+	switch (code) {
+	case SCION_SCMP_CODE_DESTINATION_UNREACHABLE_NO_ROUTE:
+		return "no route to destination";
+	case SCION_SCMP_CODE_DESTINATION_UNREACHABLE_ADMINISTRATIVELY_DENIED:
+		return "communication administratively denied";
+	case SCION_SCMP_CODE_DESTINATION_UNREACHABLE_BEYOND_SCOPE:
+		return "beyond scope of source address";
+	case SCION_SCMP_CODE_DESTINATION_UNREACHABLE_ADDRESS_UNREACHABLE:
+		return "address unreachable";
+	case SCION_SCMP_CODE_DESTINATION_UNREACHABLE_PORT_UNREACHABLE:
+		return "port unreachable";
+	case SCION_SCMP_CODE_DESTINATION_UNREACHABLE_SOURCE_ADDRESS_FAILED_POLICY:
+		return "source address failed ingress/egress policy";
+	case SCION_SCMP_CODE_DESTINATION_UNREACHABLE_REJECT_ROUTE:
+		return "reject route to destination";
+	}
+
+	return "unknown";
+}
+
+static const char *parameter_problem_code_str(enum scion_scmp_code_parameter_problem code)
+{
+	switch (code) {
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_ERRONEOUS_HEADER_FIELD:
+		return "erroneous header field";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_UNKNOWN_NEXT_HEADER:
+		return "unknown next header type";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_INVALID_COMMON_HEADER:
+		return "invalid common header";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_UNKNOWN_VERSION:
+		return "unknown SCION version";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_FLOW_ID_REQUIRED:
+		return "flow ID required";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_INVALID_PACKET_SIZE:
+		return "invalid packet size";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_UNKNOWN_PATH_TYPE:
+		return "unknown path type";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_UNKNOWN_ADDRESS_FORMAT:
+		return "unknown address format";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_INVALID_ADDRESS_HEADER:
+		return "invalid address header";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_INVALID_SOURCE_ADDRESS:
+		return "invalid source address";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_INVALID_DESTINATION_ADDRESS:
+		return "invalid destination address";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_NON_LOCAL_DELIVERY:
+		return "non-local delivery";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_INVALID_PATH:
+		return "invalid path";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_UNKNOWN_HOP_FIELD_INGRESS:
+		return "unknown hop field ingress interface";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_UNKNOWN_HOP_FIELD_EGRESS:
+		return "unknown hop field egress interface";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_INVALID_HOP_FIELD_MAC:
+		return "invalid hop field MAC";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_PATH_EXPIRED:
+		return "path expired";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_INVALID_SEGMENT_CHANGE:
+		return "invalid segment change";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_INVALID_EXTENSION_HEADER:
+		return "invalid extension header";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_UNKNOWN_HOP_BY_HOP_OPTION:
+		return "unknown hop-by-hop option";
+	case SCION_SCMP_CODE_PARAMETER_PROBLEM_UNKNOWN_END_TO_END_OPTION:
+		return "unknown end-to-end option";
+	}
+
+	return "unknown";
+}
+
+const char *scion_scmp_code_str(enum scion_scmp_type type, uint8_t code)
+{
+	switch (type) {
+	case SCION_SCMP_TYPE_DESTINATION_UNREACHABLE:
+		return destination_unreachable_code_str((enum scion_scmp_code_destination_unreachable)code);
+	case SCION_SCMP_TYPE_PARAMETER_PROBLEM:
+		return parameter_problem_code_str((enum scion_scmp_code_parameter_problem)code);
+	case SCION_SCMP_TYPE_PACKET_TOO_BIG:
+	case SCION_SCMP_TYPE_EXTERNAL_INTERFACE_DOWN:
+	case SCION_SCMP_TYPE_INTERNAL_CONNECTIVITY_DOWN:
+	case SCION_SCMP_TYPE_ECHO_REQUEST:
+	case SCION_SCMP_TYPE_ECHO_REPLY:
+		return code == 0 ? "none" : "unknown";
+	}
+
+	return "unknown";
+}
+
 // #######  Echo messages  #######
 
 uint16_t scion_scmp_echo_len(struct scion_scmp_echo *scmp_echo)
