@@ -92,6 +92,22 @@ uint8_t scion_scmp_get_code(const uint8_t *buf, uint16_t buf_len);
 bool scion_scmp_is_error(const uint8_t *buf, uint16_t buf_len);
 
 /**
+ * Gets a human-readable name for a SCMP message type.
+ * @param[in] type The SCMP message type.
+ * @return The name of the type, or "unknown" if the type is not defined by the SCMP specification.
+ */
+const char *scion_scmp_type_str(enum scion_scmp_type type);
+
+/**
+ * Gets a human-readable description of a SCMP message code.
+ * @param[in] type The SCMP message type.
+ * @param[in] code The SCMP message code.
+ * @return The description of the code, "none" for code 0 of a type without codes, or "unknown" if the code is not
+ * defined by the SCMP specification for the type.
+ */
+const char *scion_scmp_code_str(enum scion_scmp_type type, uint8_t code);
+
+/**
  * The codes of a destination unreachable message.
  *
  * @see https://docs.scion.org/en/latest/protocols/scmp.html#destination-unreachable
