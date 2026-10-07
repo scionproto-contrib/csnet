@@ -20,10 +20,9 @@
 #include "common/isd_as.h"
 #include "data_plane/path.h"
 #include "scion/scion.h"
+#include "scion/scion_scmp.h"
 
 #define SCION_SO_DEBUG 200
-
-typedef void scion_socket_scmp_error_cb(uint8_t *buf, size_t size, void *ctx);
 
 struct scion_socket {
 	int socket_fd;
@@ -78,8 +77,6 @@ int scion_setsockopt(struct scion_socket *scion_sock, int level, int optname, co
 int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, socklen_t *addrlen, scion_ia *ia);
 
 int scion_getsockfd(struct scion_socket *scion_sock, int *fd);
-
-int scion_setsockerrcb(struct scion_socket *scion_sock, scion_socket_scmp_error_cb cb, void *ctx);
 
 int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy policy);
 
