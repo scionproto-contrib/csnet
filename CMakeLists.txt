@@ -59,6 +59,7 @@ if (BUILD_DOCS)
 
     doxygen_add_docs(doxygen
             lib/include/scion/scion.h
+            lib/include/scion/scion_scmp.h
             README.md
             docs/getting-started.md
             examples/README.md
