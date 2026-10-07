@@ -44,6 +44,13 @@ static inline uint32_t scion_load_be32(const uint8_t *buf)
 	return be32toh(value);
 }
 
+static inline uint64_t scion_load_be64(const uint8_t *buf)
+{
+	uint64_t value;
+	(void)memcpy(&value, buf, sizeof(value));
+	return be64toh(value);
+}
+
 static inline void scion_store_be16(uint8_t *buf, uint16_t value)
 {
 	uint16_t be_value = htobe16(value);
@@ -53,5 +60,11 @@ static inline void scion_store_be16(uint8_t *buf, uint16_t value)
 static inline void scion_store_be32(uint8_t *buf, uint32_t value)
 {
 	uint32_t be_value = htobe32(value);
+	(void)memcpy(buf, &be_value, sizeof(be_value));
+}
+
+static inline void scion_store_be64(uint8_t *buf, uint64_t value)
+{
+	uint64_t be_value = htobe64(value);
 	(void)memcpy(buf, &be_value, sizeof(be_value));
 }

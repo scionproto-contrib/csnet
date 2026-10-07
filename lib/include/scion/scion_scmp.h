@@ -33,9 +33,21 @@ extern "C" {
 /**
  * The SCMP message types.
  *
+ * Types below 128 are error messages, types from 128 on are informational messages.
+ *
  * @see https://docs.scion.org/en/latest/protocols/scmp.html#types
  */
 enum scion_scmp_type {
+	/** The packet could not be delivered to its destination. */
+	SCION_SCMP_TYPE_DESTINATION_UNREACHABLE = 1,
+	/** The packet is larger than the MTU of the next-hop link. */
+	SCION_SCMP_TYPE_PACKET_TOO_BIG = 2,
+	/** A header field of the packet is invalid. */
+	SCION_SCMP_TYPE_PARAMETER_PROBLEM = 4,
+	/** The link to an external AS is down. */
+	SCION_SCMP_TYPE_EXTERNAL_INTERFACE_DOWN = 5,
+	/** The connectivity between two border routers of an AS is down. */
+	SCION_SCMP_TYPE_INTERNAL_CONNECTIVITY_DOWN = 6,
 	/**
 	 * An echo request.
 	 *
@@ -78,6 +90,135 @@ uint8_t scion_scmp_get_code(const uint8_t *buf, uint16_t buf_len);
  * @see https://docs.scion.org/en/latest/protocols/scmp.html#types
  */
 bool scion_scmp_is_error(const uint8_t *buf, uint16_t buf_len);
+
+/**
+ * The codes of a destination unreachable message.
+ *
+ * @see https://docs.scion.org/en/latest/protocols/scmp.html#destination-unreachable
+ */
+enum scion_scmp_code_destination_unreachable {
+	SCION_SCMP_CODE_DESTINATION_UNREACHABLE_NO_ROUTE = 0,
+	SCION_SCMP_CODE_DESTINATION_UNREACHABLE_ADMINISTRATIVELY_DENIED = 1,
+	SCION_SCMP_CODE_DESTINATION_UNREACHABLE_BEYOND_SCOPE = 2,
+	SCION_SCMP_CODE_DESTINATION_UNREACHABLE_ADDRESS_UNREACHABLE = 3,
+	SCION_SCMP_CODE_DESTINATION_UNREACHABLE_PORT_UNREACHABLE = 4,
+	SCION_SCMP_CODE_DESTINATION_UNREACHABLE_SOURCE_ADDRESS_FAILED_POLICY = 5,
+	SCION_SCMP_CODE_DESTINATION_UNREACHABLE_REJECT_ROUTE = 6
+};
+
+/**
+ * The codes of a parameter problem message.
+ *
+ * @see https://docs.scion.org/en/latest/protocols/scmp.html#parameter-problem
+ */
+enum scion_scmp_code_parameter_problem {
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_ERRONEOUS_HEADER_FIELD = 0,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_UNKNOWN_NEXT_HEADER = 1,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_INVALID_COMMON_HEADER = 16,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_UNKNOWN_VERSION = 17,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_FLOW_ID_REQUIRED = 18,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_INVALID_PACKET_SIZE = 19,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_UNKNOWN_PATH_TYPE = 20,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_UNKNOWN_ADDRESS_FORMAT = 21,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_INVALID_ADDRESS_HEADER = 32,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_INVALID_SOURCE_ADDRESS = 33,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_INVALID_DESTINATION_ADDRESS = 34,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_NON_LOCAL_DELIVERY = 35,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_INVALID_PATH = 48,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_UNKNOWN_HOP_FIELD_INGRESS = 49,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_UNKNOWN_HOP_FIELD_EGRESS = 50,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_INVALID_HOP_FIELD_MAC = 51,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_PATH_EXPIRED = 52,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_INVALID_SEGMENT_CHANGE = 53,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_INVALID_EXTENSION_HEADER = 64,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_UNKNOWN_HOP_BY_HOP_OPTION = 65,
+	SCION_SCMP_CODE_PARAMETER_PROBLEM_UNKNOWN_END_TO_END_OPTION = 66
+};
+
+/**
+ * An SCMP error message.
+ *
+ * Which member of @c info is used depends on @c type. A destination unreachable message has no further information.
+ */
+struct scion_scmp_error {
+	/** the type, one of the error types */
+	enum scion_scmp_type type;
+	/** the code, see the enums above for the codes the specification defines */
+	uint8_t code;
+	/** the type specific information */
+	union {
+		/** for SCION_SCMP_TYPE_PACKET_TOO_BIG */
+		struct {
+			/** the maximum size of a SCION packet that fits the next-hop link */
+			uint16_t mtu;
+		} packet_too_big;
+		/** for SCION_SCMP_TYPE_PARAMETER_PROBLEM */
+		struct {
+			/** the byte offset in the offending packet where the error was detected */
+			uint16_t pointer;
+		} parameter_problem;
+		/** for SCION_SCMP_TYPE_EXTERNAL_INTERFACE_DOWN */
+		struct {
+			/** the ISD-AS of the router that originated the message */
+			scion_ia ia;
+			/** the interface of the external link that is down */
+			scion_ifid interface;
+		} external_interface_down;
+		/** for SCION_SCMP_TYPE_INTERNAL_CONNECTIVITY_DOWN */
+		struct {
+			/** the ISD-AS of the router that originated the message */
+			scion_ia ia;
+			/** the interface on which the packet entered the AS */
+			scion_ifid ingress_interface;
+			/** the interface on which the packet was supposed to leave the AS */
+			scion_ifid egress_interface;
+		} internal_connectivity_down;
+	} info;
+	/** as much of the offending packet as fit into the message, or NULL */
+	uint8_t *packet;
+	/** the length of the offending packet in bytes */
+	uint16_t packet_length;
+};
+
+/**
+ * Determines how large the serialized SCMP error message will be.
+ * @param[in] scmp_error The SCMP error message.
+ * @return the size of the serialized SCMP error message in bytes, or 0 if the type is not a known SCMP error type.
+ */
+size_t scion_scmp_error_len(const struct scion_scmp_error *scmp_error);
+
+/**
+ * Serializes an SCMP error message.
+ * @param[in] scmp_error The SCMP error message to serialize.
+ * @param[out] buf The serialized SCMP error message.
+ * @param[in] buf_len The length of the buffer.
+ * @return 0 on success, a negative error code on failure.
+ *
+ * @note Use @link scion_scmp_error_len @endlink to determine how large the buffer needs to be.
+ * @note The checksum is not set.
+ */
+int scion_scmp_error_serialize(const struct scion_scmp_error *scmp_error, uint8_t *buf, size_t buf_len);
+
+/**
+ * Deserializes an SCMP error message, for example inside an SCMP error callback.
+ * @param[in] buf The serialized SCMP error message.
+ * @param[in] buf_len The length of the serialized SCMP error message.
+ * @param[out] scmp_error The SCMP error message.
+ * @return 0 on success, SCION_ERR_PACKET_FIELD_INVALID if the type is not a known SCMP error type, another negative
+ * error code on failure.
+ *
+ * @note The code and the checksum are not validated.
+ * @note Free the members of the SCMP error message with @link scion_scmp_error_free_members @endlink.
+ *
+ * @see scion_setsockerrcb
+ */
+int scion_scmp_error_deserialize(const uint8_t *buf, size_t buf_len, struct scion_scmp_error *scmp_error);
+
+/**
+ * Frees the internal members of an SCMP error message.
+ * @param[in] scmp_error The SCMP error message.
+ */
+void scion_scmp_error_free_members(struct scion_scmp_error *scmp_error);
 
 /**
  * An SCMP echo message.
