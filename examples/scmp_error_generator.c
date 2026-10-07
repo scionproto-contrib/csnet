@@ -18,6 +18,7 @@
 #include <stdlib.h>
 
 #include <scion/scion.h>
+#include <scion/scion_scmp.h>
 
 int main(int argc, char *argv[])
 {
@@ -93,12 +94,16 @@ int main(int argc, char *argv[])
 		}
 
 		// Destination Unreachable with Code 4 (Port unreachable)
-		uint8_t scmp_data[] = {
-			0x01,
-			0x04,
-			0x00,
-			0x00,
-		};
+		struct scion_scmp_error scmp_error = { .type = SCION_SCMP_TYPE_DESTINATION_UNREACHABLE,
+			.code = SCION_SCMP_CODE_DESTINATION_UNREACHABLE_PORT_UNREACHABLE };
+
+		uint8_t scmp_data[64];
+		ret = scion_scmp_error_serialize(&scmp_error, scmp_data, sizeof(scmp_data));
+		if (ret != 0) {
+			printf("ERROR: Serializing the SCMP error failed with error code: %d\n", ret);
+			ret = EXIT_FAILURE;
+			goto cleanup_path;
+		}
 
 		ret = scion_path_reverse(path);
 		if (ret != 0) {
@@ -107,8 +112,8 @@ int main(int argc, char *argv[])
 			goto cleanup_path;
 		}
 
-		ret = scion_sendto(scion_sock, scmp_data, sizeof(scmp_data), /* flags: */ 0, (struct sockaddr *)&sender_addr,
-			sender_addr_len, sender_ia, path);
+		ret = scion_sendto(scion_sock, scmp_data, scion_scmp_error_len(&scmp_error), /* flags: */ 0,
+			(struct sockaddr *)&sender_addr, sender_addr_len, sender_ia, path);
 		if (ret < 0) {
 			printf("ERROR: Send failed with error code: %d\n", n);
 			ret = EXIT_FAILURE;

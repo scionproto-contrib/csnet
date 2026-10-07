@@ -19,7 +19,7 @@ The following examples are available:
 - `simple_quic_client.c`: Shows how to implement a simple QUIC client that uses UDP over SCION with the
   help of ngtcp2. Requires a running `scripts/run-quic-server.sh`.
 
-- `scmp_error.c`: Shows how to catch SCMP errors when sending packets. Requires a running `scmp_error_generator.c`.
+- `scmp_error.c`: Shows how to catch and decode SCMP errors when sending packets. Requires a running `scmp_error_generator.c`.
 
 - `policy.c`: Shows how to use a custom path policy. Requires a running `scripts/run-testserver.sh`.
 
