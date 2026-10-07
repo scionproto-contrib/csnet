@@ -303,6 +303,36 @@ static void test_scmp_error_free_members(void **)
 	assert_uint_equal(error.packet_length, 0);
 }
 
+static void test_scmp_type_str(void **)
+{
+	assert_string_equal(scion_scmp_type_str(SCION_SCMP_TYPE_DESTINATION_UNREACHABLE), "destination unreachable");
+	assert_string_equal(scion_scmp_type_str(SCION_SCMP_TYPE_INTERNAL_CONNECTIVITY_DOWN),
+			    "internal connectivity down");
+	assert_string_equal(scion_scmp_type_str(SCION_SCMP_TYPE_ECHO_REPLY), "echo reply");
+	assert_string_equal(scion_scmp_type_str(3), "unknown");
+	assert_string_equal(scion_scmp_type_str(255), "unknown");
+}
+
+static void test_scmp_code_str(void **)
+{
+	assert_string_equal(scion_scmp_code_str(SCION_SCMP_TYPE_DESTINATION_UNREACHABLE,
+						SCION_SCMP_CODE_DESTINATION_UNREACHABLE_PORT_UNREACHABLE),
+			    "port unreachable");
+	assert_string_equal(scion_scmp_code_str(SCION_SCMP_TYPE_PARAMETER_PROBLEM,
+						SCION_SCMP_CODE_PARAMETER_PROBLEM_PATH_EXPIRED),
+			    "path expired");
+	assert_string_equal(scion_scmp_code_str(SCION_SCMP_TYPE_PACKET_TOO_BIG, 0), "none");
+	assert_string_equal(scion_scmp_code_str(SCION_SCMP_TYPE_ECHO_REQUEST, 0), "none");
+}
+
+static void test_scmp_code_str_unknown(void **)
+{
+	assert_string_equal(scion_scmp_code_str(SCION_SCMP_TYPE_DESTINATION_UNREACHABLE, 7), "unknown");
+	assert_string_equal(scion_scmp_code_str(SCION_SCMP_TYPE_PARAMETER_PROBLEM, 2), "unknown");
+	assert_string_equal(scion_scmp_code_str(SCION_SCMP_TYPE_PACKET_TOO_BIG, 1), "unknown");
+	assert_string_equal(scion_scmp_code_str(3, 0), "unknown");
+}
+
 int run_scmp_tests(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -322,6 +352,9 @@ int run_scmp_tests(void)
 		cmocka_unit_test(test_deserialize_scmp_error_too_short),
 		cmocka_unit_test(test_deserialize_scmp_error_does_not_validate_code),
 		cmocka_unit_test(test_scmp_error_free_members),
+		cmocka_unit_test(test_scmp_type_str),
+		cmocka_unit_test(test_scmp_code_str),
+		cmocka_unit_test(test_scmp_code_str_unknown),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);
