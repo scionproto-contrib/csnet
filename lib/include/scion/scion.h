@@ -781,16 +781,6 @@ struct scion_policy scion_policy_min_mtu(uint32_t *mtu);
 struct scion_socket;
 
 /**
- * A callback for SCMP error handling.
- * @param buf The buffer containing the SCMP error message.
- * @param size The size of the buffer.
- * @param ctx The context that was provided when setting up the callback.
- *
- * @see @link scion_setsockerrcb @endlink
- */
-typedef void scion_socket_scmp_error_cb(uint8_t *buf, size_t size, void *ctx);
-
-/**
  * Initializes a SCION socket.
  * @param[out] scion_sock The resulting SCION socket.
  * @param[in] addr_family The address family to use.
@@ -973,15 +963,6 @@ int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, so
  * @return 0 on success, a negative error code on failure.
  */
 int scion_getsockfd(struct scion_socket *scion_sock, int *fd);
-
-/**
- * Sets the SCMP error callback that is called when a SCMP error is received by the socket.
- * @param[in,out] scion_sock The socket.
- * @param[in] cb The callback to use.
- * @param[in] ctx The user-defined context that is passed to every invocation of the callback. Can be NULL.
- * @return 0 on success, a negative error code on failure.
- */
-int scion_setsockerrcb(struct scion_socket *scion_sock, scion_socket_scmp_error_cb cb, void *ctx);
 
 /**
  * Sets the path selection policy of a socket.

@@ -25,6 +25,7 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include <scion/scion.h>
@@ -123,6 +124,25 @@ int scion_scmp_echo_deserialize(const uint8_t *buf, uint16_t buf_len, struct sci
  * @param[in] scmp_echo The SCMP echo message.
  */
 void scion_scmp_echo_free_members(struct scion_scmp_echo *scmp_echo);
+
+/**
+ * A callback for SCMP error handling.
+ * @param buf The buffer containing the SCMP error message.
+ * @param size The size of the buffer.
+ * @param ctx The context that was provided when setting up the callback.
+ *
+ * @see @link scion_setsockerrcb @endlink
+ */
+typedef void scion_socket_scmp_error_cb(uint8_t *buf, size_t size, void *ctx);
+
+/**
+ * Sets the SCMP error callback that is called when a SCMP error is received by the socket.
+ * @param[in,out] scion_sock The socket.
+ * @param[in] cb The callback to use.
+ * @param[in] ctx The user-defined context that is passed to every invocation of the callback. Can be NULL.
+ * @return 0 on success, a negative error code on failure.
+ */
+int scion_setsockerrcb(struct scion_socket *scion_sock, scion_socket_scmp_error_cb cb, void *ctx);
 
 #ifdef __cplusplus
 }
