@@ -14,27 +14,7 @@
 
 #pragma once
 
-#include <stdbool.h>
-#include <stdint.h>
-
-#include "scion/scion.h"
+#include "scion/scion_scmp.h"
 
 #define SCION_SCMP_HDR_LEN 4
 #define SCION_SCMP_ECHO_HDR_LEN (SCION_SCMP_HDR_LEN + 4)
-
-enum scion_scmp_echo_type;
-struct scion_scmp_echo;
-
-uint8_t scion_scmp_get_type(const uint8_t *buf, uint16_t buf_len);
-
-uint8_t scion_scmp_get_code(const uint8_t *buf, uint16_t buf_len);
-
-bool scion_scmp_is_error(const uint8_t *buf, uint16_t buf_len);
-
-uint16_t scion_scmp_echo_len(struct scion_scmp_echo *scmp_echo);
-
-int scion_scmp_echo_deserialize(const uint8_t *buf, uint16_t buf_len, struct scion_scmp_echo *scmp_echo);
-
-int scion_scmp_echo_serialize(const struct scion_scmp_echo *scmp_echo, uint8_t *buf, uint16_t buf_len);
-
-void scion_scmp_echo_free_members(struct scion_scmp_echo *scmp_echo);

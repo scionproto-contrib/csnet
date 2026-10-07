@@ -171,7 +171,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif ()
 
 # declare public headers for installation
-set_target_properties(scion PROPERTIES PUBLIC_HEADER include/scion/scion.h)
+set_target_properties(scion PROPERTIES PUBLIC_HEADER "include/scion/scion.h;include/scion/scion_scmp.h")
 
 # install library with public headers
 install(TARGETS scion PUBLIC_HEADER DESTINATION include/scion)
