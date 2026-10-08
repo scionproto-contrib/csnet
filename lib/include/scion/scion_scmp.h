@@ -359,6 +359,22 @@ int scion_scmp_traceroute_deserialize(
 	const uint8_t *buf, size_t buf_len, struct scion_scmp_traceroute *scmp_traceroute);
 
 /**
+ * Makes the border router of one interface of a path process the SCMP message sent along the path.
+ *
+ * The router alert flag of the hop field that belongs to the interface is set and the flag of every other hop field is
+ * cleared. A border router that sees the flag answers a traceroute request, see @ref scion_scmp_traceroute.
+ * @param[in,out] path The path.
+ * @param[in] interface_index The index of the interface in the interfaces of the path metadata, 0 is the first
+ * interface of the source AS.
+ * @return 0 on success, a negative error code on failure.
+ *
+ * @note Fails with @c SCION_ERR_PATH_TYPE_INVALID for a path without hops, and with @c SCION_ERR_INDEX_OUT_OF_RANGE if
+ * the path has no such interface.
+ * @note Reversing the path invalidates the index.
+ */
+int scion_path_set_router_alert(struct scion_path *path, size_t interface_index);
+
+/**
  * A callback for SCMP error handling.
  * @param scmp_error The SCMP error message that was received.
  * @param ctx The context that was provided when setting up the callback.

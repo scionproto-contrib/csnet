@@ -198,6 +198,10 @@ enum scion_error {
 	 * The protocol is not compatible with the socket type.
 	 */
 	SCION_ERR_PROTO_INCOMPATIBLE = -34,
+	/**
+	 * An index is out of range.
+	 */
+	SCION_ERR_INDEX_OUT_OF_RANGE = -35,
 	// Internal errors
 	SCION_ERR_NOT_ENOUGH_DATA = -201,
 	SCION_ERR_PACKET_FIELD_INVALID = -202,
