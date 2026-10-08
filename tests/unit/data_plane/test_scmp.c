@@ -334,6 +334,111 @@ static void test_scmp_code_str_unknown(void **)
 	assert_string_equal(scion_scmp_code_str(3, 0), "unknown");
 }
 
+static void test_serialize_scmp_traceroute_request(void **)
+{
+	struct scion_scmp_traceroute traceroute
+		= { .type = SCION_SCMP_TYPE_TRACEROUTE_REQUEST, .id = 65534, .seqno = 1, .ia = 0, .interface = 0 };
+
+	uint8_t buf[SCION_SCMP_TRACEROUTE_LEN];
+	assert_int_equal(scion_scmp_traceroute_serialize(&traceroute, buf, sizeof(buf)), 0);
+
+	// clang-format off
+	const uint8_t expected[] = {
+		0x82, 0x00, 0x00, 0x00, 0xff, 0xfe, 0x00, 0x01,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	};
+	// clang-format on
+	assert_memory_equal(buf, expected, sizeof(expected));
+}
+
+static void test_serialize_scmp_traceroute_reply(void **)
+{
+	struct scion_scmp_traceroute traceroute = { .type = SCION_SCMP_TYPE_TRACEROUTE_REPLY,
+		.id = 7,
+		.seqno = 9,
+		.ia = 0x0001ff0000000111,
+		.interface = 42 };
+
+	uint8_t buf[SCION_SCMP_TRACEROUTE_LEN];
+	assert_int_equal(scion_scmp_traceroute_serialize(&traceroute, buf, sizeof(buf)), 0);
+
+	// clang-format off
+	const uint8_t expected[] = {
+		0x83, 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x09,
+		0x00, 0x01, 0xff, 0x00, 0x00, 0x00, 0x01, 0x11,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2a
+	};
+	// clang-format on
+	assert_memory_equal(buf, expected, sizeof(expected));
+}
+
+static void test_serialize_scmp_traceroute_buffer_too_small(void **)
+{
+	struct scion_scmp_traceroute traceroute = { .type = SCION_SCMP_TYPE_TRACEROUTE_REQUEST, .id = 1, .seqno = 2 };
+
+	uint8_t buf[SCION_SCMP_TRACEROUTE_LEN - 1];
+	assert_int_equal(scion_scmp_traceroute_serialize(&traceroute, buf, sizeof(buf)), SCION_ERR_BUF_TOO_SMALL);
+}
+
+static void test_deserialize_scmp_traceroute(void **)
+{
+	// clang-format off
+	const uint8_t buf[] = {
+		0x83, 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x09,
+		0x00, 0x01, 0xff, 0x00, 0x00, 0x00, 0x01, 0x11,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2a
+	};
+	// clang-format on
+
+	struct scion_scmp_traceroute traceroute;
+	assert_int_equal(scion_scmp_traceroute_deserialize(buf, sizeof(buf), &traceroute), 0);
+
+	assert_int_equal(traceroute.type, SCION_SCMP_TYPE_TRACEROUTE_REPLY);
+	assert_uint_equal(traceroute.id, 7);
+	assert_uint_equal(traceroute.seqno, 9);
+	assert_uint_equal(traceroute.ia, 0x0001ff0000000111);
+	assert_uint_equal(traceroute.interface, 42);
+}
+
+static void test_deserialize_scmp_traceroute_round_trip(void **)
+{
+	struct scion_scmp_traceroute in = { .type = SCION_SCMP_TYPE_TRACEROUTE_REQUEST, .id = 0xabcd, .seqno = 0x1234 };
+
+	uint8_t buf[SCION_SCMP_TRACEROUTE_LEN];
+	assert_int_equal(scion_scmp_traceroute_serialize(&in, buf, sizeof(buf)), 0);
+
+	struct scion_scmp_traceroute out;
+	assert_int_equal(scion_scmp_traceroute_deserialize(buf, sizeof(buf), &out), 0);
+	assert_memory_equal(&in, &out, sizeof(in));
+}
+
+static void test_deserialize_scmp_traceroute_buffer_too_small(void **)
+{
+	const uint8_t buf[SCION_SCMP_TRACEROUTE_LEN - 1] = { 0x82 };
+
+	struct scion_scmp_traceroute traceroute;
+	assert_int_equal(scion_scmp_traceroute_deserialize(buf, sizeof(buf), &traceroute), SCION_ERR_BUF_TOO_SMALL);
+}
+
+static void test_deserialize_scmp_traceroute_invalid_type(void **)
+{
+	// Type 128 is an echo request, not a traceroute message.
+	const uint8_t buf[SCION_SCMP_TRACEROUTE_LEN] = { 0x80 };
+
+	struct scion_scmp_traceroute traceroute;
+	assert_int_equal(
+		scion_scmp_traceroute_deserialize(buf, sizeof(buf), &traceroute), SCION_ERR_PACKET_FIELD_INVALID);
+}
+
+static void test_deserialize_scmp_traceroute_invalid_code(void **)
+{
+	const uint8_t buf[SCION_SCMP_TRACEROUTE_LEN] = { 0x82, 0x01 };
+
+	struct scion_scmp_traceroute traceroute;
+	assert_int_equal(scion_scmp_traceroute_deserialize(buf, sizeof(buf), &traceroute), SCION_ERR_SCMP_CODE_INVALID);
+}
+
 int run_scmp_tests(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -356,6 +461,14 @@ int run_scmp_tests(void)
 		cmocka_unit_test(test_scmp_type_str),
 		cmocka_unit_test(test_scmp_code_str),
 		cmocka_unit_test(test_scmp_code_str_unknown),
+		cmocka_unit_test(test_serialize_scmp_traceroute_request),
+		cmocka_unit_test(test_serialize_scmp_traceroute_reply),
+		cmocka_unit_test(test_serialize_scmp_traceroute_buffer_too_small),
+		cmocka_unit_test(test_deserialize_scmp_traceroute),
+		cmocka_unit_test(test_deserialize_scmp_traceroute_round_trip),
+		cmocka_unit_test(test_deserialize_scmp_traceroute_buffer_too_small),
+		cmocka_unit_test(test_deserialize_scmp_traceroute_invalid_type),
+		cmocka_unit_test(test_deserialize_scmp_traceroute_invalid_code),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);
