@@ -20,7 +20,7 @@ and
 - Explicit SCION path selection
 - Path selection policies
 - Automatic DNS-based end-host bootstrapping
-- SCION ping tool
+- SCION ping and traceroute tools
 
 To get started with csnet follow the building and installation instructions below and afterward continue with
 the [Getting Started Guide](./docs/getting-started.md).
@@ -76,8 +76,9 @@ Depending on the installation directory you might need to run the command with `
 
 The installation will produce the static libraries `lib/libscion.a`, `lib/libnghttp2.a`, `lib/libz.a`,
 `lib/libprotobuf.a`,
-`lib/libcurl.a`, the header file `include/scion/scion.h`, and the command-line tool `bin/ping` in your installation
-directory. When using the library make sure to link against all the static libraries produced by the installation.
+`lib/libcurl.a`, the header files `include/scion/scion.h` and `include/scion/scion_scmp.h`, and the command-line tools
+`bin/ping` and `bin/traceroute` in your installation directory. When using the library make sure to link against all
+the static libraries produced by the installation.
 
 ## Local SCION Network Setup
 
@@ -128,6 +129,7 @@ where `TARGET` is a valid CMake target defined in the project. Examples are:
 - `doxygen` for the documentation
 - `scion` for the library
 - `ping` for the ping command line tool
+- `traceroute` for the traceroute command line tool
 - `udp_example` for the `udp.c` example
 - `server_example` for the `server.c` example
 - etc.
