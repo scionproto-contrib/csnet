@@ -22,6 +22,8 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#include "common/hop_field.h"
+#include "common/info_field.h"
 #include "common/isd_as.h"
 #include "control_plane/network.h"
 #include "control_plane/topology.h"
@@ -574,6 +576,119 @@ static void test_socket_scmp_informational_message_is_not_an_error(void **state)
 	assert_int_equal(record.calls, 0);
 }
 
+// Builds a path of two hop fields, from this AS through interface 11 to a neighbor entered through interface 12.
+static void init_two_hop_path(struct scion_path *path, struct scion_path_raw *raw_path, uint8_t *buf,
+	struct sockaddr_in next_hop, scion_ia ia)
+{
+	struct scion_path_meta_hdr hdr = { .seg_len = { 2, 0, 0 } };
+	struct scion_info_field info = { .cons_dir = true };
+	struct scion_hop_field hops[2] = { { .exp_time = 63, .cons_egress = 11 }, { .exp_time = 63, .cons_ingress = 12 } };
+
+	struct scion_list *info_fields = scion_list_create(SCION_LIST_NO_FREE_VALUES);
+	struct scion_list *hop_fields = scion_list_create(SCION_LIST_NO_FREE_VALUES);
+	scion_list_append(info_fields, &info);
+	scion_list_append(hop_fields, &hops[0]);
+	scion_list_append(hop_fields, &hops[1]);
+	assert_int_equal(scion_path_serialize(&hdr, info_fields, hop_fields, buf), 0);
+	scion_list_free(info_fields);
+	scion_list_free(hop_fields);
+
+	raw_path->raw = buf;
+	raw_path->length = SCION_META_LEN + SCION_INFO_LEN + 2 * SCION_HOP_LEN;
+
+	*path = (struct scion_path) { .src = ia, .dst = ia, .path_type = SCION_PATH_TYPE_SCION, .raw_path = raw_path };
+	memcpy(&path->underlay_next_hop.addr, &next_hop, sizeof(next_hop));
+	path->underlay_next_hop.addrlen = sizeof(next_hop);
+	path->underlay_next_hop.addr_family = SCION_AF_INET;
+}
+
+// A traceroute as the command does it, with a socket that plays the border router.
+static void test_socket_traceroute_with_router_alert(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *tracer = open_socket(fixture, SCION_SOCK_RAW, SCION_PROTO_SCMP);
+	struct scion_socket *router = open_socket(fixture, SCION_SOCK_RAW, SCION_PROTO_SCMP);
+	bind_loopback(tracer);
+	bind_loopback(router);
+	struct sockaddr_in tracer_addr = bound_address(tracer);
+	struct sockaddr_in router_addr = bound_address(router);
+	set_receive_timeout(tracer, 1000);
+	set_receive_timeout(router, 1000);
+
+	scion_ia ia = local_ia_of(fixture);
+	uint8_t raw[SCION_META_LEN + SCION_INFO_LEN + 2 * SCION_HOP_LEN];
+	struct scion_path_raw raw_path;
+	struct scion_path path;
+	init_two_hop_path(&path, &raw_path, raw, router_addr, ia);
+
+	for (size_t interface_index = 0; interface_index < 2; interface_index++) {
+		// Request, the router alert is set for one interface
+		assert_int_equal(scion_path_set_router_alert(&path, interface_index), 0);
+		struct scion_scmp_traceroute request = { .type = SCION_SCMP_TYPE_TRACEROUTE_REQUEST,
+			.id = ntohs(tracer_addr.sin_port),
+			.seqno = (uint16_t)interface_index };
+		uint8_t buf[SCION_SCMP_TRACEROUTE_LEN];
+		assert_int_equal(scion_scmp_traceroute_serialize(&request, buf, sizeof(buf)), 0);
+		assert_int_equal(scion_sendto(tracer, buf, sizeof(buf), 0, (struct sockaddr *)&router_addr,
+							 sizeof(router_addr), ia, &path),
+			(ssize_t)sizeof(buf));
+
+		// The router sees the request and the path with the flag
+		struct scion_path *received_path;
+		struct sockaddr_in from;
+		socklen_t from_len = sizeof(from);
+		assert_int_equal(scion_recvfrom(router, buf, sizeof(buf), 0, (struct sockaddr *)&from, &from_len, NULL,
+							 &received_path),
+			(ssize_t)sizeof(buf));
+
+		struct scion_scmp_traceroute received;
+		assert_int_equal(scion_scmp_traceroute_deserialize(buf, sizeof(buf), &received), 0);
+		assert_int_equal(received.type, SCION_SCMP_TYPE_TRACEROUTE_REQUEST);
+		assert_uint_equal(received.id, ntohs(tracer_addr.sin_port));
+		assert_uint_equal(received.seqno, interface_index);
+
+		struct scion_path_meta_hdr hdr;
+		struct scion_list *info_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
+		struct scion_list *hop_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
+		assert_int_equal(scion_path_deserialize(received_path->raw_path->raw, received_path->raw_path->length, &hdr,
+							 info_fields, hop_fields),
+			0);
+		struct scion_hop_field *first = scion_list_get(hop_fields, 0);
+		struct scion_hop_field *second = scion_list_get(hop_fields, 1);
+		// Interface 11 is left through the egress interface of the first hop field, 12 is entered through the
+		// ingress interface of the second one.
+		assert_int_equal(first->egress_router_alert, interface_index == 0);
+		assert_false(first->ingress_router_alert);
+		assert_int_equal(second->ingress_router_alert, interface_index == 1);
+		assert_false(second->egress_router_alert);
+		scion_list_free(info_fields);
+		scion_list_free(hop_fields);
+		scion_path_free(received_path);
+
+		// The router answers, the socket accepts the reply although it does not come from the destination
+		struct scion_scmp_traceroute reply = { .type = SCION_SCMP_TYPE_TRACEROUTE_REPLY,
+			.id = received.id,
+			.seqno = received.seqno,
+			.ia = ia,
+			.interface = interface_index == 0 ? 11 : 12 };
+		assert_int_equal(scion_scmp_traceroute_serialize(&reply, buf, sizeof(buf)), 0);
+		assert_int_equal(scion_sendto(router, buf, sizeof(buf), 0, (struct sockaddr *)&tracer_addr,
+							 sizeof(tracer_addr), ia, NULL),
+			(ssize_t)sizeof(buf));
+
+		from_len = sizeof(from);
+		assert_int_equal(
+			scion_recvfrom(tracer, buf, sizeof(buf), 0, (struct sockaddr *)&from, &from_len, NULL, NULL),
+			(ssize_t)sizeof(buf));
+		assert_int_equal(scion_scmp_traceroute_deserialize(buf, sizeof(buf), &received), 0);
+		assert_int_equal(received.type, SCION_SCMP_TYPE_TRACEROUTE_REPLY);
+		assert_uint_equal(received.seqno, interface_index);
+		assert_true(received.ia == ia);
+		assert_uint_equal(received.interface, interface_index == 0 ? 11 : 12);
+		assert_uint_equal(ntohl(from.sin_addr.s_addr), INADDR_LOOPBACK);
+	}
+}
+
 static int count_open_file_descriptors(void)
 {
 	int count = 0;
@@ -694,6 +809,7 @@ int run_socket_tests(void)
 		cmocka_unit_test_setup_teardown(test_socket_invalid_scmp_error_is_ignored, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(
 			test_socket_scmp_informational_message_is_not_an_error, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_traceroute_with_router_alert, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(
 			test_socket_creation_failure_does_not_leak_the_descriptor, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_receive_skips_malformed_packets, setup_fixture, teardown_fixture),
