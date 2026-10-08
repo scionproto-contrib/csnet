@@ -446,7 +446,7 @@ static void test_socket_scmp_echo_round_trip(void **state)
 
 	uint8_t data[] = { 1, 2, 3 };
 	struct scion_scmp_echo echo
-		= { .type = SCION_ECHO_TYPE_REQUEST, .id = 7, .seqno = 3, .data = data, .data_length = sizeof(data) };
+		= { .type = SCION_SCMP_TYPE_ECHO_REQUEST, .id = 7, .seqno = 3, .data = data, .data_length = sizeof(data) };
 	uint8_t request[SCION_SCMP_ECHO_HDR_LEN + sizeof(data)];
 	assert_int_equal(scion_scmp_echo_serialize(&echo, request, sizeof(request)), 0);
 
@@ -462,7 +462,7 @@ static void test_socket_scmp_echo_round_trip(void **state)
 
 	struct scion_scmp_echo received;
 	assert_int_equal(scion_scmp_echo_deserialize(buf, sizeof(request), &received), 0);
-	assert_int_equal(received.type, SCION_ECHO_TYPE_REQUEST);
+	assert_int_equal(received.type, SCION_SCMP_TYPE_ECHO_REQUEST);
 	assert_uint_equal(received.id, 7);
 	assert_uint_equal(received.seqno, 3);
 	assert_uint_equal(received.data_length, sizeof(data));
@@ -476,7 +476,7 @@ static void test_socket_scmp_echo_round_trip(void **state)
 
 struct scmp_error_record {
 	int calls;
-	uint8_t type;
+	enum scion_scmp_type type;
 	uint8_t code;
 	size_t size;
 };

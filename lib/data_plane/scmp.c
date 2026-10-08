@@ -20,7 +20,7 @@
 #include "data_plane/scmp.h"
 #include "util/endian.h"
 
-uint8_t scion_scmp_get_type(const uint8_t *buf, uint16_t buf_len)
+enum scion_scmp_type scion_scmp_get_type(const uint8_t *buf, uint16_t buf_len)
 {
 	if (buf_len < 1) {
 		return 0;
@@ -58,8 +58,8 @@ int scion_scmp_echo_deserialize(const uint8_t *buf, uint16_t buf_len, struct sci
 		return SCION_ERR_BUF_TOO_SMALL;
 	}
 
-	uint8_t type = scion_scmp_get_type(buf, buf_len);
-	if (type != SCION_ECHO_TYPE_REQUEST && type != SCION_ECHO_TYPE_REPLY) {
+	enum scion_scmp_type type = scion_scmp_get_type(buf, buf_len);
+	if (type != SCION_SCMP_TYPE_ECHO_REQUEST && type != SCION_SCMP_TYPE_ECHO_REPLY) {
 		return SCION_ERR_PACKET_FIELD_INVALID;
 	}
 

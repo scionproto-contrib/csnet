@@ -70,7 +70,7 @@ static int scion_send_echo_request(struct scion_socket *scion_sock, struct scion
 	int ret;
 
 	struct scion_scmp_echo echo_request = { 0 };
-	echo_request.type = SCION_ECHO_TYPE_REQUEST;
+	echo_request.type = SCION_SCMP_TYPE_ECHO_REQUEST;
 	echo_request.seqno = seqno;
 
 	struct sockaddr_storage src_addr;
@@ -134,7 +134,7 @@ static int scion_recv_echo_reply(struct scion_socket *scion_socket, uint16_t seq
 			return (int)rcv_ret;
 		}
 
-		if (scion_scmp_get_type(buf, echo_length) != 129) {
+		if (scion_scmp_get_type(buf, echo_length) != SCION_SCMP_TYPE_ECHO_REPLY) {
 			// Not an ECHO reply
 			continue;
 		}

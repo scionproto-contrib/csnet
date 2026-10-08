@@ -59,7 +59,7 @@ static void test_serialize_scmp_echo_buffer_too_small(void **)
 {
 	uint8_t data[] = { 1, 2, 3, 4 };
 	struct scion_scmp_echo echo
-		= { .type = SCION_ECHO_TYPE_REQUEST, .id = 1, .seqno = 2, .data_length = 4, .data = data };
+		= { .type = SCION_SCMP_TYPE_ECHO_REQUEST, .id = 1, .seqno = 2, .data_length = 4, .data = data };
 
 	uint8_t buf[11];
 	assert_int_equal(scion_scmp_echo_serialize(&echo, buf, sizeof(buf)), SCION_ERR_BUF_TOO_SMALL);
@@ -72,7 +72,7 @@ static void test_deserialize_scmp_echo(void **)
 	struct scion_scmp_echo echo;
 	assert_int_equal(scion_scmp_echo_deserialize(buf, sizeof(buf), &echo), 0);
 
-	assert_int_equal(echo.type, SCION_ECHO_TYPE_REQUEST);
+	assert_int_equal(echo.type, SCION_SCMP_TYPE_ECHO_REQUEST);
 	assert_uint_equal(echo.id, 65534);
 	assert_uint_equal(echo.seqno, 1);
 	assert_uint_equal(echo.data_length, 3);
@@ -88,7 +88,7 @@ static void test_deserialize_scmp_echo_reply_without_data(void **)
 	struct scion_scmp_echo echo;
 	assert_int_equal(scion_scmp_echo_deserialize(buf, sizeof(buf), &echo), 0);
 
-	assert_int_equal(echo.type, SCION_ECHO_TYPE_REPLY);
+	assert_int_equal(echo.type, SCION_SCMP_TYPE_ECHO_REPLY);
 	assert_uint_equal(echo.id, 7);
 	assert_uint_equal(echo.seqno, 9);
 	assert_uint_equal(echo.data_length, 0);
