@@ -60,6 +60,10 @@ const char *scion_scmp_type_str(enum scion_scmp_type type)
 		return "echo request";
 	case SCION_SCMP_TYPE_ECHO_REPLY:
 		return "echo reply";
+	case SCION_SCMP_TYPE_TRACEROUTE_REQUEST:
+		return "traceroute request";
+	case SCION_SCMP_TYPE_TRACEROUTE_REPLY:
+		return "traceroute reply";
 	}
 
 	return "unknown";
@@ -149,6 +153,8 @@ const char *scion_scmp_code_str(enum scion_scmp_type type, uint8_t code)
 	case SCION_SCMP_TYPE_INTERNAL_CONNECTIVITY_DOWN:
 	case SCION_SCMP_TYPE_ECHO_REQUEST:
 	case SCION_SCMP_TYPE_ECHO_REPLY:
+	case SCION_SCMP_TYPE_TRACEROUTE_REQUEST:
+	case SCION_SCMP_TYPE_TRACEROUTE_REPLY:
 		return code == 0 ? "none" : "unknown";
 	}
 
@@ -232,6 +238,54 @@ void scion_scmp_echo_free_members(struct scion_scmp_echo *scmp_echo)
 	scmp_echo->data = NULL;
 }
 
+// #######  Traceroute messages  #######
+
+int scion_scmp_traceroute_serialize(const struct scion_scmp_traceroute *scmp_traceroute, uint8_t *buf, size_t buf_len)
+{
+	assert(scmp_traceroute);
+	assert(buf);
+
+	if (buf_len < SCION_SCMP_TRACEROUTE_LEN) {
+		return SCION_ERR_BUF_TOO_SMALL;
+	}
+
+	buf[0] = (uint8_t)scmp_traceroute->type;
+	buf[1] = 0;
+	scion_store_be16(buf + 2, 0); // TODO checksum
+	scion_store_be16(buf + 4, scmp_traceroute->id);
+	scion_store_be16(buf + 6, scmp_traceroute->seqno);
+	scion_store_be64(buf + 8, scmp_traceroute->ia);
+	scion_store_be64(buf + 16, scmp_traceroute->interface);
+
+	return 0;
+}
+
+int scion_scmp_traceroute_deserialize(const uint8_t *buf, size_t buf_len, struct scion_scmp_traceroute *scmp_traceroute)
+{
+	assert(buf || buf_len == 0);
+	assert(scmp_traceroute);
+
+	if (buf_len < SCION_SCMP_TRACEROUTE_LEN) {
+		return SCION_ERR_BUF_TOO_SMALL;
+	}
+
+	if (buf[0] != SCION_SCMP_TYPE_TRACEROUTE_REQUEST && buf[0] != SCION_SCMP_TYPE_TRACEROUTE_REPLY) {
+		return SCION_ERR_PACKET_FIELD_INVALID;
+	}
+
+	if (buf[1] != 0) {
+		return SCION_ERR_SCMP_CODE_INVALID;
+	}
+
+	scmp_traceroute->type = (enum scion_scmp_type)buf[0];
+	scmp_traceroute->id = scion_load_be16(buf + 4);
+	scmp_traceroute->seqno = scion_load_be16(buf + 6);
+	scmp_traceroute->ia = scion_load_be64(buf + 8);
+	scmp_traceroute->interface = scion_load_be64(buf + 16);
+
+	return 0;
+}
+
 // #######  Error messages  #######
 
 // Returns the size of the type specific information that follows the SCMP header, or -1 for an unknown type.
@@ -250,6 +304,8 @@ static int error_info_len(enum scion_scmp_type type)
 		return 24;
 	case SCION_SCMP_TYPE_ECHO_REQUEST:
 	case SCION_SCMP_TYPE_ECHO_REPLY:
+	case SCION_SCMP_TYPE_TRACEROUTE_REQUEST:
+	case SCION_SCMP_TYPE_TRACEROUTE_REPLY:
 		return -1;
 	}
 
