@@ -91,6 +91,8 @@ char *scion_strerror(int err)
 		return "message too large";
 	case SCION_ERR_SRC_ADDR_UNKNOWN:
 		return "source address unknown";
+	case SCION_ERR_INDEX_OUT_OF_RANGE:
+		return "index out of range";
 	default:
 		return "unknown error";
 	}
