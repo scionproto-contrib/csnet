@@ -59,7 +59,19 @@ enum scion_scmp_type {
 	 *
 	 * @see https://docs.scion.org/en/latest/protocols/scmp.html#echo-reply
 	 */
-	SCION_SCMP_TYPE_ECHO_REPLY = 129
+	SCION_SCMP_TYPE_ECHO_REPLY = 129,
+	/**
+	 * A traceroute request.
+	 *
+	 * @see https://docs.scion.org/en/latest/protocols/scmp.html#traceroute-request
+	 */
+	SCION_SCMP_TYPE_TRACEROUTE_REQUEST = 130,
+	/**
+	 * A traceroute reply.
+	 *
+	 * @see https://docs.scion.org/en/latest/protocols/scmp.html#traceroute-reply
+	 */
+	SCION_SCMP_TYPE_TRACEROUTE_REPLY = 131
 };
 
 /**
@@ -284,6 +296,46 @@ int scion_scmp_echo_deserialize(const uint8_t *buf, uint16_t buf_len, struct sci
  * @param[in] scmp_echo The SCMP echo message.
  */
 void scion_scmp_echo_free_members(struct scion_scmp_echo *scmp_echo);
+
+/** The size of a serialized SCMP traceroute message in bytes. */
+#define SCION_SCMP_TRACEROUTE_LEN 24
+
+/**
+ * An SCMP traceroute message.
+ */
+struct scion_scmp_traceroute {
+	/** the type */
+	enum scion_scmp_type type;
+	/** the identifier */
+	uint16_t id;
+	/** the sequence number */
+	uint16_t seqno;
+	/** the ISD-AS of the router that answered, 0 in a request */
+	scion_ia ia;
+	/** the interface of the router that answered, 0 in a request */
+	scion_ifid interface;
+};
+
+/**
+ * Serializes an SCMP traceroute message.
+ * @param[in] scmp_traceroute The SCMP traceroute message to serialize.
+ * @param[out] buf The serialized SCMP traceroute message.
+ * @param[in] buf_len The length of the buffer.
+ * @return 0 on success, a negative error code on failure.
+ *
+ * @note The buffer must be at least @ref SCION_SCMP_TRACEROUTE_LEN bytes long.
+ */
+int scion_scmp_traceroute_serialize(const struct scion_scmp_traceroute *scmp_traceroute, uint8_t *buf, size_t buf_len);
+
+/**
+ * Deserializes an SCMP traceroute message.
+ * @param[in] buf The serialized SCMP traceroute message.
+ * @param[in] buf_len The length of the serialized message.
+ * @param[out] scmp_traceroute The SCMP traceroute message.
+ * @return 0 on success, a negative error code on failure.
+ */
+int scion_scmp_traceroute_deserialize(
+	const uint8_t *buf, size_t buf_len, struct scion_scmp_traceroute *scmp_traceroute);
 
 /**
  * A callback for SCMP error handling.

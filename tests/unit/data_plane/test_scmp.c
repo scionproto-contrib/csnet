@@ -309,6 +309,7 @@ static void test_scmp_type_str(void **)
 	assert_string_equal(scion_scmp_type_str(SCION_SCMP_TYPE_INTERNAL_CONNECTIVITY_DOWN),
 			    "internal connectivity down");
 	assert_string_equal(scion_scmp_type_str(SCION_SCMP_TYPE_ECHO_REPLY), "echo reply");
+	assert_string_equal(scion_scmp_type_str(130), "traceroute request");
 	assert_string_equal(scion_scmp_type_str(3), "unknown");
 	assert_string_equal(scion_scmp_type_str(255), "unknown");
 }
