@@ -21,6 +21,7 @@
 #include "common/info_field.h"
 #include "common/isd_as.h"
 #include "data_plane/path.h"
+#include "scion/scion_scmp.h"
 #include "test_path.h"
 #include "util/list.h"
 
@@ -672,6 +673,162 @@ static void test_reverse_unknown_path_type(void **)
 	assert_int_equal(scion_path_reverse(&path), SCION_ERR_PATH_TYPE_INVALID);
 }
 
+struct segment_spec {
+	bool cons_dir;
+	bool peer;
+	uint8_t hops;
+};
+
+struct hop_spec {
+	uint16_t ingress;
+	uint16_t egress;
+};
+
+// The hop field that is expected to carry the router alert for an interface, and the flag it is set in.
+struct alert_spec {
+	size_t hop;
+	bool ingress;
+};
+
+static void build_path(struct scion_path *path, struct scion_path_raw *raw_path, uint8_t *buf,
+	const struct segment_spec *segments, size_t segments_len, const struct hop_spec *hops, size_t hops_len)
+{
+	struct scion_path_meta_hdr hdr = { 0 };
+	struct scion_list *info_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
+	struct scion_list *hop_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
+
+	for (size_t i = 0; i < segments_len; i++) {
+		struct scion_info_field *info = calloc(1, sizeof(*info));
+		info->cons_dir = segments[i].cons_dir;
+		info->peer = segments[i].peer;
+		scion_list_append(info_fields, info);
+		hdr.seg_len[i] = segments[i].hops;
+	}
+
+	for (size_t i = 0; i < hops_len; i++) {
+		struct scion_hop_field *hop = calloc(1, sizeof(*hop));
+		hop->exp_time = 63;
+		hop->cons_ingress = hops[i].ingress;
+		hop->cons_egress = hops[i].egress;
+		scion_list_append(hop_fields, hop);
+	}
+
+	assert_int_equal(scion_path_serialize(&hdr, info_fields, hop_fields, buf), 0);
+	scion_list_free(info_fields);
+	scion_list_free(hop_fields);
+
+	raw_path->raw = buf;
+	raw_path->length = (uint16_t)(SCION_META_LEN + segments_len * SCION_INFO_LEN + hops_len * SCION_HOP_LEN);
+	*path = (struct scion_path) { .path_type = SCION_PATH_TYPE_SCION, .raw_path = raw_path };
+}
+
+// Asserts that exactly one router alert flag is set, in the given hop field.
+static void assert_router_alert(const struct scion_path *path, size_t hops_len, size_t alert_hop, bool alert_ingress)
+{
+	struct scion_path_meta_hdr hdr;
+	struct scion_list *info_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
+	struct scion_list *hop_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
+	assert_int_equal(
+		scion_path_deserialize(path->raw_path->raw, path->raw_path->length, &hdr, info_fields, hop_fields), 0);
+	assert_uint_equal(hop_fields->size, hops_len);
+
+	for (size_t i = 0; i < hops_len; i++) {
+		struct scion_hop_field *hop = scion_list_get(hop_fields, i);
+		assert_int_equal(hop->ingress_router_alert, i == alert_hop && alert_ingress);
+		assert_int_equal(hop->egress_router_alert, i == alert_hop && !alert_ingress);
+	}
+
+	scion_list_free(info_fields);
+	scion_list_free(hop_fields);
+}
+
+// Sets the router alert for every interface of a path in turn and checks which hop field gets the flag.
+static void assert_router_alerts(const struct segment_spec *segments, size_t segments_len, const struct hop_spec *hops,
+	size_t hops_len, const struct alert_spec *expected, size_t interfaces_len)
+{
+	uint8_t buf[SCION_META_LEN + 3 * SCION_INFO_LEN + 16 * SCION_HOP_LEN];
+	struct scion_path_raw raw_path;
+	struct scion_path path;
+
+	// All flags are set on the same path, a flag set earlier must be cleared.
+	build_path(&path, &raw_path, buf, segments, segments_len, hops, hops_len);
+	for (size_t i = 0; i < interfaces_len; i++) {
+		assert_int_equal(scion_path_set_router_alert(&path, i), 0);
+		assert_router_alert(&path, hops_len, expected[i].hop, expected[i].ingress);
+	}
+
+	// An unknown interface leaves the path as it is.
+	uint8_t before[sizeof(buf)];
+	memcpy(before, buf, path.raw_path->length);
+	assert_int_equal(scion_path_set_router_alert(&path, interfaces_len), SCION_ERR_INDEX_OUT_OF_RANGE);
+	assert_memory_equal(buf, before, path.raw_path->length);
+}
+
+static void test_router_alert_up_segment(void **)
+{
+	// Travel order is the stored order. The source AS is the last AS of the segment in construction direction.
+	const struct segment_spec segments[] = { { .cons_dir = false, .hops = 3 } };
+	const struct hop_spec hops[] = { { .ingress = 11, .egress = 0 }, { .ingress = 21, .egress = 22 },
+		{ .ingress = 0, .egress = 31 } };
+	const struct alert_spec expected[] = { { 0, true }, { 1, false }, { 1, true }, { 2, false } };
+
+	assert_router_alerts(segments, 1, hops, 3, expected, 4);
+}
+
+static void test_router_alert_down_segment(void **)
+{
+	const struct segment_spec segments[] = { { .cons_dir = true, .hops = 3 } };
+	const struct hop_spec hops[] = { { .ingress = 0, .egress = 41 }, { .ingress = 42, .egress = 43 },
+		{ .ingress = 44, .egress = 0 } };
+	const struct alert_spec expected[] = { { 0, false }, { 1, true }, { 1, false }, { 2, true } };
+
+	assert_router_alerts(segments, 1, hops, 3, expected, 4);
+}
+
+static void test_router_alert_up_core_down_segments(void **)
+{
+	const struct segment_spec segments[] = { { .cons_dir = false, .hops = 2 }, { .cons_dir = false, .hops = 2 },
+		{ .cons_dir = true, .hops = 2 } };
+	const struct hop_spec hops[] = { { .ingress = 11, .egress = 0 }, { .ingress = 0, .egress = 12 },
+		{ .ingress = 21, .egress = 0 }, { .ingress = 0, .egress = 22 }, { .ingress = 0, .egress = 31 },
+		{ .ingress = 32, .egress = 0 } };
+	const struct alert_spec expected[] = { { 0, true }, { 1, false }, { 2, true }, { 3, false }, { 4, false },
+		{ 5, true } };
+
+	assert_router_alerts(segments, 3, hops, 6, expected, 6);
+}
+
+static void test_router_alert_shortcut(void **)
+{
+	// The AS where the segments meet does not use the interfaces that lead to its parent, 12 and 14.
+	const struct segment_spec segments[] = { { .cons_dir = false, .hops = 2 }, { .cons_dir = true, .hops = 2 } };
+	const struct hop_spec hops[] = { { .ingress = 11, .egress = 0 }, { .ingress = 12, .egress = 13 },
+		{ .ingress = 14, .egress = 15 }, { .ingress = 16, .egress = 0 } };
+	const struct alert_spec expected[] = { { 0, true }, { 1, false }, { 2, false }, { 3, true } };
+
+	assert_router_alerts(segments, 2, hops, 4, expected, 4);
+}
+
+static void test_router_alert_peering(void **)
+{
+	// A peering link is used, so all interfaces of the hop fields where the segments meet are used.
+	const struct segment_spec segments[] = { { .cons_dir = false, .peer = true, .hops = 2 },
+		{ .cons_dir = true, .peer = true, .hops = 2 } };
+	const struct hop_spec hops[] = { { .ingress = 11, .egress = 0 }, { .ingress = 51, .egress = 52 },
+		{ .ingress = 53, .egress = 54 }, { .ingress = 55, .egress = 0 } };
+	const struct alert_spec expected[] = { { 0, true }, { 1, false }, { 1, true }, { 2, true }, { 2, false },
+		{ 3, true } };
+
+	assert_router_alerts(segments, 2, hops, 4, expected, 6);
+}
+
+static void test_router_alert_empty_path(void **)
+{
+	struct scion_path path = { .path_type = SCION_PATH_TYPE_EMPTY };
+
+	assert_int_equal(scion_path_set_router_alert(&path, 0), SCION_ERR_PATH_TYPE_INVALID);
+}
+
 int run_path_tests(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -690,6 +847,12 @@ int run_path_tests(void)
 		cmocka_unit_test(test_deserialize_meta_hdr),
 		cmocka_unit_test(test_serialize_path),
 		cmocka_unit_test(test_deserialize_path),
+		cmocka_unit_test(test_router_alert_up_segment),
+		cmocka_unit_test(test_router_alert_down_segment),
+		cmocka_unit_test(test_router_alert_up_core_down_segments),
+		cmocka_unit_test(test_router_alert_shortcut),
+		cmocka_unit_test(test_router_alert_peering),
+		cmocka_unit_test(test_router_alert_empty_path),
 	};
 	return cmocka_run_group_tests(tests, NULL, NULL);
 }
