@@ -13,9 +13,12 @@
 // limitations under the License.
 
 #include <assert.h>
+#include <inttypes.h>
 #include <memory.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "data_plane/scmp.h"
 #include "util/endian.h"
@@ -448,4 +451,68 @@ void scion_scmp_error_free_members(struct scion_scmp_error *scmp_error)
 	free(scmp_error->packet);
 	scmp_error->packet = NULL;
 	scmp_error->packet_length = 0;
+}
+
+// Appends a formatted string to buf. used is the length the string would have if buf was large enough.
+static void append(char *buf, size_t buf_len, size_t *used, const char *format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	int len;
+	if (*used < buf_len) {
+		len = vsnprintf(buf + *used, buf_len - *used, format, args);
+	} else {
+		len = vsnprintf(NULL, 0, format, args);
+	}
+	va_end(args);
+
+	assert(len >= 0);
+	*used += (size_t)len;
+}
+
+int scion_scmp_error_str(const struct scion_scmp_error *scmp_error, char *buf, size_t buf_len)
+{
+	assert(scmp_error);
+	assert(buf || buf_len == 0);
+
+	size_t used = 0;
+	append(buf, buf_len, &used, "SCMP error: %s", scion_scmp_type_str(scmp_error->type));
+
+	const char *code = scion_scmp_code_str(scmp_error->type, scmp_error->code);
+	if (strcmp(code, "none") != 0) {
+		append(buf, buf_len, &used, " (%s)", code);
+	}
+
+	char ia[SCION_IA_STRLEN];
+	switch (scmp_error->type) {
+	case SCION_SCMP_TYPE_PACKET_TOO_BIG:
+		append(buf, buf_len, &used, ", MTU %" PRIu16, scmp_error->info.packet_too_big.mtu);
+		break;
+	case SCION_SCMP_TYPE_PARAMETER_PROBLEM:
+		append(buf, buf_len, &used, ", pointer %" PRIu16, scmp_error->info.parameter_problem.pointer);
+		break;
+	case SCION_SCMP_TYPE_EXTERNAL_INTERFACE_DOWN:
+		(void)scion_ia_str(scmp_error->info.external_interface_down.ia, ia, sizeof(ia));
+		append(buf, buf_len, &used, ", %s interface %" PRIu64, ia, scmp_error->info.external_interface_down.interface);
+		break;
+	case SCION_SCMP_TYPE_INTERNAL_CONNECTIVITY_DOWN:
+		(void)scion_ia_str(scmp_error->info.internal_connectivity_down.ia, ia, sizeof(ia));
+		append(buf, buf_len, &used, ", %s interfaces %" PRIu64 ">%" PRIu64, ia,
+			scmp_error->info.internal_connectivity_down.ingress_interface,
+			scmp_error->info.internal_connectivity_down.egress_interface);
+		break;
+	default:
+		// The other types carry no further information.
+		break;
+	}
+
+	return used < buf_len ? 0 : SCION_ERR_BUF_TOO_SMALL;
+}
+
+void scion_scmp_error_print(const struct scion_scmp_error *scmp_error)
+{
+	char str[SCION_SCMP_ERROR_STRLEN];
+	if (scion_scmp_error_str(scmp_error, str, sizeof(str)) == 0) {
+		(void)printf("%s\n", str);
+	}
 }
