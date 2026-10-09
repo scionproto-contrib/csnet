@@ -297,6 +297,13 @@ int scion_ia_str(scion_ia ia, char *buf, size_t buflen);
 void scion_ia_print(scion_ia ia);
 
 /**
+ * Prints a SCION address pair to stdout.
+ * @param[in] addr The address.
+ * @param[in] ia The IA.
+ */
+void scion_addr_print(const struct sockaddr *addr, scion_ia ia);
+
+/**
  * @struct scion_topology
  *
  * @brief A topology context in SCION.
@@ -975,13 +982,6 @@ int scion_getsockfd(struct scion_socket *scion_sock, int *fd);
  * @return 0 on success, a negative error code on failure.
  */
 int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy policy);
-
-/**
- * Prints a SCION address pair to stdout.
- * @param[in] addr The address.
- * @param[in] ia The IA.
- */
-void scion_addr_print(const struct sockaddr *addr, scion_ia ia);
 
 #ifdef __cplusplus
 }
