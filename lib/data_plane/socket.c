@@ -939,10 +939,19 @@ ssize_t scion_recvmsg(
 		if (packet.next_hdr == SCION_PROTO_SCMP && scion_scmp_is_error(packet.payload, recv_len)) {
 			// Trigger SCMP error callback
 			if (scion_sock->scmp_error_cb != NULL) {
-				scion_sock->scmp_error_cb(packet.payload, recv_len, scion_sock->scmp_error_ctx);
+				struct scion_scmp_error scmp_error;
+				ret = scion_scmp_error_deserialize(packet.payload, recv_len, &scmp_error);
+				if (ret == 0) {
+					scion_sock->scmp_error_cb(&scmp_error, scion_sock->scmp_error_ctx);
+					scion_scmp_error_free_members(&scmp_error);
+				} else if (scion_sock->debug) {
+					(void)fprintf(stderr, "Ignoring an SCMP error message that cannot be parsed (%s, code %d)\n",
+						scion_strerror((int)ret), (int)ret);
+				}
 			}
 
 			// Ignore packet
+			ret = 0;
 			goto cleanup_packet;
 		}
 
@@ -1206,26 +1215,3 @@ int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy pol
 
 	return ret;
 };
-
-void scion_addr_print(const struct sockaddr *addr, scion_ia ia)
-{
-	if (addr == NULL) {
-		return;
-	}
-
-	scion_ia_print(ia);
-	(void)printf(",");
-
-	if (addr->sa_family == AF_INET) {
-		struct sockaddr_in *raw_addr = (struct sockaddr_in *)addr;
-		char *ip_str = inet_ntoa(raw_addr->sin_addr);
-		(void)printf("%s:%d", ip_str, ntohs(raw_addr->sin_port));
-	} else if (addr->sa_family == AF_INET6) {
-		struct sockaddr_in6 *raw_addr = (struct sockaddr_in6 *)addr;
-		char ip_str[INET6_ADDRSTRLEN];
-		(void)inet_ntop(AF_INET6, &raw_addr->sin6_addr, ip_str, INET6_ADDRSTRLEN);
-		(void)printf("%s:%d", ip_str, ntohs(raw_addr->sin6_port));
-	} else {
-		(void)printf("UNKNOWN ADDR TYPE");
-	}
-}

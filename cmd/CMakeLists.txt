@@ -1,5 +1,10 @@
 add_executable(ping ping.c)
 target_link_libraries(ping PRIVATE scion)
+target_include_directories(ping PRIVATE ${PROJECT_SOURCE_DIR}/lib)
+
+add_executable(traceroute traceroute.c)
+target_link_libraries(traceroute PRIVATE scion)
+target_include_directories(traceroute PRIVATE ${PROJECT_SOURCE_DIR}/lib)
 
 # tests
 add_test(NAME ping_different_as COMMAND ping -c 3 2-ff00:0:222,fd00:f00d:cafe::7f00:55 ../topology/topology.json)
@@ -14,5 +19,5 @@ set_tests_properties(ping_same_as PROPERTIES
         LABELS "e2e"
 )
 
-# install ping binary
-install(TARGETS ping)
+# install command-line tools
+install(TARGETS ping traceroute)

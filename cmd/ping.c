@@ -25,42 +25,13 @@
 #include <sys/random.h>
 #include <unistd.h>
 
-static int parse_remote(char *str, scion_ia *ia, struct sockaddr *addr, socklen_t *addrlen)
+#include "util/addr.h"
+
+static void print_scmp_error(const struct scion_scmp_error *error, void *ctx)
 {
-	size_t str_len = strlen(str);
-	char *separator = memchr(str, ',', str_len);
-	if (separator == NULL) {
-		return -1;
-	}
+	(void)ctx;
 
-	size_t ia_len = (size_t)(separator - str);
-	if (scion_ia_parse(str, ia_len, ia) != 0) {
-		return -1;
-	}
-
-	size_t ip_len = str_len - ia_len - 1;
-	if (ip_len == 0) {
-		return -1;
-	}
-
-	char ip_str[ip_len + 1];
-	(void)strcpy(ip_str, str + ia_len + 1);
-
-	if (*addrlen >= sizeof(struct sockaddr_in)
-		&& inet_pton(AF_INET, ip_str, &((struct sockaddr_in *)addr)->sin_addr) == 1) {
-		((struct sockaddr_in *)addr)->sin_family = AF_INET;
-		((struct sockaddr_in *)addr)->sin_port = htons(30041);
-		*addrlen = sizeof(struct sockaddr_in);
-	} else if (*addrlen >= sizeof(struct sockaddr_in6)
-			   && inet_pton(AF_INET6, ip_str, &((struct sockaddr_in6 *)addr)->sin6_addr) == 1) {
-		((struct sockaddr_in6 *)addr)->sin6_family = AF_INET6;
-		((struct sockaddr_in6 *)addr)->sin6_port = htons(30041);
-		*addrlen = sizeof(struct sockaddr_in6);
-	} else {
-		return -1;
-	}
-
-	return 0;
+	scion_scmp_error_print(error);
 }
 
 static int scion_send_echo_request(struct scion_socket *scion_sock, struct scion_path *path, uint16_t seqno,
@@ -103,7 +74,7 @@ static int scion_send_echo_request(struct scion_socket *scion_sock, struct scion
 	}
 
 	if (tv != NULL) {
-		(void)gettimeofday(tv, NULL);
+		gettimeofday(tv, NULL);
 	}
 
 	ssize_t send_res = scion_sendto(scion_sock, echo_buffer, echo_length, 0, NULL, 0, 0, path);
@@ -128,7 +99,7 @@ static int scion_recv_echo_reply(struct scion_socket *scion_socket, uint16_t seq
 
 	while (true) {
 		rcv_ret = scion_recv(scion_socket, &buf, echo_length, 0);
-		(void)gettimeofday(tv, NULL);
+		gettimeofday(tv, NULL);
 
 		if (rcv_ret < 0) {
 			return (int)rcv_ret;
@@ -177,9 +148,9 @@ static int ping(struct scion_socket *socket, struct scion_path *path, struct soc
 	uint16_t packets_received = 0;
 	uint16_t packets_lost = 0;
 
-	(void)printf("\nUsing path:\n  ");
+	printf("\nUsing path:\n  ");
 	scion_path_print(path);
-	(void)printf("\n");
+	printf("\n");
 
 	if (payload_size > 0) {
 		payload = malloc(payload_size);
@@ -200,9 +171,9 @@ static int ping(struct scion_socket *socket, struct scion_path *path, struct soc
 #endif
 	}
 
-	(void)printf("PING ");
+	printf("PING ");
 	scion_addr_print(addr, ia);
-	(void)printf(" pld=%" PRIu16 "B\n", payload_size);
+	printf(" pld=%" PRIu16 "B\n", payload_size);
 
 	double max = 0.0;
 	double min = DBL_MAX;
@@ -211,7 +182,7 @@ static int ping(struct scion_socket *socket, struct scion_path *path, struct soc
 	for (uint16_t i = 0; i < count; i++) {
 		ret = scion_send_echo_request(socket, path, i, payload, payload_size, &start);
 		if (ret != 0) {
-			(void)printf("SEND ERROR: seqno=%" PRIu16 ", code=%d\n", i, ret);
+			printf("SEND ERROR: seqno=%" PRIu16 ", code=%d\n", i, ret);
 			continue;
 		}
 		packets_sent += 1;
@@ -220,7 +191,7 @@ static int ping(struct scion_socket *socket, struct scion_path *path, struct soc
 		ret = scion_recv_echo_reply(socket, i, payload, payload_size, &end, &rcv_packet_length);
 		if (ret < 0) {
 			packets_lost += 1;
-			(void)printf("TIMEOUT: seqno=%" PRIu16 "\n", i);
+			printf("TIMEOUT: seqno=%" PRIu16 "\n", i);
 		} else {
 			packets_received += 1;
 
@@ -238,10 +209,10 @@ static int ping(struct scion_socket *socket, struct scion_path *path, struct soc
 				max = t;
 			}
 
-			(void)printf("%zd bytes from ", rcv_packet_length);
-			(void)printf(": scmp_seq=%" PRIu16 " time=%.3fms\n", i, t);
+			printf("%zd bytes from ", rcv_packet_length);
+			printf(": scmp_seq=%" PRIu16 " time=%.3fms\n", i, t);
 		}
-		(void)sleep(1);
+		sleep(1);
 	}
 
 	double packet_loss = 0.0;
@@ -256,12 +227,12 @@ static int ping(struct scion_socket *socket, struct scion_path *path, struct soc
 		avg = avg / packets_received;
 	}
 
-	(void)printf("\n--- ");
+	printf("\n--- ");
 	scion_addr_print(addr, ia);
-	(void)printf(" ping statistics ---\n");
-	(void)printf("%" PRIu16 " packets transmitted, %" PRIu16 " packets received, %.1f%% packet loss\n", packets_sent,
+	printf(" ping statistics ---\n");
+	printf("%" PRIu16 " packets transmitted, %" PRIu16 " packets received, %.1f%% packet loss\n", packets_sent,
 		packets_received, packet_loss);
-	(void)printf("round-trip min/avg/max %.3f/%.3f/%.3f ms\n\n", min, avg, max);
+	printf("round-trip min/avg/max %.3f/%.3f/%.3f ms\n\n", min, avg, max);
 
 #ifndef __APPLE__
 cleanup_payload:
@@ -415,41 +386,22 @@ int main(int argc, char **argv)
 		goto cleanup_socket;
 	}
 
+	ret = scion_setsockerrcb(socket, print_scmp_error, NULL);
+	if (ret != 0) {
+		fprintf(stderr, "Error: could not set SCMP error callback (%s, code %d)\n", scion_strerror(ret), ret);
+		ret = 2;
+		goto cleanup_socket;
+	}
+
 	struct sockaddr_storage local_addr;
 	socklen_t local_addr_len;
-
-	if (local_addr_family == SCION_AF_INET) {
-		struct sockaddr_in *local_addr_in = (struct sockaddr_in *)&local_addr;
-		local_addr_in->sin_family = AF_INET;
-
-		if (local_ip != NULL) {
-			if (inet_pton(AF_INET, local_ip, &local_addr_in->sin_addr) != 1) {
-				fprintf(stderr, "./ping: the local IP address provided must be a valid IPv4 address\n");
-				ret = 2;
-				goto cleanup_socket;
-			}
-		} else {
-			local_addr_in->sin_addr.s_addr = htons(INADDR_ANY);
-		}
-
-		local_addr_in->sin_port = is_dispatcher_network ? htons(30041) : htons(0);
-		local_addr_len = sizeof(*local_addr_in);
-	} else {
-		struct sockaddr_in6 *local_addr_in6 = (struct sockaddr_in6 *)&local_addr;
-		local_addr_in6->sin6_family = AF_INET6;
-
-		if (local_ip != NULL) {
-			if (inet_pton(AF_INET6, local_ip, &local_addr_in6->sin6_addr) != 1) {
-				fprintf(stderr, "./ping: the local IP address provided must be a valid IPv6 address\n");
-				ret = 2;
-				goto cleanup_socket;
-			}
-		} else {
-			local_addr_in6->sin6_addr = in6addr_any;
-		}
-
-		local_addr_in6->sin6_port = is_dispatcher_network ? htons(30041) : htons(0);
-		local_addr_len = sizeof(*local_addr_in6);
+	ret = scion_addr_from_ip(
+		local_addr_family, local_ip, is_dispatcher_network ? 30041 : 0, &local_addr, &local_addr_len);
+	if (ret != 0) {
+		fprintf(stderr, "./ping: the local IP address provided must be a valid IPv%d address\n",
+			local_addr_family == SCION_AF_INET ? 4 : 6);
+		ret = 2;
+		goto cleanup_socket;
 	}
 
 	ret = scion_bind(socket, (struct sockaddr *)&local_addr, local_addr_len);
@@ -462,7 +414,7 @@ int main(int argc, char **argv)
 	struct sockaddr_storage dst_addr = { 0 };
 	socklen_t dst_addr_len = sizeof(dst_addr);
 	scion_ia dst_ia;
-	ret = parse_remote(remote_addr, &dst_ia, (struct sockaddr *)&dst_addr, &dst_addr_len);
+	ret = scion_addr_parse(remote_addr, 30041, &dst_ia, (struct sockaddr *)&dst_addr, &dst_addr_len);
 	if (ret != 0) {
 		fprintf(stderr, "./ping: the remote address is an invalid IA,IP address pair\n");
 		ret = 2;

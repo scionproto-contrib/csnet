@@ -248,6 +248,27 @@ int scion_scmp_error_deserialize(const uint8_t *buf, size_t buf_len, struct scio
  */
 void scion_scmp_error_free_members(struct scion_scmp_error *scmp_error);
 
+/** The size of a buffer that is large enough for the string of any SCMP error message. */
+#define SCION_SCMP_ERROR_STRLEN 128
+
+/**
+ * Gets the string representation of an SCMP error message, for example
+ * "SCMP error: destination unreachable (port unreachable)".
+ * @param[in] scmp_error The SCMP error message.
+ * @param[out] buf The buffer in which the string is stored.
+ * @param[in] buf_len The length of the buffer.
+ * @return 0 on success, SCION_ERR_BUF_TOO_SMALL if the string does not fit in the buffer.
+ *
+ * @see The macro SCION_SCMP_ERROR_STRLEN can be used to allocate a buffer of appropriate size.
+ */
+int scion_scmp_error_str(const struct scion_scmp_error *scmp_error, char *buf, size_t buf_len);
+
+/**
+ * Prints an SCMP error message to stdout, for example "SCMP error: destination unreachable (port unreachable)".
+ * @param[in] scmp_error The SCMP error message.
+ */
+void scion_scmp_error_print(const struct scion_scmp_error *scmp_error);
+
 /**
  * An SCMP echo message.
  */
@@ -338,14 +359,34 @@ int scion_scmp_traceroute_deserialize(
 	const uint8_t *buf, size_t buf_len, struct scion_scmp_traceroute *scmp_traceroute);
 
 /**
+ * Makes the border router of one interface of a path process the SCMP message sent along the path.
+ *
+ * The router alert flag of the hop field that belongs to the interface is set and the flag of every other hop field is
+ * cleared. A border router that sees the flag answers a traceroute request, see @ref scion_scmp_traceroute.
+ * @param[in,out] path The path.
+ * @param[in] interface_index The index of the interface in the interfaces of the path metadata, 0 is the first
+ * interface of the source AS.
+ * @return 0 on success, a negative error code on failure.
+ *
+ * @note Fails with @c SCION_ERR_PATH_TYPE_INVALID for a path without hops, and with @c SCION_ERR_INDEX_OUT_OF_RANGE if
+ * the path has no such interface.
+ * @note Reversing the path invalidates the index.
+ */
+int scion_path_set_router_alert(struct scion_path *path, size_t interface_index);
+
+/**
  * A callback for SCMP error handling.
- * @param buf The buffer containing the SCMP error message.
- * @param size The size of the buffer.
+ * @param scmp_error The SCMP error message that was received.
  * @param ctx The context that was provided when setting up the callback.
+ *
+ * @note The SCMP error message is freed after the callback returns. A callback that needs the quoted packet later has
+ * to copy it.
+ * @note A message that cannot be parsed, for example because of an unknown type, does not reach the callback. It is
+ * reported on stderr if the socket option SCION_SO_DEBUG is set.
  *
  * @see @link scion_setsockerrcb @endlink
  */
-typedef void scion_socket_scmp_error_cb(uint8_t *buf, size_t size, void *ctx);
+typedef void scion_socket_scmp_error_cb(const struct scion_scmp_error *scmp_error, void *ctx);
 
 /**
  * Sets the SCMP error callback that is called when a SCMP error is received by the socket.

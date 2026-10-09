@@ -25,6 +25,7 @@
 #include "common/isd_as.h"
 #include "control_plane/path_collection.h"
 #include "data_plane/path.h"
+#include "scion/scion_scmp.h"
 #include "util/endian.h"
 #include "util/list.h"
 
@@ -177,6 +178,124 @@ int scion_path_reverse(struct scion_path *path)
 	}
 
 	return SCION_ERR_PATH_TYPE_INVALID;
+}
+
+// The interface a packet enters the AS on, in the direction of travel. The interfaces of a hop field are named after
+// the construction direction, so which one it is depends on the direction the segment is traversed in.
+static uint16_t arrival_interface(const struct scion_info_field *info_field, const struct scion_hop_field *hop_field)
+{
+	return info_field->cons_dir ? hop_field->cons_ingress : hop_field->cons_egress;
+}
+
+// The interface a packet leaves the AS on, in the direction of travel.
+static uint16_t departure_interface(const struct scion_info_field *info_field, const struct scion_hop_field *hop_field)
+{
+	return info_field->cons_dir ? hop_field->cons_egress : hop_field->cons_ingress;
+}
+
+// Determines whether two consecutive segments are joined at a shortcut, that is, whether the packet turns around in an
+// AS without going through its core. The two hop fields of that AS then carry an interface towards the parent AS that
+// is not used. Hop fields of a peering link are not affected.
+static bool is_shortcut(const struct scion_info_field *info_field, const struct scion_hop_field *last_hop_field,
+	const struct scion_info_field *next_info_field, const struct scion_hop_field *next_hop_field)
+{
+	return !info_field->peer && departure_interface(info_field, last_hop_field) != 0
+		   && arrival_interface(next_info_field, next_hop_field) != 0;
+}
+
+int scion_path_set_router_alert(struct scion_path *path, size_t interface_index)
+{
+	assert(path);
+
+	if (path->path_type != SCION_PATH_TYPE_SCION) {
+		return SCION_ERR_PATH_TYPE_INVALID;
+	}
+
+	assert(path->raw_path);
+	assert(path->raw_path->raw);
+
+	struct scion_path_meta_hdr hdr;
+	struct scion_list *info_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
+	struct scion_list *hop_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
+
+	int ret = scion_path_deserialize(path->raw_path->raw, path->raw_path->length, &hdr, info_fields, hop_fields);
+	if (ret != 0) {
+		goto cleanup;
+	}
+
+	for (struct scion_list_node *node = hop_fields->first; node != NULL; node = node->next) {
+		struct scion_hop_field *hop_field = node->value;
+		hop_field->ingress_router_alert = false;
+		hop_field->egress_router_alert = false;
+	}
+
+	// The hop fields are in the order the packet travels, also in a segment that is not traversed in its
+	// construction direction. Count the interfaces in that order, like the path metadata does.
+	bool found = false;
+	size_t index = 0;
+	size_t first_hop = 0;
+	for (size_t segment = 0; segment < info_fields->size && !found; segment++) {
+		struct scion_info_field *info_field = scion_list_get(info_fields, segment);
+		size_t segment_len = hdr.seg_len[segment];
+		bool has_next_segment = segment + 1 < info_fields->size;
+
+		for (size_t i = 0; i < segment_len && !found; i++) {
+			struct scion_hop_field *hop_field = scion_list_get(hop_fields, first_hop + i);
+
+			bool arrival_used = arrival_interface(info_field, hop_field) != 0;
+			bool departure_used = departure_interface(info_field, hop_field) != 0;
+
+			if (i == 0 && segment > 0) {
+				struct scion_info_field *last_info_field = scion_list_get(info_fields, segment - 1);
+				struct scion_hop_field *last_hop_field = scion_list_get(hop_fields, first_hop - 1);
+				if (is_shortcut(last_info_field, last_hop_field, info_field, hop_field)) {
+					arrival_used = false;
+				}
+			}
+			if (i + 1 == segment_len && has_next_segment) {
+				struct scion_info_field *next_info_field = scion_list_get(info_fields, segment + 1);
+				struct scion_hop_field *next_hop_field
+					= scion_list_get(hop_fields, first_hop + segment_len);
+				if (is_shortcut(info_field, hop_field, next_info_field, next_hop_field)) {
+					departure_used = false;
+				}
+			}
+
+			// The ingress flag is for the router of the construction ingress interface, the egress flag for
+			// the router of the construction egress interface.
+			if (arrival_used) {
+				if (index == interface_index) {
+					hop_field->ingress_router_alert = info_field->cons_dir;
+					hop_field->egress_router_alert = !info_field->cons_dir;
+					found = true;
+				}
+				index++;
+			}
+			if (departure_used && !found) {
+				if (index == interface_index) {
+					hop_field->ingress_router_alert = !info_field->cons_dir;
+					hop_field->egress_router_alert = info_field->cons_dir;
+					found = true;
+				}
+				index++;
+			}
+		}
+
+		first_hop += segment_len;
+	}
+
+	if (!found) {
+		ret = SCION_ERR_INDEX_OUT_OF_RANGE;
+		goto cleanup;
+	}
+
+	ret = scion_path_serialize(&hdr, info_fields, hop_fields, path->raw_path->raw);
+
+cleanup:
+	scion_list_free(info_fields);
+	scion_list_free(hop_fields);
+
+	return ret;
 }
 
 /*

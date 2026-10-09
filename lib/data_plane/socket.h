@@ -79,5 +79,3 @@ int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, so
 int scion_getsockfd(struct scion_socket *scion_sock, int *fd);
 
 int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy policy);
-
-void scion_addr_print(const struct sockaddr *addr, scion_ia ia);
