@@ -940,13 +940,18 @@ ssize_t scion_recvmsg(
 			// Trigger SCMP error callback
 			if (scion_sock->scmp_error_cb != NULL) {
 				struct scion_scmp_error scmp_error;
-				if (scion_scmp_error_deserialize(packet.payload, recv_len, &scmp_error) == 0) {
+				ret = scion_scmp_error_deserialize(packet.payload, recv_len, &scmp_error);
+				if (ret == 0) {
 					scion_sock->scmp_error_cb(&scmp_error, scion_sock->scmp_error_ctx);
 					scion_scmp_error_free_members(&scmp_error);
+				} else if (scion_sock->debug) {
+					(void)fprintf(stderr, "Ignoring an SCMP error message that cannot be parsed (%s, code %d)\n",
+						scion_strerror((int)ret), (int)ret);
 				}
 			}
 
 			// Ignore packet
+			ret = 0;
 			goto cleanup_packet;
 		}
 
