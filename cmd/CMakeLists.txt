@@ -1,5 +1,6 @@
 add_executable(ping ping.c)
 target_link_libraries(ping PRIVATE scion)
+target_include_directories(ping PRIVATE ${PROJECT_SOURCE_DIR}/lib)
 
 # tests
 add_test(NAME ping_different_as COMMAND ping -c 3 2-ff00:0:222,fd00:f00d:cafe::7f00:55 ../topology/topology.json)
