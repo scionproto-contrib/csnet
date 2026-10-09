@@ -339,13 +339,16 @@ int scion_scmp_traceroute_deserialize(
 
 /**
  * A callback for SCMP error handling.
- * @param buf The buffer containing the SCMP error message.
- * @param size The size of the buffer.
+ * @param scmp_error The SCMP error message that was received.
  * @param ctx The context that was provided when setting up the callback.
+ *
+ * @note The SCMP error message is freed after the callback returns. A callback that needs the quoted packet later has
+ * to copy it.
+ * @note A message that cannot be parsed, for example because of an unknown type, does not reach the callback.
  *
  * @see @link scion_setsockerrcb @endlink
  */
-typedef void scion_socket_scmp_error_cb(uint8_t *buf, size_t size, void *ctx);
+typedef void scion_socket_scmp_error_cb(const struct scion_scmp_error *scmp_error, void *ctx);
 
 /**
  * Sets the SCMP error callback that is called when a SCMP error is received by the socket.
