@@ -28,6 +28,7 @@
 #include "data_plane/test_socket.h"
 #include "data_plane/test_udp.h"
 #include "data_plane/test_underlay.h"
+#include "util/test_addr.h"
 #include "util/test_list.h"
 #include "util/test_map.h"
 
@@ -44,6 +45,7 @@ int main(void)
 	failed += run_segment_tests();
 	failed += run_topology_tests();
 	failed += run_list_tests();
+	failed += run_addr_tests();
 	failed += run_packet_tests();
 	failed += run_path_tests();
 	failed += run_scmp_tests();
