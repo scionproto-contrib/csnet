@@ -478,16 +478,16 @@ struct scmp_error_record {
 	int calls;
 	enum scion_scmp_type type;
 	uint8_t code;
-	size_t size;
+	uint16_t packet_length;
 };
 
-static void record_scmp_error(uint8_t *buf, size_t size, void *ctx)
+static void record_scmp_error(const struct scion_scmp_error *scmp_error, void *ctx)
 {
 	struct scmp_error_record *record = ctx;
 	record->calls++;
-	record->type = scion_scmp_get_type(buf, (uint16_t)size);
-	record->code = scion_scmp_get_code(buf, (uint16_t)size);
-	record->size = size;
+	record->type = scmp_error->type;
+	record->code = scmp_error->code;
+	record->packet_length = scmp_error->packet_length;
 }
 
 // The automated version of the scmp_error and scmp_error_generator examples.
@@ -504,8 +504,8 @@ static void test_socket_scmp_error_calls_the_callback(void **state)
 	struct scmp_error_record record = { 0 };
 	assert_int_equal(scion_setsockerrcb(sock, record_scmp_error, &record), 0);
 
-	// Destination unreachable, code 4 (port unreachable).
-	const uint8_t error[] = { 0x01, 0x04, 0x00, 0x00 };
+	// Destination unreachable, code 4 (port unreachable), with two bytes of the offending packet.
+	const uint8_t error[] = { 0x01, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xaa, 0xbb };
 	assert_int_equal(scion_sendto(generator, error, sizeof(error), 0, (struct sockaddr *)&sock_addr, sizeof(sock_addr),
 						 local_ia_of(fixture), NULL),
 		(ssize_t)sizeof(error));
@@ -517,7 +517,37 @@ static void test_socket_scmp_error_calls_the_callback(void **state)
 	assert_int_equal(record.calls, 1);
 	assert_int_equal(record.type, 1);
 	assert_int_equal(record.code, 4);
-	assert_uint_equal(record.size, sizeof(error));
+	assert_uint_equal(record.packet_length, 2);
+}
+
+static void test_socket_invalid_scmp_error_is_ignored(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *generator = open_socket(fixture, SCION_SOCK_RAW, SCION_PROTO_SCMP);
+	struct scion_socket *sock = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(generator);
+	bind_loopback(sock);
+	struct sockaddr_in sock_addr = bound_address(sock);
+	set_receive_timeout(sock, 100);
+
+	struct scmp_error_record record = { 0 };
+	assert_int_equal(scion_setsockerrcb(sock, record_scmp_error, &record), 0);
+
+	// Type 3 is not defined, and the second message is too short for its type.
+	const uint8_t unknown_type[] = { 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	const uint8_t too_short[] = { 0x01, 0x04, 0x00, 0x00 };
+	const uint8_t *errors[] = { unknown_type, too_short };
+	const size_t sizes[] = { sizeof(unknown_type), sizeof(too_short) };
+	for (size_t i = 0; i < 2; i++) {
+		assert_int_equal(scion_sendto(generator, errors[i], sizes[i], 0, (struct sockaddr *)&sock_addr,
+							 sizeof(sock_addr), local_ia_of(fixture), NULL),
+			(ssize_t)sizes[i]);
+
+		char buf[16];
+		assert_int_equal(scion_recv(sock, buf, sizeof(buf), 0), SCION_ERR_WOULD_BLOCK);
+	}
+
+	assert_int_equal(record.calls, 0);
 }
 
 static void test_socket_scmp_informational_message_is_not_an_error(void **state)
@@ -661,6 +691,7 @@ int run_socket_tests(void)
 		cmocka_unit_test_setup_teardown(test_socket_connected_ignores_other_senders, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_scmp_echo_round_trip, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_scmp_error_calls_the_callback, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_invalid_scmp_error_is_ignored, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(
 			test_socket_scmp_informational_message_is_not_an_error, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(

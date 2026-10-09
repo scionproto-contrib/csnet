@@ -23,42 +23,33 @@
 
 bool received_scmp = false;
 
-static void handle_scmp(uint8_t *buf, size_t size, void *ctx)
+static void handle_scmp_error(const struct scion_scmp_error *error, void *ctx)
 {
-	struct scion_scmp_error error;
-	int ret = scion_scmp_error_deserialize(buf, size, &error);
-	if (ret != 0) {
-		printf("ERROR: Parsing the SCMP error message failed with error code: %d\n", ret);
-		return;
-	}
+	printf("SCMP error message received (type: %d, code: %u)\n", error->type, error->code);
 
-	printf("SCMP error message received (type: %d, code: %u)\n", error.type, error.code);
-
-	switch (error.type) {
+	switch (error->type) {
 	case SCION_SCMP_TYPE_DESTINATION_UNREACHABLE:
 		break;
 	case SCION_SCMP_TYPE_PACKET_TOO_BIG:
-		printf("  MTU: %u\n", error.info.packet_too_big.mtu);
+		printf("  MTU: %u\n", error->info.packet_too_big.mtu);
 		break;
 	case SCION_SCMP_TYPE_PARAMETER_PROBLEM:
-		printf("  Pointer: %u\n", error.info.parameter_problem.pointer);
+		printf("  Pointer: %u\n", error->info.parameter_problem.pointer);
 		break;
 	case SCION_SCMP_TYPE_EXTERNAL_INTERFACE_DOWN:
 		printf("  Originator: ");
-		scion_ia_print(error.info.external_interface_down.ia);
-		printf("\n  Interface: %" PRIu64 "\n", error.info.external_interface_down.interface);
+		scion_ia_print(error->info.external_interface_down.ia);
+		printf("\n  Interface: %" PRIu64 "\n", error->info.external_interface_down.interface);
 		break;
 	case SCION_SCMP_TYPE_INTERNAL_CONNECTIVITY_DOWN:
 		printf("  Originator: ");
-		scion_ia_print(error.info.internal_connectivity_down.ia);
-		printf("\n  Ingress interface: %" PRIu64 "\n", error.info.internal_connectivity_down.ingress_interface);
-		printf("  Egress interface: %" PRIu64 "\n", error.info.internal_connectivity_down.egress_interface);
+		scion_ia_print(error->info.internal_connectivity_down.ia);
+		printf("\n  Ingress interface: %" PRIu64 "\n", error->info.internal_connectivity_down.ingress_interface);
+		printf("  Egress interface: %" PRIu64 "\n", error->info.internal_connectivity_down.egress_interface);
 		break;
 	}
 
-	printf("  Quoted packet: %u bytes\n", error.packet_length);
-
-	scion_scmp_error_free_members(&error);
+	printf("  Quoted packet: %u bytes\n", error->packet_length);
 
 	received_scmp = true;
 }
@@ -98,7 +89,7 @@ int main(int argc, char *argv[])
 		goto cleanup_network;
 	}
 
-	ret = scion_setsockerrcb(scion_sock, handle_scmp, /* ctx: */ NULL);
+	ret = scion_setsockerrcb(scion_sock, handle_scmp_error, /* ctx: */ NULL);
 	if (ret != 0) {
 		printf("ERROR: Setting socket SCMP error handler failed with error code: %d\n", ret);
 		ret = EXIT_FAILURE;
