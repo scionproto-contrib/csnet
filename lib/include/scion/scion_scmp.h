@@ -248,6 +248,27 @@ int scion_scmp_error_deserialize(const uint8_t *buf, size_t buf_len, struct scio
  */
 void scion_scmp_error_free_members(struct scion_scmp_error *scmp_error);
 
+/** The size of a buffer that is large enough for the string of any SCMP error message. */
+#define SCION_SCMP_ERROR_STRLEN 128
+
+/**
+ * Gets the string representation of an SCMP error message, for example
+ * "SCMP error: destination unreachable (port unreachable)".
+ * @param[in] scmp_error The SCMP error message.
+ * @param[out] buf The buffer in which the string is stored.
+ * @param[in] buf_len The length of the buffer.
+ * @return 0 on success, SCION_ERR_BUF_TOO_SMALL if the string does not fit in the buffer.
+ *
+ * @see The macro SCION_SCMP_ERROR_STRLEN can be used to allocate a buffer of appropriate size.
+ */
+int scion_scmp_error_str(const struct scion_scmp_error *scmp_error, char *buf, size_t buf_len);
+
+/**
+ * Prints an SCMP error message to stdout, for example "SCMP error: destination unreachable (port unreachable)".
+ * @param[in] scmp_error The SCMP error message.
+ */
+void scion_scmp_error_print(const struct scion_scmp_error *scmp_error);
+
 /**
  * An SCMP echo message.
  */
