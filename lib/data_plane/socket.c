@@ -1215,26 +1215,3 @@ int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy pol
 
 	return ret;
 };
-
-void scion_addr_print(const struct sockaddr *addr, scion_ia ia)
-{
-	if (addr == NULL) {
-		return;
-	}
-
-	scion_ia_print(ia);
-	(void)printf(",");
-
-	if (addr->sa_family == AF_INET) {
-		struct sockaddr_in *raw_addr = (struct sockaddr_in *)addr;
-		char *ip_str = inet_ntoa(raw_addr->sin_addr);
-		(void)printf("%s:%d", ip_str, ntohs(raw_addr->sin_port));
-	} else if (addr->sa_family == AF_INET6) {
-		struct sockaddr_in6 *raw_addr = (struct sockaddr_in6 *)addr;
-		char ip_str[INET6_ADDRSTRLEN];
-		(void)inet_ntop(AF_INET6, &raw_addr->sin6_addr, ip_str, INET6_ADDRSTRLEN);
-		(void)printf("%s:%d", ip_str, ntohs(raw_addr->sin6_port));
-	} else {
-		(void)printf("UNKNOWN ADDR TYPE");
-	}
-}
