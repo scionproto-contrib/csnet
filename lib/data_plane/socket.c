@@ -939,7 +939,11 @@ ssize_t scion_recvmsg(
 		if (packet.next_hdr == SCION_PROTO_SCMP && scion_scmp_is_error(packet.payload, recv_len)) {
 			// Trigger SCMP error callback
 			if (scion_sock->scmp_error_cb != NULL) {
-				scion_sock->scmp_error_cb(packet.payload, recv_len, scion_sock->scmp_error_ctx);
+				struct scion_scmp_error scmp_error;
+				if (scion_scmp_error_deserialize(packet.payload, recv_len, &scmp_error) == 0) {
+					scion_sock->scmp_error_cb(&scmp_error, scion_sock->scmp_error_ctx);
+					scion_scmp_error_free_members(&scmp_error);
+				}
 			}
 
 			// Ignore packet
