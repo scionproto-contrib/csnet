@@ -74,7 +74,7 @@ static int scion_send_echo_request(struct scion_socket *scion_sock, struct scion
 	}
 
 	if (tv != NULL) {
-		(void)gettimeofday(tv, NULL);
+		gettimeofday(tv, NULL);
 	}
 
 	ssize_t send_res = scion_sendto(scion_sock, echo_buffer, echo_length, 0, NULL, 0, 0, path);
@@ -99,7 +99,7 @@ static int scion_recv_echo_reply(struct scion_socket *scion_socket, uint16_t seq
 
 	while (true) {
 		rcv_ret = scion_recv(scion_socket, &buf, echo_length, 0);
-		(void)gettimeofday(tv, NULL);
+		gettimeofday(tv, NULL);
 
 		if (rcv_ret < 0) {
 			return (int)rcv_ret;
@@ -148,9 +148,9 @@ static int ping(struct scion_socket *socket, struct scion_path *path, struct soc
 	uint16_t packets_received = 0;
 	uint16_t packets_lost = 0;
 
-	(void)printf("\nUsing path:\n  ");
+	printf("\nUsing path:\n  ");
 	scion_path_print(path);
-	(void)printf("\n");
+	printf("\n");
 
 	if (payload_size > 0) {
 		payload = malloc(payload_size);
@@ -171,9 +171,9 @@ static int ping(struct scion_socket *socket, struct scion_path *path, struct soc
 #endif
 	}
 
-	(void)printf("PING ");
+	printf("PING ");
 	scion_addr_print(addr, ia);
-	(void)printf(" pld=%" PRIu16 "B\n", payload_size);
+	printf(" pld=%" PRIu16 "B\n", payload_size);
 
 	double max = 0.0;
 	double min = DBL_MAX;
@@ -182,7 +182,7 @@ static int ping(struct scion_socket *socket, struct scion_path *path, struct soc
 	for (uint16_t i = 0; i < count; i++) {
 		ret = scion_send_echo_request(socket, path, i, payload, payload_size, &start);
 		if (ret != 0) {
-			(void)printf("SEND ERROR: seqno=%" PRIu16 ", code=%d\n", i, ret);
+			printf("SEND ERROR: seqno=%" PRIu16 ", code=%d\n", i, ret);
 			continue;
 		}
 		packets_sent += 1;
@@ -191,7 +191,7 @@ static int ping(struct scion_socket *socket, struct scion_path *path, struct soc
 		ret = scion_recv_echo_reply(socket, i, payload, payload_size, &end, &rcv_packet_length);
 		if (ret < 0) {
 			packets_lost += 1;
-			(void)printf("TIMEOUT: seqno=%" PRIu16 "\n", i);
+			printf("TIMEOUT: seqno=%" PRIu16 "\n", i);
 		} else {
 			packets_received += 1;
 
@@ -209,10 +209,10 @@ static int ping(struct scion_socket *socket, struct scion_path *path, struct soc
 				max = t;
 			}
 
-			(void)printf("%zd bytes from ", rcv_packet_length);
-			(void)printf(": scmp_seq=%" PRIu16 " time=%.3fms\n", i, t);
+			printf("%zd bytes from ", rcv_packet_length);
+			printf(": scmp_seq=%" PRIu16 " time=%.3fms\n", i, t);
 		}
-		(void)sleep(1);
+		sleep(1);
 	}
 
 	double packet_loss = 0.0;
@@ -227,12 +227,12 @@ static int ping(struct scion_socket *socket, struct scion_path *path, struct soc
 		avg = avg / packets_received;
 	}
 
-	(void)printf("\n--- ");
+	printf("\n--- ");
 	scion_addr_print(addr, ia);
-	(void)printf(" ping statistics ---\n");
-	(void)printf("%" PRIu16 " packets transmitted, %" PRIu16 " packets received, %.1f%% packet loss\n", packets_sent,
+	printf(" ping statistics ---\n");
+	printf("%" PRIu16 " packets transmitted, %" PRIu16 " packets received, %.1f%% packet loss\n", packets_sent,
 		packets_received, packet_loss);
-	(void)printf("round-trip min/avg/max %.3f/%.3f/%.3f ms\n\n", min, avg, max);
+	printf("round-trip min/avg/max %.3f/%.3f/%.3f ms\n\n", min, avg, max);
 
 #ifndef __APPLE__
 cleanup_payload:
