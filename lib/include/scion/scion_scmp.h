@@ -381,7 +381,8 @@ int scion_path_set_router_alert(struct scion_path *path, size_t interface_index)
  *
  * @note The SCMP error message is freed after the callback returns. A callback that needs the quoted packet later has
  * to copy it.
- * @note A message that cannot be parsed, for example because of an unknown type, does not reach the callback.
+ * @note A message that cannot be parsed, for example because of an unknown type, does not reach the callback. It is
+ * reported on stderr if the socket option SCION_SO_DEBUG is set.
  *
  * @see @link scion_setsockerrcb @endlink
  */
