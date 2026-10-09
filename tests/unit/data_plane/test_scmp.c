@@ -15,6 +15,7 @@
 #include <cmocka.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "data_plane/scmp.h"
 #include "test_scmp.h"
@@ -439,6 +440,57 @@ static void test_deserialize_scmp_traceroute_invalid_code(void **)
 	assert_int_equal(scion_scmp_traceroute_deserialize(buf, sizeof(buf), &traceroute), SCION_ERR_SCMP_CODE_INVALID);
 }
 
+static void test_scmp_error_str(void **)
+{
+	const scion_ia ia = 0x0001ff0000000111;
+	struct {
+		struct scion_scmp_error error;
+		const char *expected;
+	} cases[] = {
+		{ { .type = SCION_SCMP_TYPE_DESTINATION_UNREACHABLE,
+			  .code = SCION_SCMP_CODE_DESTINATION_UNREACHABLE_PORT_UNREACHABLE },
+			"SCMP error: destination unreachable (port unreachable)" },
+		{ { .type = SCION_SCMP_TYPE_PACKET_TOO_BIG, .info.packet_too_big.mtu = 1280 },
+			"SCMP error: packet too big, MTU 1280" },
+		{ { .type = SCION_SCMP_TYPE_PARAMETER_PROBLEM,
+			  .code = SCION_SCMP_CODE_PARAMETER_PROBLEM_INVALID_HOP_FIELD_MAC,
+			  .info.parameter_problem.pointer = 12 },
+			"SCMP error: parameter problem (invalid hop field MAC), pointer 12" },
+		{ { .type = SCION_SCMP_TYPE_EXTERNAL_INTERFACE_DOWN,
+			  .info.external_interface_down = { .ia = ia, .interface = 3 } },
+			"SCMP error: external interface down, 1-ff00:0:111 interface 3" },
+		{ { .type = SCION_SCMP_TYPE_INTERNAL_CONNECTIVITY_DOWN,
+			  .info.internal_connectivity_down = { .ia = ia, .ingress_interface = 2, .egress_interface = 3 } },
+			"SCMP error: internal connectivity down, 1-ff00:0:111 interfaces 2>3" },
+		// An unknown type and an unknown code
+		{ { .type = (enum scion_scmp_type)3, .code = 9 }, "SCMP error: unknown (unknown)" },
+	};
+
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		char buf[SCION_SCMP_ERROR_STRLEN];
+		assert_int_equal(scion_scmp_error_str(&cases[i].error, buf, sizeof(buf)), 0);
+		assert_string_equal(buf, cases[i].expected);
+	}
+}
+
+static void test_scmp_error_str_buffer_too_small(void **)
+{
+	const struct scion_scmp_error error = { .type = SCION_SCMP_TYPE_PACKET_TOO_BIG, .info.packet_too_big.mtu = 1280 };
+	const char *expected = "SCMP error: packet too big, MTU 1280";
+
+	// The string fits exactly into a buffer that has room for the terminating zero.
+	char buf[64];
+	assert_int_equal(scion_scmp_error_str(&error, buf, strlen(expected) + 1), 0);
+	assert_string_equal(buf, expected);
+
+	// Otherwise it is cut off, but still terminated.
+	assert_int_equal(scion_scmp_error_str(&error, buf, strlen(expected)), SCION_ERR_BUF_TOO_SMALL);
+	assert_string_equal(buf, "SCMP error: packet too big, MTU 128");
+	assert_int_equal(scion_scmp_error_str(&error, buf, 1), SCION_ERR_BUF_TOO_SMALL);
+	assert_string_equal(buf, "");
+	assert_int_equal(scion_scmp_error_str(&error, NULL, 0), SCION_ERR_BUF_TOO_SMALL);
+}
+
 int run_scmp_tests(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -458,6 +510,8 @@ int run_scmp_tests(void)
 		cmocka_unit_test(test_deserialize_scmp_error_too_short),
 		cmocka_unit_test(test_deserialize_scmp_error_does_not_validate_code),
 		cmocka_unit_test(test_scmp_error_free_members),
+		cmocka_unit_test(test_scmp_error_str),
+		cmocka_unit_test(test_scmp_error_str_buffer_too_small),
 		cmocka_unit_test(test_scmp_type_str),
 		cmocka_unit_test(test_scmp_code_str),
 		cmocka_unit_test(test_scmp_code_str_unknown),
