@@ -63,6 +63,13 @@ static int parse_remote(char *str, scion_ia *ia, struct sockaddr *addr, socklen_
 	return 0;
 }
 
+static void print_scmp_error(const struct scion_scmp_error *error, void *ctx)
+{
+	(void)ctx;
+
+	scion_scmp_error_print(error);
+}
+
 static int scion_send_echo_request(struct scion_socket *scion_sock, struct scion_path *path, uint16_t seqno,
 	uint8_t *payload, uint16_t length, struct timeval *tv)
 {
@@ -411,6 +418,13 @@ int main(int argc, char **argv)
 	ret = scion_setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout);
 	if (ret != 0) {
 		fprintf(stderr, "Error: could not set socket option (%s, code %d)\n", scion_strerror(ret), ret);
+		ret = 2;
+		goto cleanup_socket;
+	}
+
+	ret = scion_setsockerrcb(socket, print_scmp_error, NULL);
+	if (ret != 0) {
+		fprintf(stderr, "Error: could not set SCMP error callback (%s, code %d)\n", scion_strerror(ret), ret);
 		ret = 2;
 		goto cleanup_socket;
 	}
