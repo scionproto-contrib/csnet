@@ -454,7 +454,8 @@ void scion_scmp_error_free_members(struct scion_scmp_error *scmp_error)
 }
 
 // Appends a formatted string to buf. used is the length the string would have if buf was large enough.
-static void append(char *buf, size_t buf_len, size_t *used, const char *format, ...)
+__attribute__((format(printf, 4, 5))) static void append(
+	char *buf, size_t buf_len, size_t *used, const char *format, ...)
 {
 	va_list args;
 	va_start(args, format);
