@@ -19,5 +19,17 @@ set_tests_properties(ping_same_as PROPERTIES
         LABELS "e2e"
 )
 
+add_test(NAME traceroute_different_as COMMAND traceroute 2-ff00:0:222,fd00:f00d:cafe::7f00:55 ../topology/topology.json)
+set_tests_properties(traceroute_different_as PROPERTIES
+        FIXTURES_REQUIRED network_and_hosts_fixture
+        LABELS "e2e"
+)
+
+add_test(NAME traceroute_same_as COMMAND traceroute 1-ff00:0:133,127.0.0.100 ../topology/topology.json)
+set_tests_properties(traceroute_same_as PROPERTIES
+        FIXTURES_REQUIRED network_and_hosts_fixture
+        LABELS "e2e"
+)
+
 # install command-line tools
 install(TARGETS ping traceroute)
