@@ -21,7 +21,6 @@
 #include "common/info_field.h"
 #include "common/isd_as.h"
 #include "data_plane/path.h"
-#include "scion/scion_scmp.h"
 #include "test_path.h"
 #include "util/list.h"
 
