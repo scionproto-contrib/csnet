@@ -1,6 +1,13 @@
 ## IDF Component Manager Manifest File
 dependencies:
-  espressif/led_strip: ^2.5.5
+  espressif/led_strip:
+    version: ^2.5.5
+    # 2.5.x does not build with ESP-IDF 6.x, 3.1.x does not build with ESP-IDF 5.4
+    matches:
+      - if: "idf_version <6.0"
+        version: ^2.5.5
+      - if: "idf_version >=6.0"
+        version: ^3.1.0
   espressif/nghttp: ^1.58.0
   ## Required IDF version
   idf:
