@@ -21,8 +21,13 @@
 #ifdef __linux__
 #include <linux/errqueue.h>
 #include <linux/net_tstamp.h>
+#include <linux/sockios.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <poll.h>
+#include <stdio.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
 #endif
 
 #include "data_plane/socket.h"
@@ -352,4 +357,58 @@ int scion_timestamp_get_tx(struct scion_socket *scion_sock, struct scion_timesta
 	timestamp->time = state->last_sent.user_time;
 
 	return 0;
+}
+
+int scion_set_hwtimestamping(const char *ifname, bool enable)
+{
+	assert(ifname);
+
+#ifdef __linux__
+	if (ifname[0] == '\0' || strlen(ifname) >= IFNAMSIZ) {
+		return SCION_ERR_ADDR_NOT_AVAILABLE;
+	}
+
+	// The driver may change the filter to the closest one it supports.
+	struct hwtstamp_config config = { 0 };
+	config.tx_type = enable ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
+	config.rx_filter = enable ? HWTSTAMP_FILTER_ALL : HWTSTAMP_FILTER_NONE;
+
+	struct ifreq request = { 0 };
+	(void)strncpy(request.ifr_name, ifname, IFNAMSIZ - 1);
+	request.ifr_data = (char *)&config;
+
+	// Any socket can be used to reach the interface.
+	int fd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (fd == -1) {
+		(void)fprintf(stderr, "ERROR: encountered an unexpected error when creating a socket (%s, code %d)\n",
+			strerror(errno), errno);
+		return SCION_ERR_GENERIC;
+	}
+
+	int ret = ioctl(fd, SIOCSHWTSTAMP, &request);
+	int error = errno;
+	(void)close(fd);
+
+	if (ret == -1) {
+		if (error == ENODEV) {
+			return SCION_ERR_ADDR_NOT_AVAILABLE;
+		}
+		if (error == EPERM || error == EACCES) {
+			return SCION_ERR_PERMISSION_DENIED;
+		}
+		if (error == EOPNOTSUPP || error == EINVAL || error == ERANGE) {
+			return SCION_ERR_NOT_SUPPORTED;
+		}
+
+		(void)fprintf(stderr,
+			"ERROR: encountered an unexpected error when setting hardware timestamping (%s, code %d)\n",
+			strerror(error), error);
+		return SCION_ERR_GENERIC;
+	}
+
+	return 0;
+#else
+	(void)enable;
+	return SCION_ERR_NOT_SUPPORTED;
+#endif
 }

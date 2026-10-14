@@ -95,6 +95,10 @@ char *scion_strerror(int err)
 		return "index out of range";
 	case SCION_ERR_NO_TIMESTAMP:
 		return "no timestamp";
+	case SCION_ERR_NOT_SUPPORTED:
+		return "not supported";
+	case SCION_ERR_PERMISSION_DENIED:
+		return "permission denied";
 	default:
 		return "unknown error";
 	}
