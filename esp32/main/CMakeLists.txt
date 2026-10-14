@@ -30,6 +30,7 @@ set(SOURCES
         "../../lib/data_plane/packet.c"
         "../../lib/data_plane/underlay.c"
         "../../lib/data_plane/socket.c"
+        "../../lib/data_plane/timestamp.c"
         "../../lib/data_plane/udp.c"
         "../../lib/error.c"
         "../../lib/util/addr.c"

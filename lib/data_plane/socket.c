@@ -34,6 +34,7 @@
 #include "data_plane/path.h"
 #include "data_plane/scmp.h"
 #include "data_plane/socket.h"
+#include "data_plane/timestamp.h"
 #include "data_plane/udp.h"
 #include "data_plane/underlay.h"
 
@@ -142,6 +143,7 @@ static void socket_free(struct scion_socket *scion_sock)
 	}
 	scion_sock->socket_fd = -1;
 	scion_path_collection_free(scion_sock->paths);
+	scion_timestamp_state_free(scion_sock->timestamps);
 	free(scion_sock);
 }
 
@@ -243,6 +245,12 @@ int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_f
 		return SCION_ERR_MEM_ALLOC_FAIL;
 	}
 
+	scion_sock_storage->timestamps = scion_timestamp_state_create();
+	if (scion_sock_storage->timestamps == NULL) {
+		ret = SCION_ERR_MEM_ALLOC_FAIL;
+		goto cleanup_socket_storage;
+	}
+
 	scion_sock_storage->network = network;
 
 	if (network && network->topology->local_addr_family != addr_family) {
@@ -324,6 +332,7 @@ cleanup_socket_fd:
 	(void)close(scion_sock_storage->socket_fd);
 
 cleanup_socket_storage:
+	scion_timestamp_state_free(scion_sock_storage->timestamps);
 	free(scion_sock_storage);
 
 	return ret;
@@ -1113,6 +1122,13 @@ int scion_setsockopt(struct scion_socket *scion_sock, int level, int optname, co
 				ret = SCION_ERR_GENERIC;
 			}
 		}
+#ifdef SO_TIMESTAMPING
+		else if (level == SOL_SOCKET && optname == SO_TIMESTAMPING && optlen >= sizeof(int)) {
+			int flags;
+			(void)memcpy(&flags, optval, sizeof(flags));
+			scion_timestamp_flags_changed(scion_sock, flags);
+		}
+#endif
 	}
 
 	return ret;
