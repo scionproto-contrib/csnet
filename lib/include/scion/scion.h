@@ -206,6 +206,14 @@ enum scion_error {
 	 * There is no timestamp, because no packet has been sent yet.
 	 */
 	SCION_ERR_NO_TIMESTAMP = -36,
+	/**
+	 * The operation is not supported by the platform or the network interface.
+	 */
+	SCION_ERR_NOT_SUPPORTED = -37,
+	/**
+	 * The operation requires privileges the process does not have.
+	 */
+	SCION_ERR_PERMISSION_DENIED = -38,
 	// Internal errors
 	SCION_ERR_NOT_ENOUGH_DATA = -201,
 	SCION_ERR_PACKET_FIELD_INVALID = -202,

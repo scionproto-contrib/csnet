@@ -29,6 +29,7 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
 #include <sys/socket.h>
 #include <time.h>
 
@@ -108,6 +109,22 @@ int scion_timestamp_get_rx(
  * @note The kernel keeps the timestamp of each sent packet until it is read. If too many are unread, new ones are lost.
  */
 int scion_timestamp_get_tx(struct scion_socket *scion_sock, struct scion_timestamp *timestamp, int timeout_ms);
+
+/**
+ * Enables or disables hardware timestamping for a network interface.
+ * @param[in] ifname The name of the interface, for example "eth0".
+ * @param[in] enable Whether to enable hardware timestamps of all sent and received packets.
+ * @return 0 on success, a negative error code on failure.
+ *
+ * @note Hardware timestamps of a socket need two things: the socket option SO_TIMESTAMPING with the flags for
+ * hardware timestamps, and hardware timestamping enabled for the interface, which this function does.
+ * @note This changes the configuration of the interface for all programs. It needs the privilege to administer the
+ * network, SCION_ERR_PERMISSION_DENIED is returned without it. A system that runs a PTP daemon usually did this
+ * already.
+ * @note Fails with SCION_ERR_NOT_SUPPORTED if the platform or the network card has no hardware timestamping, and with
+ * SCION_ERR_ADDR_NOT_AVAILABLE if there is no such interface.
+ */
+int scion_set_hwtimestamping(const char *ifname, bool enable);
 
 #ifdef __cplusplus
 }
