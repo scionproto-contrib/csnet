@@ -24,6 +24,8 @@
 
 #define SCION_SO_DEBUG 200
 
+struct scion_socket_timestamps;
+
 struct scion_socket {
 	int socket_fd;
 	enum scion_addr_family local_addr_family;
@@ -43,6 +45,7 @@ struct scion_socket {
 	bool is_bound;
 	bool is_connected;
 	bool debug;
+	struct scion_socket_timestamps *timestamps;
 };
 
 int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_family, int type,
