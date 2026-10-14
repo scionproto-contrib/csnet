@@ -566,6 +566,9 @@ static ssize_t scion_sendmsg_path(
 		goto cleanup_packet_buf;
 	}
 
+	struct timespec transmit_time;
+	(void)clock_gettime(CLOCK_REALTIME, &transmit_time);
+
 	do {
 		struct iovec iov[1];
 		iov[0].iov_len = packet_length;
@@ -619,6 +622,7 @@ static ssize_t scion_sendmsg_path(
 			// Packet partially transmitted
 			ret = SCION_ERR_SEND_FAIL;
 		} else {
+			scion_timestamp_record_sent(scion_sock, &transmit_time);
 			ret = (ssize_t)data_len;
 		}
 	}

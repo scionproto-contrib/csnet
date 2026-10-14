@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <time.h>
+
 #include "data_plane/socket.h"
 
 /**
@@ -30,3 +32,9 @@ void scion_timestamp_state_free(struct scion_socket_timestamps *state);
  * Updates what the library knows about the timestamping of a socket after the socket option SO_TIMESTAMPING was set.
  */
 void scion_timestamp_flags_changed(struct scion_socket *scion_sock, int flags);
+
+/**
+ * Records the time before a packet was sent on the socket and, if the kernel gives the packets ids, its id.
+ */
+void scion_timestamp_record_sent(struct scion_socket *scion_sock, const struct timespec *time);
+
