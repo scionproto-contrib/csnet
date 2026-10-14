@@ -928,7 +928,11 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
  * @param[out] path The path the packet took. If NULL, the path is not returned.
  * @return The amount of data received on success, a negative error code on failure.
  *
- * @note The currently supported receive flags are MSG_DONTWAIT and MSG_PEEK.
+ * @note The currently supported receive flags are MSG_DONTWAIT and MSG_PEEK. On Linux, MSG_ERRQUEUE is supported, too.
+ * @note The control messages of the underlying socket are returned in the control buffer of the message, for example
+ * the SCM_TIMESTAMPING message that the socket option SO_TIMESTAMPING enables.
+ * @note MSG_ERRQUEUE reads the error queue of the underlying socket, where the kernel puts the transmit timestamps.
+ * The message is returned as the kernel provides it, without the sender IA and the path.
  */
 ssize_t scion_recvmsg(
 	struct scion_socket *scion_sock, struct msghdr *msg, int flags, scion_ia *src_ia, struct scion_path **path);
