@@ -25,6 +25,7 @@ add_executable(unit_tests
         data_plane/socket_fixture.c
         data_plane/test_scmp.c
         data_plane/test_socket.c
+        data_plane/test_timestamp.c
         data_plane/test_udp.c
         data_plane/test_underlay.c
         util/test_addr.c
