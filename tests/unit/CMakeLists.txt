@@ -22,6 +22,7 @@ add_executable(unit_tests
         control_plane/test_topology.c
         data_plane/test_packet.c
         data_plane/test_path.c
+        data_plane/socket_fixture.c
         data_plane/test_scmp.c
         data_plane/test_socket.c
         data_plane/test_udp.c
