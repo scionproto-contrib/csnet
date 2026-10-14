@@ -46,7 +46,11 @@
 #endif
 
 #define IMPLEMENTED_SEND_FLAGS (MSG_CONFIRM | MSG_DONTWAIT | MSG_MORE)
+#ifdef MSG_ERRQUEUE
+#define IMPLEMENTED_RECV_FLAGS (MSG_DONTWAIT | MSG_PEEK | MSG_ERRQUEUE)
+#else
 #define IMPLEMENTED_RECV_FLAGS (MSG_DONTWAIT | MSG_PEEK)
+#endif
 #define PATH_EXPIRATION_THRESHOLD_IN_SECONDS 60
 
 #define SOCK_TYPE_MASK 0xF
@@ -792,6 +796,30 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
 	return ret;
 }
 
+#ifdef MSG_ERRQUEUE
+// Receives a message from the error queue of the underlying socket. That is where the kernel puts the transmit
+// timestamps. The message is not a SCION packet, so it is returned as it is.
+static ssize_t recv_error_queue(struct scion_socket *scion_sock, struct msghdr *msg, int flags)
+{
+	ssize_t ret;
+	do {
+		ret = recvmsg(scion_sock->socket_fd, msg, flags);
+	} while (ret == -1 && errno == EINTR);
+
+	if (ret < 0) {
+		if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			return SCION_ERR_WOULD_BLOCK;
+		}
+
+		(void)fprintf(stderr, "ERROR: encountered an unexpected error when receiving packets (%s, code %d)\n",
+			strerror(errno), errno);
+		return SCION_ERR_RECV_FAIL;
+	}
+
+	return ret;
+}
+#endif
+
 ssize_t scion_recvmsg(
 	struct scion_socket *scion_sock, struct msghdr *msg, int flags, scion_ia *src_ia, struct scion_path **path)
 {
@@ -804,6 +832,12 @@ ssize_t scion_recvmsg(
 	if ((flags & IMPLEMENTED_RECV_FLAGS) != flags) {
 		return SCION_ERR_FLAG_NOT_IMPLEMENTED;
 	}
+
+#ifdef MSG_ERRQUEUE
+	if ((flags & MSG_ERRQUEUE) != 0) {
+		return recv_error_queue(scion_sock, msg, flags);
+	}
+#endif
 
 	size_t buf_len = 0;
 	for (size_t i = 0; i < (size_t)msg->msg_iovlen; i++) {
