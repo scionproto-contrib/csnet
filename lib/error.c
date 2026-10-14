@@ -93,6 +93,8 @@ char *scion_strerror(int err)
 		return "source address unknown";
 	case SCION_ERR_INDEX_OUT_OF_RANGE:
 		return "index out of range";
+	case SCION_ERR_NO_TIMESTAMP:
+		return "no timestamp";
 	default:
 		return "unknown error";
 	}

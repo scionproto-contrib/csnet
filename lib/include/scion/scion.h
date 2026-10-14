@@ -202,6 +202,10 @@ enum scion_error {
 	 * An index is out of range.
 	 */
 	SCION_ERR_INDEX_OUT_OF_RANGE = -35,
+	/**
+	 * There is no timestamp, because no packet has been sent yet.
+	 */
+	SCION_ERR_NO_TIMESTAMP = -36,
 	// Internal errors
 	SCION_ERR_NOT_ENOUGH_DATA = -201,
 	SCION_ERR_PACKET_FIELD_INVALID = -202,

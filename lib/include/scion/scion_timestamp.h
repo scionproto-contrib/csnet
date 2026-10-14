@@ -90,6 +90,25 @@ struct scion_timestamp {
 int scion_timestamp_get_rx(
 	struct scion_socket *scion_sock, const struct msghdr *msg, struct scion_timestamp *timestamp);
 
+/**
+ * Gets the timestamp of the packet that was sent last on a socket.
+ * @param[in,out] scion_sock The socket.
+ * @param[out] timestamp The best timestamp the kernel provided that is not above the level of the socket. If there is
+ * none, the time just before the packet was sent with the level SCION_TIMESTAMP_USER.
+ * @param[in] timeout_ms The time to wait for the kernel timestamp in milliseconds. It is only available after the
+ * packet left the network stack.
+ * @return 0 on success, SCION_ERR_NO_TIMESTAMP if no packet was sent on the socket, SCION_ERR_SOCK_OPT_INVALID if the
+ * socket option SO_TIMESTAMPING asks for timestamps of sent packets without SOF_TIMESTAMPING_OPT_ID, another negative
+ * error code on failure.
+ *
+ * @note The kernel provides timestamps of sent packets if the socket option SO_TIMESTAMPING is set with
+ * @link scion_setsockopt @endlink to SOF_TIMESTAMPING_SOFTWARE | SOF_TIMESTAMPING_TX_SOFTWARE |
+ * SOF_TIMESTAMPING_OPT_ID. For hardware timestamps add SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_TX_HARDWARE,
+ * which needs a network card that supports them.
+ * @note The kernel keeps the timestamp of each sent packet until it is read. If too many are unread, new ones are lost.
+ */
+int scion_timestamp_get_tx(struct scion_socket *scion_sock, struct scion_timestamp *timestamp, int timeout_ms);
+
 #ifdef __cplusplus
 }
 #endif
