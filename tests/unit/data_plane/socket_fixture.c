@@ -121,3 +121,10 @@ scion_ia local_ia_of(struct socket_fixture *fixture)
 {
 	return scion_topology_get_local_ia(fixture->topology);
 }
+
+// The kernel enables the software receive timestamps in the background when the first socket asks for them. A packet
+// that arrives right after the socket option is set may not get a timestamp, so wait a bit.
+void wait_for_kernel_timestamping(void)
+{
+	(void)usleep(50 * 1000);
+}

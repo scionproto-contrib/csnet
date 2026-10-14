@@ -36,3 +36,4 @@ void bind_loopback(struct scion_socket *sock);
 struct sockaddr_in bound_address(struct scion_socket *sock);
 void set_receive_timeout(struct scion_socket *sock, long milliseconds);
 scion_ia local_ia_of(struct socket_fixture *fixture);
+void wait_for_kernel_timestamping(void);
