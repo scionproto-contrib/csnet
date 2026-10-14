@@ -627,6 +627,59 @@ static void test_socket_receive_no_control_messages(void **state)
 	assert_int_equal(scion_recvmsg(receiver, &msg, 0, NULL, NULL), 1);
 	assert_int_equal(msg.msg_controllen, 0);
 }
+
+// Finds the timestamps in the control messages of a received message.
+static struct scm_timestamping find_timestamps(struct msghdr *msg)
+{
+	for (struct cmsghdr *cmsg = CMSG_FIRSTHDR(msg); cmsg != NULL; cmsg = CMSG_NXTHDR(msg, cmsg)) {
+		if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_TIMESTAMPING) {
+			struct scm_timestamping timestamps;
+			assert_true(cmsg->cmsg_len >= CMSG_LEN(sizeof(timestamps)));
+			memcpy(&timestamps, CMSG_DATA(cmsg), sizeof(timestamps));
+			return timestamps;
+		}
+	}
+
+	fail_msg("no SCM_TIMESTAMPING control message");
+	return (struct scm_timestamping) { 0 };
+}
+
+static void test_socket_receive_error_queue(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(sender);
+	bind_loopback(receiver);
+	struct sockaddr_in receiver_addr = bound_address(receiver);
+	set_receive_timeout(sender, 1000);
+
+	int timestamping = SOF_TIMESTAMPING_TX_SOFTWARE | SOF_TIMESTAMPING_SOFTWARE;
+	assert_int_equal(scion_setsockopt(sender, SOL_SOCKET, SO_TIMESTAMPING, &timestamping, sizeof(timestamping)), 0);
+
+	assert_int_equal(scion_sendto(sender, "x", 1, 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr),
+						 local_ia_of(fixture), NULL),
+		1);
+
+	// The buffer has room for the timestamp only, the error message that comes with it is cut off.
+	union control_buffer control;
+	struct msghdr msg = { .msg_control = control.buf, .msg_controllen = sizeof(control.buf) };
+	assert_int_equal(scion_recvmsg(sender, &msg, MSG_ERRQUEUE, NULL, NULL), 0);
+
+	struct scm_timestamping timestamps = find_timestamps(&msg);
+	assert_true(timestamps.ts[0].tv_sec > 0);
+}
+
+static void test_socket_receive_empty_error_queue(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sock = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(sock);
+
+	union control_buffer control;
+	struct msghdr msg = { .msg_control = control.buf, .msg_controllen = sizeof(control.buf) };
+	assert_int_equal(scion_recvmsg(sock, &msg, MSG_ERRQUEUE | MSG_DONTWAIT, NULL, NULL), SCION_ERR_WOULD_BLOCK);
+}
 #endif
 
 static int count_open_file_descriptors(void)
@@ -751,6 +804,8 @@ int run_socket_tests(void)
 		cmocka_unit_test_setup_teardown(test_socket_traceroute_with_router_alert, setup_fixture, teardown_fixture),
 #ifdef __linux__
 		cmocka_unit_test_setup_teardown(test_socket_receive_no_control_messages, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_receive_error_queue, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_receive_empty_error_queue, setup_fixture, teardown_fixture),
 #endif
 		cmocka_unit_test_setup_teardown(
 			test_socket_creation_failure_does_not_leak_the_descriptor, setup_fixture, teardown_fixture),
