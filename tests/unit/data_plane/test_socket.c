@@ -35,6 +35,20 @@
 #include "test_socket.h"
 #include "util/list.h"
 
+#ifdef __linux__
+#include <linux/errqueue.h>
+#include <linux/net_tstamp.h>
+#endif
+
+#ifdef __linux__
+// A buffer for the control message with the timestamps of the kernel. The union gives it the alignment of a control
+// message header, which a plain char array does not guarantee.
+union control_buffer {
+	char buf[CMSG_SPACE(sizeof(struct scm_timestamping))];
+	struct cmsghdr align;
+};
+#endif
+
 static void test_socket_creation_errors(void **state)
 {
 	struct socket_fixture *fixture = *state;
@@ -590,6 +604,31 @@ static void test_socket_traceroute_with_router_alert(void **state)
 	}
 }
 
+#ifdef __linux__
+static void test_socket_receive_no_control_messages(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(sender);
+	bind_loopback(receiver);
+	struct sockaddr_in receiver_addr = bound_address(receiver);
+	set_receive_timeout(receiver, 1000);
+
+	assert_int_equal(scion_sendto(sender, "x", 1, 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr),
+						 local_ia_of(fixture), NULL),
+		1);
+
+	char buf[16];
+	union control_buffer control;
+	struct iovec iov = { .iov_base = buf, .iov_len = sizeof(buf) };
+	struct msghdr msg
+		= { .msg_iov = &iov, .msg_iovlen = 1, .msg_control = control.buf, .msg_controllen = sizeof(control.buf) };
+	assert_int_equal(scion_recvmsg(receiver, &msg, 0, NULL, NULL), 1);
+	assert_int_equal(msg.msg_controllen, 0);
+}
+#endif
+
 static int count_open_file_descriptors(void)
 {
 	int count = 0;
@@ -701,8 +740,7 @@ int run_socket_tests(void)
 		cmocka_unit_test_setup_teardown(test_socket_empty_payload, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(
 			test_socket_receive_is_truncated_to_the_buffer, setup_fixture, teardown_fixture),
-		cmocka_unit_test_setup_teardown(
-			test_socket_receive_without_data_would_block, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_receive_without_data_would_block, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_connected_round_trip, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_connected_ignores_other_senders, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_scmp_echo_round_trip, setup_fixture, teardown_fixture),
@@ -711,6 +749,9 @@ int run_socket_tests(void)
 		cmocka_unit_test_setup_teardown(
 			test_socket_scmp_informational_message_is_not_an_error, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_traceroute_with_router_alert, setup_fixture, teardown_fixture),
+#ifdef __linux__
+		cmocka_unit_test_setup_teardown(test_socket_receive_no_control_messages, setup_fixture, teardown_fixture),
+#endif
 		cmocka_unit_test_setup_teardown(
 			test_socket_creation_failure_does_not_leak_the_descriptor, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_receive_skips_malformed_packets, setup_fixture, teardown_fixture),
