@@ -992,6 +992,7 @@ ssize_t scion_recvmsg(
 		}
 
 		msg->msg_flags = raw_msg.msg_flags;
+		msg->msg_controllen = raw_msg.msg_controllen;
 
 		if (msg->msg_name != NULL) {
 			if (msg->msg_namelen < sender_addr_len) {
