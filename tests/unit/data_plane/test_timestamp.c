@@ -73,6 +73,14 @@ static void assert_taken_between(
 	assert_true(is_not_before(after, time));
 }
 
+static void send_packet(struct socket_fixture *fixture, struct scion_socket *sender, struct scion_socket *receiver)
+{
+	struct sockaddr_in receiver_addr = bound_address(receiver);
+	assert_int_equal(scion_sendto(sender, "x", 1, 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr),
+						 local_ia_of(fixture), NULL),
+		1);
+}
+
 static void test_receive_timestamp_without_the_kernel(void **state)
 {
 	struct socket_fixture *fixture = *state;
@@ -91,6 +99,25 @@ static void test_receive_timestamp_without_the_kernel(void **state)
 	// The kernel did not provide a timestamp, so the time is taken in user space.
 	struct scion_timestamp timestamp;
 	assert_int_equal(scion_timestamp_get_rx(receiver, &msg, &timestamp), 0);
+	struct timespec after = current_time();
+	assert_int_equal(timestamp.level, SCION_TIMESTAMP_USER);
+	assert_taken_between(&timestamp.time, &before, &after);
+}
+
+static void test_transmit_timestamp_without_the_kernel(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(sender);
+	bind_loopback(receiver);
+
+	struct timespec before = current_time();
+	send_packet(fixture, sender, receiver);
+
+	// The time is the one just before sending.
+	struct scion_timestamp timestamp;
+	assert_int_equal(scion_timestamp_get_tx(sender, &timestamp, 1000), 0);
 	struct timespec after = current_time();
 	assert_int_equal(timestamp.level, SCION_TIMESTAMP_USER);
 	assert_taken_between(&timestamp.time, &before, &after);
@@ -149,15 +176,154 @@ static void test_receive_timestamp_of_the_hardware_flags(void **state)
 	assert_int_equal(scion_timestamp_get_rx(receiver, &msg, &timestamp), 0);
 	assert_int_equal(timestamp.level, SCION_TIMESTAMP_KERNEL);
 }
+
+// The flags to timestamp the sent packets with the clock of the system, and to number them.
+#define TRANSMIT_TIMESTAMPING (SOF_TIMESTAMPING_SOFTWARE | SOF_TIMESTAMPING_TX_SOFTWARE | SOF_TIMESTAMPING_OPT_ID)
+
+static void set_timestamping(struct scion_socket *sock, int flags)
+{
+	assert_int_equal(scion_setsockopt(sock, SOL_SOCKET, SO_TIMESTAMPING, &flags, sizeof(flags)), 0);
+}
+
+static void test_transmit_timestamp_of_the_kernel(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(sender);
+	bind_loopback(receiver);
+	set_timestamping(sender, TRANSMIT_TIMESTAMPING);
+
+	struct scion_timestamp timestamp;
+	assert_int_equal(scion_timestamp_get_tx(sender, &timestamp, 0), SCION_ERR_NO_TIMESTAMP);
+
+	struct timespec before = current_time();
+	send_packet(fixture, sender, receiver);
+
+	assert_int_equal(scion_timestamp_get_tx(sender, &timestamp, 1000), 0);
+	struct timespec after = current_time();
+	assert_int_equal(timestamp.level, SCION_TIMESTAMP_KERNEL);
+	assert_taken_between(&timestamp.time, &before, &after);
+
+	// The timestamp can be asked for again.
+	struct scion_timestamp again;
+	assert_int_equal(scion_timestamp_get_tx(sender, &again, 0), 0);
+	assert_int_equal(again.level, SCION_TIMESTAMP_KERNEL);
+	assert_memory_equal(&again.time, &timestamp.time, sizeof(again.time));
+}
+
+static void test_transmit_timestamp_is_of_the_last_packet(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(sender);
+	bind_loopback(receiver);
+	set_timestamping(sender, TRANSMIT_TIMESTAMPING);
+
+	// The timestamps of the first two packets are never read.
+	send_packet(fixture, sender, receiver);
+	send_packet(fixture, sender, receiver);
+
+	struct timespec before = current_time();
+	send_packet(fixture, sender, receiver);
+
+	struct scion_timestamp timestamp;
+	assert_int_equal(scion_timestamp_get_tx(sender, &timestamp, 1000), 0);
+	assert_int_equal(timestamp.level, SCION_TIMESTAMP_KERNEL);
+	assert_true(is_not_before(&timestamp.time, &before));
+}
+
+static void test_transmit_timestamp_option_change(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(sender);
+	bind_loopback(receiver);
+	set_timestamping(sender, TRANSMIT_TIMESTAMPING);
+
+	send_packet(fixture, sender, receiver);
+	send_packet(fixture, sender, receiver);
+
+	// The kernel keeps numbering the packets, as the numbering stays switched on.
+	set_timestamping(sender, TRANSMIT_TIMESTAMPING | SOF_TIMESTAMPING_RX_SOFTWARE);
+
+	struct timespec before = current_time();
+	send_packet(fixture, sender, receiver);
+
+	struct scion_timestamp timestamp;
+	assert_int_equal(scion_timestamp_get_tx(sender, &timestamp, 1000), 0);
+	assert_int_equal(timestamp.level, SCION_TIMESTAMP_KERNEL);
+	assert_true(is_not_before(&timestamp.time, &before));
+}
+
+static void test_transmit_timestamp_numbering_reset(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(sender);
+	bind_loopback(receiver);
+
+	set_timestamping(sender, TRANSMIT_TIMESTAMPING);
+	send_packet(fixture, sender, receiver);
+	(void)usleep(50 * 1000);
+
+	// The kernel numbers the packets from zero again, the timestamp of the old packet must not be taken for the new.
+	set_timestamping(sender, 0);
+	set_timestamping(sender, TRANSMIT_TIMESTAMPING);
+	struct timespec before = current_time();
+	send_packet(fixture, sender, receiver);
+
+	struct scion_timestamp timestamp;
+	assert_int_equal(scion_timestamp_get_tx(sender, &timestamp, 1000), 0);
+	assert_int_equal(timestamp.level, SCION_TIMESTAMP_KERNEL);
+	assert_true(is_not_before(&timestamp.time, &before));
+}
+
+static void test_transmit_timestamp_needs_the_numbering(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(sender);
+	bind_loopback(receiver);
+	set_timestamping(sender, SOF_TIMESTAMPING_SOFTWARE | SOF_TIMESTAMPING_TX_SOFTWARE);
+	send_packet(fixture, sender, receiver);
+
+	struct scion_timestamp timestamp;
+	assert_int_equal(scion_timestamp_get_tx(sender, &timestamp, 100), SCION_ERR_SOCK_OPT_INVALID);
+}
+
+static void test_timestamping_option_can_be_read_back(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sock = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+
+	set_timestamping(sock, TRANSMIT_TIMESTAMPING);
+
+	int flags = 0;
+	socklen_t flags_len = sizeof(flags);
+	assert_int_equal(scion_getsockopt(sock, SOL_SOCKET, SO_TIMESTAMPING, &flags, &flags_len), 0);
+	assert_int_equal(flags, TRANSMIT_TIMESTAMPING);
+}
 #endif
 
 int run_timestamp_tests(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test_setup_teardown(test_receive_timestamp_without_the_kernel, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_transmit_timestamp_without_the_kernel, setup_fixture, teardown_fixture),
 #ifdef __linux__
 		cmocka_unit_test_setup_teardown(test_receive_timestamp_of_the_kernel, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_receive_timestamp_of_the_hardware_flags, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_transmit_timestamp_of_the_kernel, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_transmit_timestamp_is_of_the_last_packet, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_transmit_timestamp_option_change, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_transmit_timestamp_numbering_reset, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_transmit_timestamp_needs_the_numbering, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_timestamping_option_can_be_read_back, setup_fixture, teardown_fixture),
 #endif
 	};
 
