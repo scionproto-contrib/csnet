@@ -308,6 +308,32 @@ static void test_timestamping_option_can_be_read_back(void **state)
 	assert_int_equal(scion_getsockopt(sock, SOL_SOCKET, SO_TIMESTAMPING, &flags, &flags_len), 0);
 	assert_int_equal(flags, TRANSMIT_TIMESTAMPING);
 }
+
+static void test_hardware_timestamping_of_an_invalid_interface(void **)
+{
+	// A name the kernel cannot have
+	assert_int_equal(scion_set_hwtimestamping("", true), SCION_ERR_ADDR_NOT_AVAILABLE);
+	assert_int_equal(
+		scion_set_hwtimestamping("an-interface-name-that-is-too-long", true), SCION_ERR_ADDR_NOT_AVAILABLE);
+
+	// Without the privilege to administer the network the kernel refuses before it looks for the interface.
+	int ret = scion_set_hwtimestamping("no-such-if0", true);
+	assert_true(ret == SCION_ERR_ADDR_NOT_AVAILABLE || ret == SCION_ERR_PERMISSION_DENIED);
+}
+
+static void test_hardware_timestamping_of_the_loopback_interface(void **)
+{
+	// The loopback interface has no hardware to take timestamps.
+	int ret = scion_set_hwtimestamping("lo", true);
+	assert_true(ret == SCION_ERR_NOT_SUPPORTED || ret == SCION_ERR_PERMISSION_DENIED);
+}
+#endif
+
+#ifndef __linux__
+static void test_hardware_timestamping_is_not_supported(void **)
+{
+	assert_int_equal(scion_set_hwtimestamping("lo0", true), SCION_ERR_NOT_SUPPORTED);
+}
 #endif
 
 int run_timestamp_tests(void)
@@ -324,6 +350,10 @@ int run_timestamp_tests(void)
 		cmocka_unit_test_setup_teardown(test_transmit_timestamp_numbering_reset, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_transmit_timestamp_needs_the_numbering, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_timestamping_option_can_be_read_back, setup_fixture, teardown_fixture),
+		cmocka_unit_test(test_hardware_timestamping_of_an_invalid_interface),
+		cmocka_unit_test(test_hardware_timestamping_of_the_loopback_interface),
+#else
+		cmocka_unit_test(test_hardware_timestamping_is_not_supported),
 #endif
 	};
 
