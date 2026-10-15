@@ -248,6 +248,27 @@ static int user_timestamp(struct scion_timestamp *timestamp)
 	return 0;
 }
 
+int scion_timestamp_set_level(struct scion_socket *scion_sock, enum scion_timestamp_level level)
+{
+	assert(scion_sock);
+
+#ifdef __linux__
+	// The numbering of the sent packets lets scion_timestamp_get_tx() match a timestamp to its packet.
+	int flags = 0;
+	if (level >= SCION_TIMESTAMP_KERNEL) {
+		flags |= SOF_TIMESTAMPING_SOFTWARE | SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_TX_SOFTWARE
+				 | SOF_TIMESTAMPING_OPT_ID;
+	}
+	if (level >= SCION_TIMESTAMP_HARDWARE) {
+		flags |= SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_RX_HARDWARE | SOF_TIMESTAMPING_TX_HARDWARE;
+	}
+
+	return scion_setsockopt(scion_sock, SOL_SOCKET, SO_TIMESTAMPING, &flags, sizeof(flags));
+#else
+	return level == SCION_TIMESTAMP_USER ? 0 : SCION_ERR_NOT_SUPPORTED;
+#endif
+}
+
 int scion_timestamp_get_rx(struct scion_socket *scion_sock, const struct msghdr *msg, struct scion_timestamp *timestamp)
 {
 	assert(scion_sock);

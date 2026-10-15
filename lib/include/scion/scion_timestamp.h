@@ -17,10 +17,10 @@
  *
  * The timestamp API of the csnet library.
  *
- * The kernel can timestamp the packets of a socket when they arrive and leave. On Linux, a program asks for this with
- * the socket option SO_TIMESTAMPING, which can be set with @link scion_setsockopt @endlink, and reads the timestamps
- * of received packets from the control messages of @link scion_recvmsg @endlink. This API picks the timestamps out of
- * the control messages and falls back to the clock of the program if the kernel provided none.
+ * The kernel can timestamp the packets of a socket when they arrive and leave. A program asks for this with
+ * @link scion_timestamp_set_level @endlink, or on Linux directly with the socket option SO_TIMESTAMPING, and reads
+ * the timestamps of received packets from the control messages of @link scion_recvmsg @endlink. This API picks the
+ * timestamps out of the control messages and falls back to the clock of the program if the kernel provided none.
  */
 
 #pragma once
@@ -74,6 +74,23 @@ struct scion_timestamp {
 };
 
 /**
+ * Sets the level of timestamps the kernel provides for the packets of a socket.
+ * @param[in,out] scion_sock The socket.
+ * @param[in] level The best level of timestamp to ask for. SCION_TIMESTAMP_USER asks for none, the timestamps are then
+ * taken in user space.
+ * @return 0 on success, SCION_ERR_NOT_SUPPORTED if the platform cannot provide the level, another negative error code
+ * on failure.
+ *
+ * @note This sets the socket option SO_TIMESTAMPING with the flags for received and sent packets, which replaces its
+ * previous value. The level of the socket is derived from the flags, also if the option is set directly. The
+ * timestamps that are returned are not above it.
+ * @note SCION_TIMESTAMP_HARDWARE needs a network card that supports hardware timestamps, and hardware timestamping
+ * enabled for its interface with @link scion_set_hwtimestamping @endlink. Without it, the timestamps are taken by the
+ * kernel.
+ */
+int scion_timestamp_set_level(struct scion_socket *scion_sock, enum scion_timestamp_level level);
+
+/**
  * Gets the timestamp of a received packet.
  * @param[in,out] scion_sock The socket the packet was received on.
  * @param[in] msg The message received with @link scion_recvmsg @endlink. Its control buffer must be large enough for
@@ -82,11 +99,10 @@ struct scion_timestamp {
  * none, the current time with the level SCION_TIMESTAMP_USER.
  * @return 0 on success, a negative error code on failure.
  *
- * @note The kernel provides timestamps if the socket option SO_TIMESTAMPING is set with @link scion_setsockopt
- * @endlink, for example to SOF_TIMESTAMPING_SOFTWARE | SOF_TIMESTAMPING_RX_SOFTWARE. For hardware timestamps add
- * SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_RX_HARDWARE, which needs a network card that supports them. The
- * level of the socket is derived from these flags.
- * @note A packet that arrives right after the option was set may not have a kernel timestamp.
+ * @note The kernel provides timestamps if the level of the socket was set with @link scion_timestamp_set_level
+ * @endlink.
+ * @note The kernel enables the timestamps of received packets in the background when the first socket asks for them. A
+ * packet that arrives right after the level was set may not have a kernel timestamp.
  */
 int scion_timestamp_get_rx(
 	struct scion_socket *scion_sock, const struct msghdr *msg, struct scion_timestamp *timestamp);
@@ -102,10 +118,9 @@ int scion_timestamp_get_rx(
  * socket option SO_TIMESTAMPING asks for timestamps of sent packets without SOF_TIMESTAMPING_OPT_ID, another negative
  * error code on failure.
  *
- * @note The kernel provides timestamps of sent packets if the socket option SO_TIMESTAMPING is set with
- * @link scion_setsockopt @endlink to SOF_TIMESTAMPING_SOFTWARE | SOF_TIMESTAMPING_TX_SOFTWARE |
- * SOF_TIMESTAMPING_OPT_ID. For hardware timestamps add SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_TX_HARDWARE,
- * which needs a network card that supports them.
+ * @note The kernel provides timestamps of sent packets if the level of the socket was set with
+ * @link scion_timestamp_set_level @endlink. If the socket option SO_TIMESTAMPING is set directly, it needs
+ * SOF_TIMESTAMPING_OPT_ID to number the packets.
  * @note The kernel keeps the timestamp of each sent packet until it is read. If too many are unread, new ones are lost.
  */
 int scion_timestamp_get_tx(struct scion_socket *scion_sock, struct scion_timestamp *timestamp, int timeout_ms);
