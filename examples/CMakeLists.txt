@@ -30,6 +30,9 @@ target_link_libraries(scmp_error_generator_example PRIVATE scion)
 add_executable(messages_example messages.c)
 target_link_libraries(messages_example PRIVATE scion)
 
+add_executable(timestamps_example timestamps.c)
+target_link_libraries(timestamps_example PRIVATE scion)
+
 # Fetch libev
 ExternalProject_Add(
         libev
