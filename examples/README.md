@@ -28,4 +28,7 @@ The following examples are available:
 
 - `messages.c`: Shows how to use send and receive messages. Requires a running `scripts/run-testserver.sh`.
 
+- `timestamps.c`: Shows how to get the timestamps of a sent and a received packet. Run it with the name of a network
+  interface to try hardware timestamps.
+
 - `features.c`: Showcases some additional features of the library. Requires a running `scripts/run-testserver.sh`.

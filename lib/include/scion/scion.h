@@ -202,6 +202,18 @@ enum scion_error {
 	 * An index is out of range.
 	 */
 	SCION_ERR_INDEX_OUT_OF_RANGE = -35,
+	/**
+	 * There is no timestamp, because no packet has been sent yet.
+	 */
+	SCION_ERR_NO_TIMESTAMP = -36,
+	/**
+	 * The operation is not supported by the platform or the network interface.
+	 */
+	SCION_ERR_NOT_SUPPORTED = -37,
+	/**
+	 * The operation requires privileges the process does not have.
+	 */
+	SCION_ERR_PERMISSION_DENIED = -38,
 	// Internal errors
 	SCION_ERR_NOT_ENOUGH_DATA = -201,
 	SCION_ERR_PACKET_FIELD_INVALID = -202,
@@ -928,7 +940,11 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
  * @param[out] path The path the packet took. If NULL, the path is not returned.
  * @return The amount of data received on success, a negative error code on failure.
  *
- * @note The currently supported receive flags are MSG_DONTWAIT and MSG_PEEK.
+ * @note The currently supported receive flags are MSG_DONTWAIT and MSG_PEEK. On Linux, MSG_ERRQUEUE is supported, too.
+ * @note The control messages of the underlying socket are returned in the control buffer of the message, for example
+ * the SCM_TIMESTAMPING message that the socket option SO_TIMESTAMPING enables.
+ * @note MSG_ERRQUEUE reads the error queue of the underlying socket, where the kernel puts the transmit timestamps.
+ * The message is returned as the kernel provides it, without the sender IA and the path.
  */
 ssize_t scion_recvmsg(
 	struct scion_socket *scion_sock, struct msghdr *msg, int flags, scion_ia *src_ia, struct scion_path **path);

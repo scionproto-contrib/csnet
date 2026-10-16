@@ -20,6 +20,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "common/hop_field.h"
@@ -31,108 +32,23 @@
 #include "data_plane/scmp.h"
 #include "data_plane/socket.h"
 #include "scion/scion.h"
+#include "socket_fixture.h"
 #include "test_socket.h"
 #include "util/list.h"
 
-// The tests only use loopback sockets in the local AS. A path within the local AS is empty, so it is created without a
-// control service and packets go straight to the destination address.
+#ifdef __linux__
+#include <linux/errqueue.h>
+#include <linux/net_tstamp.h>
+#endif
 
-#define MAX_SOCKETS 4
-
-struct socket_fixture {
-	struct scion_topology *topology;
-	struct scion_network *network;
-	struct scion_socket *sockets[MAX_SOCKETS];
-	size_t socket_count;
+#ifdef __linux__
+// A buffer for the control message with the timestamps of the kernel. The union gives it the alignment of a control
+// message header, which a plain char array does not guarantee.
+union control_buffer {
+	char buf[CMSG_SPACE(sizeof(struct scm_timestamping))];
+	struct cmsghdr align;
 };
-
-static void free_test_border_router(void *value)
-{
-	struct scion_border_router *br = value;
-	free(br->ifids);
-	free(br);
-}
-
-static int setup_fixture(void **state)
-{
-	struct socket_fixture *fixture = calloc(1, sizeof(*fixture));
-	*state = fixture;
-
-	fixture->topology = calloc(1, sizeof(*fixture->topology));
-	assert_int_equal(scion_ia_parse("1-ff00:0:110", strlen("1-ff00:0:110"), &fixture->topology->ia), 0);
-	fixture->topology->local_addr_family = SCION_AF_INET;
-	fixture->topology->border_routers = scion_list_create(SCION_LIST_CUSTOM_FREE(free_test_border_router));
-
-	// The socket determines its source address by connecting to a border router.
-	struct scion_border_router *br = calloc(1, sizeof(*br));
-	br->ifids = malloc(sizeof(*br->ifids));
-	br->ifids[0] = 1;
-	br->ifid_len = 1;
-	struct sockaddr_in *br_addr = (struct sockaddr_in *)&br->addr;
-	br_addr->sin_family = AF_INET;
-	br_addr->sin_port = htons(30042);
-	br_addr->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	br->addr_len = sizeof(*br_addr);
-	scion_list_append(fixture->topology->border_routers, br);
-
-	assert_int_equal(scion_network(&fixture->network, fixture->topology), 0);
-	return 0;
-}
-
-static int teardown_fixture(void **state)
-{
-	struct socket_fixture *fixture = *state;
-	for (size_t i = 0; i < fixture->socket_count; i++) {
-		scion_close(fixture->sockets[i]);
-	}
-	scion_network_free(fixture->network);
-	scion_topology_free(fixture->topology);
-	free(fixture);
-	return 0;
-}
-
-static struct scion_socket *open_socket(struct socket_fixture *fixture, int type, enum scion_proto protocol)
-{
-	assert_true(fixture->socket_count < MAX_SOCKETS);
-	struct scion_socket **slot = &fixture->sockets[fixture->socket_count];
-	assert_int_equal(scion_socket(slot, SCION_AF_INET, type, protocol, fixture->network), 0);
-	fixture->socket_count++;
-	return *slot;
-}
-
-static struct sockaddr_in loopback_addr(uint16_t port)
-{
-	struct sockaddr_in addr = { .sin_family = AF_INET, .sin_port = htons(port) };
-	addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	return addr;
-}
-
-// Binds the socket to an ephemeral loopback port.
-static void bind_loopback(struct scion_socket *sock)
-{
-	struct sockaddr_in addr = loopback_addr(0);
-	assert_int_equal(scion_bind(sock, (struct sockaddr *)&addr, sizeof(addr)), 0);
-}
-
-// Returns the address a bound socket is bound to.
-static struct sockaddr_in bound_address(struct scion_socket *sock)
-{
-	struct sockaddr_in addr;
-	socklen_t len = sizeof(addr);
-	assert_int_equal(scion_getsockname(sock, (struct sockaddr *)&addr, &len, NULL), 0);
-	return addr;
-}
-
-static void set_receive_timeout(struct scion_socket *sock, long milliseconds)
-{
-	struct timeval timeout = { .tv_sec = milliseconds / 1000, .tv_usec = (milliseconds % 1000) * 1000 };
-	assert_int_equal(scion_setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)), 0);
-}
-
-static scion_ia local_ia_of(struct socket_fixture *fixture)
-{
-	return scion_topology_get_local_ia(fixture->topology);
-}
+#endif
 
 static void test_socket_creation_errors(void **state)
 {
@@ -689,6 +605,84 @@ static void test_socket_traceroute_with_router_alert(void **state)
 	}
 }
 
+#ifdef __linux__
+static void test_socket_receive_no_control_messages(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(sender);
+	bind_loopback(receiver);
+	struct sockaddr_in receiver_addr = bound_address(receiver);
+	set_receive_timeout(receiver, 1000);
+
+	assert_int_equal(scion_sendto(sender, "x", 1, 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr),
+						 local_ia_of(fixture), NULL),
+		1);
+
+	char buf[16];
+	union control_buffer control;
+	struct iovec iov = { .iov_base = buf, .iov_len = sizeof(buf) };
+	struct msghdr msg
+		= { .msg_iov = &iov, .msg_iovlen = 1, .msg_control = control.buf, .msg_controllen = sizeof(control.buf) };
+	assert_int_equal(scion_recvmsg(receiver, &msg, 0, NULL, NULL), 1);
+	assert_int_equal(msg.msg_controllen, 0);
+}
+
+// Finds the timestamps in the control messages of a received message.
+static struct scm_timestamping find_timestamps(struct msghdr *msg)
+{
+	for (struct cmsghdr *cmsg = CMSG_FIRSTHDR(msg); cmsg != NULL; cmsg = CMSG_NXTHDR(msg, cmsg)) {
+		if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_TIMESTAMPING) {
+			struct scm_timestamping timestamps;
+			assert_true(cmsg->cmsg_len >= CMSG_LEN(sizeof(timestamps)));
+			memcpy(&timestamps, CMSG_DATA(cmsg), sizeof(timestamps));
+			return timestamps;
+		}
+	}
+
+	fail_msg("no SCM_TIMESTAMPING control message");
+	return (struct scm_timestamping) { 0 };
+}
+
+static void test_socket_receive_error_queue(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(sender);
+	bind_loopback(receiver);
+	struct sockaddr_in receiver_addr = bound_address(receiver);
+	set_receive_timeout(sender, 1000);
+
+	int timestamping = SOF_TIMESTAMPING_TX_SOFTWARE | SOF_TIMESTAMPING_SOFTWARE;
+	assert_int_equal(scion_setsockopt(sender, SOL_SOCKET, SO_TIMESTAMPING, &timestamping, sizeof(timestamping)), 0);
+
+	assert_int_equal(scion_sendto(sender, "x", 1, 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr),
+						 local_ia_of(fixture), NULL),
+		1);
+
+	// The buffer has room for the timestamp only, the error message that comes with it is cut off.
+	union control_buffer control;
+	struct msghdr msg = { .msg_control = control.buf, .msg_controllen = sizeof(control.buf) };
+	assert_int_equal(scion_recvmsg(sender, &msg, MSG_ERRQUEUE, NULL, NULL), 0);
+
+	struct scm_timestamping timestamps = find_timestamps(&msg);
+	assert_true(timestamps.ts[0].tv_sec > 0);
+}
+
+static void test_socket_receive_empty_error_queue(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sock = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(sock);
+
+	union control_buffer control;
+	struct msghdr msg = { .msg_control = control.buf, .msg_controllen = sizeof(control.buf) };
+	assert_int_equal(scion_recvmsg(sock, &msg, MSG_ERRQUEUE | MSG_DONTWAIT, NULL, NULL), SCION_ERR_WOULD_BLOCK);
+}
+#endif
+
 static int count_open_file_descriptors(void)
 {
 	int count = 0;
@@ -800,8 +794,7 @@ int run_socket_tests(void)
 		cmocka_unit_test_setup_teardown(test_socket_empty_payload, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(
 			test_socket_receive_is_truncated_to_the_buffer, setup_fixture, teardown_fixture),
-		cmocka_unit_test_setup_teardown(
-			test_socket_receive_without_data_would_block, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_receive_without_data_would_block, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_connected_round_trip, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_connected_ignores_other_senders, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_scmp_echo_round_trip, setup_fixture, teardown_fixture),
@@ -810,6 +803,11 @@ int run_socket_tests(void)
 		cmocka_unit_test_setup_teardown(
 			test_socket_scmp_informational_message_is_not_an_error, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_traceroute_with_router_alert, setup_fixture, teardown_fixture),
+#ifdef __linux__
+		cmocka_unit_test_setup_teardown(test_socket_receive_no_control_messages, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_receive_error_queue, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_receive_empty_error_queue, setup_fixture, teardown_fixture),
+#endif
 		cmocka_unit_test_setup_teardown(
 			test_socket_creation_failure_does_not_leak_the_descriptor, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_receive_skips_malformed_packets, setup_fixture, teardown_fixture),

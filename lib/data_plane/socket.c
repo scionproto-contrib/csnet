@@ -34,6 +34,7 @@
 #include "data_plane/path.h"
 #include "data_plane/scmp.h"
 #include "data_plane/socket.h"
+#include "data_plane/timestamp.h"
 #include "data_plane/udp.h"
 #include "data_plane/underlay.h"
 
@@ -46,7 +47,11 @@
 #endif
 
 #define IMPLEMENTED_SEND_FLAGS (MSG_CONFIRM | MSG_DONTWAIT | MSG_MORE)
+#ifdef MSG_ERRQUEUE
+#define IMPLEMENTED_RECV_FLAGS (MSG_DONTWAIT | MSG_PEEK | MSG_ERRQUEUE)
+#else
 #define IMPLEMENTED_RECV_FLAGS (MSG_DONTWAIT | MSG_PEEK)
+#endif
 #define PATH_EXPIRATION_THRESHOLD_IN_SECONDS 60
 
 #define SOCK_TYPE_MASK 0xF
@@ -138,6 +143,7 @@ static void socket_free(struct scion_socket *scion_sock)
 	}
 	scion_sock->socket_fd = -1;
 	scion_path_collection_free(scion_sock->paths);
+	scion_timestamp_state_free(scion_sock->timestamps);
 	free(scion_sock);
 }
 
@@ -239,6 +245,12 @@ int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_f
 		return SCION_ERR_MEM_ALLOC_FAIL;
 	}
 
+	scion_sock_storage->timestamps = scion_timestamp_state_create();
+	if (scion_sock_storage->timestamps == NULL) {
+		ret = SCION_ERR_MEM_ALLOC_FAIL;
+		goto cleanup_socket_storage;
+	}
+
 	scion_sock_storage->network = network;
 
 	if (network && network->topology->local_addr_family != addr_family) {
@@ -320,6 +332,7 @@ cleanup_socket_fd:
 	(void)close(scion_sock_storage->socket_fd);
 
 cleanup_socket_storage:
+	scion_timestamp_state_free(scion_sock_storage->timestamps);
 	free(scion_sock_storage);
 
 	return ret;
@@ -553,6 +566,9 @@ static ssize_t scion_sendmsg_path(
 		goto cleanup_packet_buf;
 	}
 
+	struct timespec transmit_time;
+	(void)clock_gettime(CLOCK_REALTIME, &transmit_time);
+
 	do {
 		struct iovec iov[1];
 		iov[0].iov_len = packet_length;
@@ -606,6 +622,7 @@ static ssize_t scion_sendmsg_path(
 			// Packet partially transmitted
 			ret = SCION_ERR_SEND_FAIL;
 		} else {
+			scion_timestamp_record_sent(scion_sock, &transmit_time);
 			ret = (ssize_t)data_len;
 		}
 	}
@@ -792,6 +809,30 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
 	return ret;
 }
 
+#ifdef MSG_ERRQUEUE
+// Receives a message from the error queue of the underlying socket. That is where the kernel puts the transmit
+// timestamps. The message is not a SCION packet, so it is returned as it is.
+static ssize_t recv_error_queue(struct scion_socket *scion_sock, struct msghdr *msg, int flags)
+{
+	ssize_t ret;
+	do {
+		ret = recvmsg(scion_sock->socket_fd, msg, flags);
+	} while (ret == -1 && errno == EINTR);
+
+	if (ret < 0) {
+		if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			return SCION_ERR_WOULD_BLOCK;
+		}
+
+		(void)fprintf(stderr, "ERROR: encountered an unexpected error when receiving packets (%s, code %d)\n",
+			strerror(errno), errno);
+		return SCION_ERR_RECV_FAIL;
+	}
+
+	return ret;
+}
+#endif
+
 ssize_t scion_recvmsg(
 	struct scion_socket *scion_sock, struct msghdr *msg, int flags, scion_ia *src_ia, struct scion_path **path)
 {
@@ -804,6 +845,12 @@ ssize_t scion_recvmsg(
 	if ((flags & IMPLEMENTED_RECV_FLAGS) != flags) {
 		return SCION_ERR_FLAG_NOT_IMPLEMENTED;
 	}
+
+#ifdef MSG_ERRQUEUE
+	if ((flags & MSG_ERRQUEUE) != 0) {
+		return recv_error_queue(scion_sock, msg, flags);
+	}
+#endif
 
 	size_t buf_len = 0;
 	for (size_t i = 0; i < (size_t)msg->msg_iovlen; i++) {
@@ -992,6 +1039,7 @@ ssize_t scion_recvmsg(
 		}
 
 		msg->msg_flags = raw_msg.msg_flags;
+		msg->msg_controllen = raw_msg.msg_controllen;
 
 		if (msg->msg_name != NULL) {
 			if (msg->msg_namelen < sender_addr_len) {
@@ -1078,6 +1126,13 @@ int scion_setsockopt(struct scion_socket *scion_sock, int level, int optname, co
 				ret = SCION_ERR_GENERIC;
 			}
 		}
+#ifdef SO_TIMESTAMPING
+		else if (level == SOL_SOCKET && optname == SO_TIMESTAMPING && optlen >= sizeof(int)) {
+			int flags;
+			(void)memcpy(&flags, optval, sizeof(flags));
+			scion_timestamp_flags_changed(scion_sock, flags);
+		}
+#endif
 	}
 
 	return ret;

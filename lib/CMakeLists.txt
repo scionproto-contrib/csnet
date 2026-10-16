@@ -70,6 +70,7 @@ add_library(scion STATIC
         data_plane/packet.c
         data_plane/path.c
         data_plane/socket.c
+        data_plane/timestamp.c
         data_plane/udp.c
         data_plane/scmp.c
         data_plane/underlay.c
@@ -172,7 +173,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif ()
 
 # declare public headers for installation
-set_target_properties(scion PROPERTIES PUBLIC_HEADER "include/scion/scion.h;include/scion/scion_scmp.h")
+set_target_properties(scion PROPERTIES PUBLIC_HEADER "include/scion/scion.h;include/scion/scion_scmp.h;include/scion/scion_timestamp.h")
 
 # install library with public headers
 install(TARGETS scion PUBLIC_HEADER DESTINATION include/scion)
