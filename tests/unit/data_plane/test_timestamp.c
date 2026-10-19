@@ -316,7 +316,7 @@ static void test_timestamp_level_sets_the_option(void **state)
 	struct scion_socket *sock = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
 
 	// Each level replaces the previous one.
-	const int kernel_flags = TRANSMIT_TIMESTAMPING | SOF_TIMESTAMPING_RX_SOFTWARE;
+	const int kernel_flags = TRANSMIT_TIMESTAMPING | SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_OPT_TSONLY;
 	const int hardware_flags = kernel_flags | SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_RX_HARDWARE
 							   | SOF_TIMESTAMPING_TX_HARDWARE;
 	const struct {
