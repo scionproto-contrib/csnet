@@ -253,11 +253,12 @@ int scion_timestamp_set_level(struct scion_socket *scion_sock, enum scion_timest
 	assert(scion_sock);
 
 #ifdef __linux__
-	// The numbering of the sent packets lets scion_timestamp_get_tx() match a timestamp to its packet.
+	// The ids of the sent packets let scion_timestamp_get_tx() match a timestamp to its packet. The kernel does not
+	// queue a copy of the sent packet with its timestamp, which is not needed and uses memory until it is read.
 	int flags = 0;
 	if (level >= SCION_TIMESTAMP_KERNEL) {
 		flags |= SOF_TIMESTAMPING_SOFTWARE | SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_TX_SOFTWARE
-				 | SOF_TIMESTAMPING_OPT_ID;
+				 | SOF_TIMESTAMPING_OPT_ID | SOF_TIMESTAMPING_OPT_TSONLY;
 	}
 	if (level >= SCION_TIMESTAMP_HARDWARE) {
 		flags |= SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_RX_HARDWARE | SOF_TIMESTAMPING_TX_HARDWARE;
