@@ -5,6 +5,7 @@ ExternalProject_Add(
         nghttp2
         GIT_REPOSITORY https://github.com/nghttp2/nghttp2.git
         GIT_TAG v1.66.0
+        UPDATE_DISCONNECTED TRUE
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DENABLE_LIB_ONLY=ON -DBUILD_STATIC_LIBS=ON
         BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libnghttp2.a
 )
@@ -14,6 +15,7 @@ ExternalProject_Add(
         protobuf
         GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
         GIT_TAG v31.1
+        UPDATE_DISCONNECTED TRUE
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_PROTOC_BINARIES=OFF -Dprotobuf_BUILD_LIBUPB=OFF -DABSL_PROPAGATE_CXX_STD=ON
 )
 
@@ -22,6 +24,7 @@ ExternalProject_Add(
         zlib
         GIT_REPOSITORY https://github.com/madler/zlib
         GIT_TAG v1.3.1
+        UPDATE_DISCONNECTED TRUE
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DZLIB_BUILD_EXAMPLES=OFF
         BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libz.a
 )
@@ -31,6 +34,7 @@ ExternalProject_Add(
         protobuf-c
         GIT_REPOSITORY https://github.com/protobuf-c/protobuf-c.git
         GIT_TAG v1.5.1
+        UPDATE_DISCONNECTED TRUE
         SOURCE_SUBDIR build-cmake
         DEPENDS protobuf
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTS=OFF -DBUILD_PROTOC=OFF
@@ -42,6 +46,7 @@ ExternalProject_Add(
         curl
         GIT_REPOSITORY https://github.com/curl/curl.git
         GIT_TAG curl-8_14_1
+        UPDATE_DISCONNECTED TRUE
         CMAKE_ARGS
         -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DHTTP_ONLY=ON -DBUILD_CURL_EXE=OFF -DBUILD_EXAMPLES=OFF
         -DBUILD_LIBCURL_DOCS=OFF -DBUILD_MISC_DOCS=OFF -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=OFF

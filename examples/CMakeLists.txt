@@ -38,6 +38,7 @@ ExternalProject_Add(
         libev
         GIT_REPOSITORY https://github.com/enki/libev.git
         GIT_TAG master
+        UPDATE_DISCONNECTED TRUE
         CONFIGURE_COMMAND ./configure --prefix=${DEPENDENCY_INSTALL_DIR} --disable-shared
         BUILD_COMMAND make
         INSTALL_COMMAND make install
@@ -50,6 +51,7 @@ ExternalProject_Add(
         quictls
         GIT_REPOSITORY https://github.com/quictls/openssl.git
         GIT_TAG OpenSSL_1_1_1w+quic
+        UPDATE_DISCONNECTED TRUE
         CONFIGURE_COMMAND ./config --prefix=${DEPENDENCY_INSTALL_DIR} --openssldir=${DEPENDENCY_INSTALL_DIR}/ssl no-shared
         BUILD_COMMAND make
         INSTALL_COMMAND make install_sw
@@ -62,6 +64,7 @@ ExternalProject_Add(
         ngtcp2
         GIT_REPOSITORY https://github.com/ngtcp2/ngtcp2.git
         GIT_TAG v1.12.0
+        UPDATE_DISCONNECTED TRUE
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DENABLE_LIB_ONLY=ON -DENABLE_SHARED_LIB=OFF -DBUILD_TESTING=OFF -DOPENSSL_ROOT_DIR=${DEPENDENCY_INSTALL_DIR} -DLIBEV_INCLUDE_DIR=${DEPENDENCY_INSTALL_DIR}/include -DLIBEV_LIBRARY=${DEPENDENCY_INSTALL_DIR}/lib -DENABLE_DEBUG=ON
         BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libngtcp2.a ${DEPENDENCY_INSTALL_DIR}/lib/libngtcp2_crypto_quictls.a
 )
