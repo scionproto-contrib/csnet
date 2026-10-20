@@ -1,5 +1,9 @@
 set(DEPENDENCY_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/dependencies)
 
+# Fetch protobuf and protobuf-c, with protoc and protoc-gen-c
+include(ProtobufTools)
+scion_add_protobuf_tools(INSTALL_DIR ${DEPENDENCY_INSTALL_DIR})
+
 # Fetch nghttp2
 ExternalProject_Add(
         nghttp2
@@ -10,15 +14,6 @@ ExternalProject_Add(
         BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libnghttp2.a
 )
 
-# Fetch protobuf
-ExternalProject_Add(
-        protobuf
-        GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
-        GIT_TAG v31.1
-        UPDATE_DISCONNECTED TRUE
-        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_PROTOC_BINARIES=OFF -Dprotobuf_BUILD_LIBUPB=OFF -DABSL_PROPAGATE_CXX_STD=ON
-)
-
 # Fetch zlib
 ExternalProject_Add(
         zlib
@@ -27,18 +22,6 @@ ExternalProject_Add(
         UPDATE_DISCONNECTED TRUE
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DZLIB_BUILD_EXAMPLES=OFF
         BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libz.a
-)
-
-# Fetch protobuf-c
-ExternalProject_Add(
-        protobuf-c
-        GIT_REPOSITORY https://github.com/protobuf-c/protobuf-c.git
-        GIT_TAG v1.5.1
-        UPDATE_DISCONNECTED TRUE
-        SOURCE_SUBDIR build-cmake
-        DEPENDS protobuf
-        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTS=OFF -DBUILD_PROTOC=OFF
-        BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libprotobuf-c.a
 )
 
 # Fetch curl
@@ -54,6 +37,22 @@ ExternalProject_Add(
         -DCURL_USE_LIBPSL=OFF -DCURL_ZLIB=OFF -DCURL_ZSTD=OFF -DCURL_BROTLI=OFF -DCURL_USE_LIBSSH2=OFF
         -DUSE_LIBIDN2=OFF
         BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libcurl.a
+)
+
+# Generate the C code of the .proto files
+include(GenerateProto)
+scion_generate_proto(scion_proto
+        PROTOC ${DEPENDENCY_INSTALL_DIR}/bin/protoc
+        PLUGIN ${DEPENDENCY_INSTALL_DIR}/bin/protoc-gen-c
+        ROOT ${CMAKE_SOURCE_DIR}/proto
+        OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated
+        PROTOS
+        google/protobuf/timestamp.proto
+        proto/crypto/v1/signed.proto
+        proto/control_plane/experimental/v1/seg_detached_extensions.proto
+        proto/control_plane/v1/seg_extensions.proto
+        proto/control_plane/v1/seg.proto
+        DEPENDS protobuf protobuf-c
 )
 
 # Declare library
@@ -83,11 +82,7 @@ add_library(scion STATIC
         util/http2_rpc.c
         util/list.c
         util/map.c
-        proto/control_plane/experimental/v1/seg_detached_extensions.pb-c.c
-        proto/control_plane/v1/seg.pb-c.c
-        proto/control_plane/v1/seg_extensions.pb-c.c
-        proto/crypto/v1/signed.pb-c.c
-        google/protobuf/timestamp.pb-c.c
+        ${scion_proto_SOURCES}
         error.c
 )
 
@@ -95,6 +90,7 @@ add_dependencies(scion nghttp2)
 add_dependencies(scion zlib)
 add_dependencies(scion protobuf-c)
 add_dependencies(scion curl)
+add_dependencies(scion scion_proto)
 
 # public headers
 target_include_directories(scion PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -102,6 +98,8 @@ target_include_directories(scion PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(scion PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 # dependency headers
 target_include_directories(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/include)
+# generated headers
+target_include_directories(scion PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated)
 
 # Link nghttp2
 target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libnghttp2.a)
