@@ -100,9 +100,11 @@ EPS32 specific instructions can be found [here](./esp32/README.md).
 
 Required tools:
 
-- `protobuf` and `protobuf-c`: Protobuf to C compiler required to generate code from .proto files to talk to a control
-  server.
 - (optionally) `clang-format`: Code formatter we use.
+
+The C code to talk to a control server is generated from the `.proto` files in `proto/` during the build. The protobuf
+compiler `protoc` and its plugin `protoc-gen-c` are built together with the other dependencies, so they do not have to
+be installed.
 
 ### Building in Debug Mode
 
