@@ -19,6 +19,8 @@
 #include <string.h>
 
 #include <scion/scion.h>
+#include <scion/scion_path.h>
+#include <scion/scion_policy.h>
 
 static bool has_nine_hops(struct scion_path *path, void *ctx)
 {

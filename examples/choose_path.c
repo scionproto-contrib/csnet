@@ -18,6 +18,7 @@
 #include <stdlib.h>
 
 #include <scion/scion.h>
+#include <scion/scion_path.h>
 
 static bool select_path(struct scion_path *path, void *ctx)
 {

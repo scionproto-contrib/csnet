@@ -18,6 +18,7 @@
 
 #include "data_plane/path.h"
 #include <scion/scion.h>
+#include <scion/scion_path.h>
 
 struct scion_path_collection {
 	struct scion_list *list;

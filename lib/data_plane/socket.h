@@ -20,6 +20,7 @@
 #include "common/isd_as.h"
 #include "data_plane/path.h"
 #include "scion/scion.h"
+#include "scion/scion_policy.h"
 #include "scion/scion_scmp.h"
 
 #define SCION_SO_DEBUG 200

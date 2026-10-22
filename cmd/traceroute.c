@@ -17,6 +17,7 @@
 #include <getopt.h>
 #include <inttypes.h>
 #include <scion/scion.h>
+#include <scion/scion_path.h>
 #include <scion/scion_scmp.h>
 #include <stdio.h>
 #include <stdlib.h>

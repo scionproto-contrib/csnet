@@ -37,6 +37,8 @@
 #include "data_plane/timestamp.h"
 #include "data_plane/udp.h"
 #include "data_plane/underlay.h"
+#include "scion/scion_path.h"
+#include "scion/scion_policy.h"
 
 #ifndef MSG_CONFIRM
 #define MSG_CONFIRM 0

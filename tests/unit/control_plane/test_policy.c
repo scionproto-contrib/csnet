@@ -19,6 +19,8 @@
 #include "control_plane/policy.h"
 #include "data_plane/path.h"
 #include "scion/scion.h"
+#include "scion/scion_path.h"
+#include "scion/scion_policy.h"
 #include "test_policy.h"
 #include "util/list.h"
 

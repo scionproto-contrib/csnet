@@ -22,6 +22,7 @@
 #include "common/as_entry.h"
 #include "data_plane/path.h"
 #include "path_metadata.h"
+#include "scion/scion_path.h"
 #include "util/map.h"
 
 static struct timeval latency_unset = { .tv_sec = 0, .tv_usec = -1 };

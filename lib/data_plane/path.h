@@ -22,6 +22,7 @@
 #include "control_plane/path_metadata.h"
 #include "data_plane/underlay.h"
 #include "scion/scion.h"
+#include "scion/scion_path.h"
 #include "util/list.h"
 
 #define SCION_MAX_INFS 3

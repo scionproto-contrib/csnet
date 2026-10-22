@@ -17,6 +17,8 @@
 
 #include "common/path_collection.h"
 #include "policy.h"
+#include "scion/scion_path.h"
+#include "scion/scion_policy.h"
 #include "util/map.h"
 
 #define PATH_KEY_SIZE 8

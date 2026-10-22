@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include <scion/scion.h>
+#include <scion/scion_path.h>
 
 int main()
 {

@@ -23,6 +23,7 @@
 #include "control_plane/topology.h"
 #include "data_plane/path.h"
 #include "scion/scion.h"
+#include "scion/scion_path.h"
 #include "test_graph.h"
 #include "util/list.h"
 
