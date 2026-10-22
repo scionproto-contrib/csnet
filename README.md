@@ -76,9 +76,10 @@ Depending on the installation directory you might need to run the command with `
 
 The installation will produce the static libraries `lib/libscion.a`, `lib/libnghttp2.a`, `lib/libz.a`,
 `lib/libprotobuf.a`,
-`lib/libcurl.a`, the header files `include/scion/scion.h` and `include/scion/scion_scmp.h`, and the command-line tools
-`bin/ping` and `bin/traceroute` in your installation directory. When using the library make sure to link against all
-the static libraries produced by the installation.
+`lib/libcurl.a`, the header files `include/scion/scion.h`, `include/scion/scion_path.h`,
+`include/scion/scion_policy.h`, `include/scion/scion_scmp.h` and `include/scion/scion_timestamp.h`, and the
+command-line tools `bin/ping` and `bin/traceroute` in your installation directory. When using the library make sure to
+link against all the static libraries produced by the installation.
 
 ## Local SCION Network Setup
 
