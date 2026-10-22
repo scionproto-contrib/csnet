@@ -821,8 +821,6 @@ static int traverse_segment(struct dmg *graph, struct input_segment *seg)
  */
 
 /*
- * FUNCTION: new_dmg
- * -----------------
  * Creates a Directed Multigraph from the provided ScionPathSegments.
  *
  * Arguments:
@@ -938,8 +936,6 @@ static bool valid_next_seg(struct input_segment *curr_seg, struct input_segment 
 }
 
 /*
- * FUNCTION: scion_path_sol_less
- * -------------------
  * Determines if the path_solution a is 'less' than path_solution b. This is determined in order:
  * 		- number of hops
  * 		- number of segments
@@ -1012,8 +1008,6 @@ static bool scion_path_sol_less(struct path_solution *a, struct path_solution *b
 }
 
 /*
- * FUNCTION: scion_sort_path_solutions
- * -------------------
  * Sorts a scion_linked_list of PathSolutions using scion_path_sol_less to compare two PathSolutions.
  *
  * Arguments:
@@ -1057,8 +1051,6 @@ static int scion_sort_path_solutions(struct scion_list *paths)
 }
 
 /*
- * FUNCTION: get_paths_from_graph
- * -------------------
  * Extracts all available paths from a source IA to a destination IA in a given dmg.
  *
  * Arguments:
@@ -1266,8 +1258,6 @@ static uint16_t scion_calculate_beta(struct solution_edge *sol_edge)
 // COMMENT: Comments mostly copied from the GO implementation as well.
 
 /*
- * FUNCTION: scion_path_solution_to_path
- * ---------------------
  * Converts a path_solution into a scion_path
  *
  * Arguments:

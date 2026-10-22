@@ -39,8 +39,6 @@ struct scion_path_segment_list {
 };
 
 /*
- * FUNCTION: scion_split_segments
- * ---------------
  * Splits the segment request from a source AS to a Destination AS into an UP segment request,
  * a CORE segment request and a DOWN segment request. Depending on the case, not all segments are needed.
  *
@@ -91,8 +89,6 @@ int scion_split_segments(
 	scion_ia src, bool src_is_core, scion_ia dst, bool dst_is_core, struct scion_split_segments *split_seg);
 
 /*
- * FUNCTION: scion_path_segments_lookup
- * -----------------
  *  Looks up the path segments required to build a path between a given source AS and destination AS
  *  by making the required gRPC calls to a SCION control server.
  *
@@ -112,8 +108,6 @@ int scion_path_segments_lookup(
 	struct scion_topology *topology, scion_ia src, scion_ia dst, struct scion_path_segment_list *segments);
 
 /*
- * FUNCTION: scion_free_pathseglist_internal
- * -----------------
  *  Frees the internal members provided scion_path_segment_list, including the scion_path_segment structs.
  *
  * Arguments:
@@ -122,8 +116,6 @@ int scion_path_segments_lookup(
 void scion_free_pathseglist_internal(struct scion_path_segment_list *pathseg_list);
 
 /*
- * FUNCTION: scion_dst_core_check
- * -----------------
  * By making a Segment Lookup, we can figure out if the destination AS is a core or not.
  * We have the following cases:
  * (1): src and dst are in different ISDs:

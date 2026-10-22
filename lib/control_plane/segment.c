@@ -67,8 +67,6 @@ static char *hostname_from_addr(struct sockaddr *addr)
 }
 
 /*
- * FUNCTION: scion_split_segments
- * ---------------
  * Splits the segment request from a source AS to a Destionation AS into an UP segment request,
  * an CORE segment request and a DOWN segment request. Depending on the case, not all segments are needed.
  *
@@ -379,8 +377,6 @@ static int protobuf_to_path_segments(
 }
 
 /*
- * FUNCTION: scion_path_segments_lookup
- * -----------------
  *  Looks up the path segments required to build a path between a given source AS and destination AS
  *  by making the required gRPC calls to a SCION control server.
  *
@@ -461,8 +457,6 @@ cleanup_msg_buf:
 }
 
 /*
- * FUNCTION: scion_free_pathseglist_internal
- * -----------------
  *  Frees the internal members provided scion_path_segment_list, including the scion_path_segment structs.
  *
  * Arguments:
@@ -482,8 +476,6 @@ void scion_free_pathseglist_internal(struct scion_path_segment_list *pathseg_lis
 }
 
 /*
- * FUNCTION: scion_dst_core_check
- * -----------------
  * By making a Segment Lookup, we can figure out if the destination AS is a core or not.
  * We have the following cases:
  * (1): src and dst are in different ISDs:

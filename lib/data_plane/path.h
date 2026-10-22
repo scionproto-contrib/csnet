@@ -53,8 +53,6 @@ struct scion_path_meta_hdr {
 };
 
 /*
- * FUNCTION: scion_path_meta_hdr_init
- * -------------------
  * Zero-initializes all members of a scion_path_meta_hdr struct.
  *
  * Arguments:
@@ -65,8 +63,6 @@ struct scion_path_meta_hdr {
 int scion_path_meta_hdr_init(struct scion_path_meta_hdr *hdr);
 
 /*
- * FUNCTION: scion_path_raw_init
- * -------------------
  * Initializes a scion_path_raw using the provided scion_path_meta_hdr, info fields and hop fields.
  *
  * Arguments:
@@ -81,8 +77,6 @@ int scion_path_raw_init(struct scion_path_raw *raw_path, struct scion_path_meta_
 	struct scion_list *info_fields, struct scion_list *hop_fields);
 
 /*
- * FUNCTION: scion_path_raw_free
- * -------------------
  * Frees a scion_path_raw struct.
  *
  * Arguments:
@@ -91,8 +85,6 @@ int scion_path_raw_init(struct scion_path_raw *raw_path, struct scion_path_meta_
 void scion_path_raw_free(struct scion_path_raw *raw_path);
 
 /*
- * FUNCTION: scion_path_raw_reverse
- * -------------------
  * Reverses a scion_path_raw. Used to respond to a packet received from a source where no
  * previous path is available. This is done to use the same path as specified by the sender
  * and to avoid making requests to a control server.
@@ -109,8 +101,6 @@ void scion_path_print_interfaces(struct scion_path_interface *interfaces, size_t
 uint32_t scion_path_byte_size(struct scion_path *path, bool print_details);
 
 /*
- * FUNCTION: scion_path_serialize
- * -----------------
  * Serializes a SCION path (which represented by a scion_path_meta_hdr struct, a scion_linked_list containing
  * scion_info_field structs and a scion_linked_list containing scion_hop_field structs) into a buffer.
  *
@@ -134,8 +124,6 @@ int scion_path_serialize(
 int scion_path_meta_hdr_serialize(struct scion_path_meta_hdr *hdr, uint8_t *buf);
 
 /*
- * FUNCTION: scion_path_deserialize
- * -------------------
  * Takes a buffer which contains a serialized SCION path and deserializes it into a scion_path_meta_hdr struct,
  * a scion_linked_list containing scion_info_field structs and a scion_linked_list containing scion_hop_field structs.
  * IMPORTANT: the scion_path_meta_hdr struct needs to be allocated and both ScionLinkedLists need to be created

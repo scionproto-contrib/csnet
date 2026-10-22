@@ -52,8 +52,6 @@ int scion_topology_next_underlay_hop(
 	struct scion_topology *topology, scion_ifid ifid, struct scion_underlay *underlay);
 
 /*
- * FUNCTION: scion_topology_is_local_as_core
- * -----------------
  * Uses the topology file to check if the local AS is a CORE AS or not.
  *
  * Arguments:

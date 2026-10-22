@@ -28,8 +28,6 @@ struct scion_udp {
 };
 
 /*
- * FUNCTION: scion_udp_free_members
- * -------------------
  * Frees, if applicable, and set all internal members to 0 or NULL of a scion_udp struct, without freeing the struct
  * itself.
  *
@@ -39,8 +37,6 @@ struct scion_udp {
 void scion_udp_free_members(struct scion_udp *udp);
 
 /*
- * FUNCTION: scion_udp_free
- * -------------------
  * Frees a scion_udp struct.
  *
  * Arguments:
@@ -51,8 +47,6 @@ void scion_udp_free(struct scion_udp *udp);
 uint16_t scion_udp_len(struct scion_udp *udp);
 
 /*
- * FUNCTION: scion_udp_serialize
- * -----------------
  * Serializes a scion_udp struct (which represents the internal UDP packet that is sent via SCION).
  *
  * Arguments:
@@ -67,8 +61,6 @@ uint16_t scion_udp_len(struct scion_udp *udp);
 int scion_udp_serialize(struct scion_udp *udp, uint8_t *buf, uint16_t *len);
 
 /*
- * FUNCTION: scion_udp_deserialize
- * -------------------
  * Takes a buffer which contains a serialized UDP packet and deserializes it into a scion_udp struct.
  * IMPORTANT: the scion_udp struct need to be allocated before calling this function.
  *
