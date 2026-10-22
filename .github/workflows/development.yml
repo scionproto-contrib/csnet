@@ -44,11 +44,17 @@ jobs:
         run: |
           echo "build-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
-      - name: Cache CMake build folder
-        uses: actions/cache@v4
+      # A change in the CMake files starts from the newest cache of the same configuration, so that only the
+      # dependencies that changed are rebuilt. Only pushes to main save a cache, which keeps the pull requests from
+      # filling the cache storage.
+      - name: Restore CMake build folder
+        id: cache-build
+        uses: actions/cache/restore@v4
         with:
           path: build
-          key: build-${{ matrix.os }}-${{ matrix.build_type }}-${{ matrix.c_compiler }}-${{ hashFiles('**/CMakeLists.txt') }}
+          key: build-${{ matrix.os }}-${{ matrix.build_type }}-${{ matrix.c_compiler }}-${{ hashFiles('**/CMakeLists.txt', 'cmake/*.cmake') }}
+          restore-keys: |
+            build-${{ matrix.os }}-${{ matrix.build_type }}-${{ matrix.c_compiler }}-
 
       - name: Configure CMake
         run: >
@@ -68,9 +74,17 @@ jobs:
         working-directory: ${{ steps.strings.outputs.build-dir }}
         run: ctest --extra-verbose --output-on-failure -C ${{ matrix.build_type }} -L unit
 
+      - name: Save CMake build folder
+        if: github.ref == 'refs/heads/main' && steps.cache-build.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build
+          key: ${{ steps.cache-build.outputs.cache-primary-key }}
+
+      # The end to end tests only need the executables, not the dependencies that were built.
       - name: Tar build
         if: matrix.os == 'ubuntu-latest' && matrix.build_type == 'Debug' && matrix.c_compiler == 'gcc'
-        run: tar -cf build.tar build
+        run: tar -cf build.tar --exclude='*-prefix' --exclude=dependencies build
 
       - name: Store build
         if: matrix.os == 'ubuntu-latest' && matrix.build_type == 'Debug' && matrix.c_compiler == 'gcc'
