@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "data_plane/scmp.h"
+#include "scion/scion_scmp.h"
 #include "test_scmp.h"
 
 static void test_serialize_scmp_echo(void **)

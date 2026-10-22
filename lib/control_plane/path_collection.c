@@ -16,9 +16,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "common/path_collection.h"
 #include "control_plane/graph.h"
 #include "control_plane/network.h"
-#include "control_plane/path_collection.h"
 #include "control_plane/segment.h"
 #include "control_plane/topology.h"
 #include "data_plane/path.h"
