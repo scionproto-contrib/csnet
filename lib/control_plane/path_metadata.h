@@ -19,6 +19,7 @@
 
 #include "common/isd_as.h"
 #include "scion/scion.h"
+#include "scion/scion_path.h"
 #include "util/list.h"
 
 void scion_geo_coordinates_free(struct scion_geo_coordinates *geo);

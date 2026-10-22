@@ -18,6 +18,7 @@
 #include <stdlib.h>
 
 #include <scion/scion.h>
+#include <scion/scion_path.h>
 #include <scion/scion_scmp.h>
 
 int main(int argc, char *argv[])

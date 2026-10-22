@@ -32,6 +32,7 @@
 #include "data_plane/scmp.h"
 #include "data_plane/socket.h"
 #include "scion/scion.h"
+#include "scion/scion_path.h"
 #include "socket_fixture.h"
 #include "test_socket.h"
 #include "util/list.h"

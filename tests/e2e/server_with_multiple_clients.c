@@ -16,6 +16,7 @@
 #include <assert.h>
 #include <pthread.h>
 #include <scion/scion.h>
+#include <scion/scion_path.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

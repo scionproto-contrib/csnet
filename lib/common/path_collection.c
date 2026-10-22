@@ -19,6 +19,7 @@
 #include <stdlib.h>
 
 #include "common/path_collection.h"
+#include "scion/scion_path.h"
 
 int scion_path_collection_init(struct scion_path_collection **paths)
 {

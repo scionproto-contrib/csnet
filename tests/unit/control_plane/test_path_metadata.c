@@ -19,6 +19,7 @@
 #include "common/as_entry.h"
 #include "control_plane/path_metadata.h"
 #include "scion/scion.h"
+#include "scion/scion_path.h"
 #include "test_path_metadata.h"
 #include "util/list.h"
 #include "util/map.h"

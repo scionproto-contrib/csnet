@@ -22,6 +22,7 @@
 #include "control_plane/segment.h"
 #include "control_plane/topology.h"
 #include "data_plane/path.h"
+#include "scion/scion_path.h"
 #include "util/list.h"
 
 /**

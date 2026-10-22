@@ -33,6 +33,7 @@
 #include "protocol_examples_common.h"
 
 #include "scion/scion.h"
+#include "scion/scion_path.h"
 
 // HEAP DEBUGGING
 // #include "esp_heap_trace.h"
