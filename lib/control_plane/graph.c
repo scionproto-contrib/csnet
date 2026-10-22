@@ -1521,7 +1521,7 @@ static bool scion_check_duplicate_path(struct scion_list *ifids_list, scion_ifid
 }
 
 static int scion_path_solution_list_to_path_list(struct scion_list *path_solutions, struct scion_list *paths,
-	scion_ia src, scion_ia dst, struct scion_topology *topology, uint opt)
+	scion_ia src, scion_ia dst, struct scion_topology *topology, unsigned int opt)
 {
 	// TODO: remove me
 	(void)opt;
@@ -1589,7 +1589,7 @@ static int scion_path_solution_list_to_path_list(struct scion_list *path_solutio
 
 int scion_build_paths(scion_ia src, scion_ia dst, struct scion_topology *topology, struct scion_path_segment **ups,
 	size_t ups_length, struct scion_path_segment **cores, size_t cores_length, struct scion_path_segment **downs,
-	size_t downs_length, struct scion_list *paths, uint opt)
+	size_t downs_length, struct scion_list *paths, unsigned int opt)
 {
 	assert(paths);
 
