@@ -111,12 +111,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The build runs in a container, so ccache keeps its files in the workspace, which is mounted into it.
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-esp32-${{ github.sha }}
+          restore-keys: |
+            ccache-esp32-
+
       - name: Build
         uses: espressif/esp-idf-ci-action@v1
         with:
           esp_idf_version: 'v5.4'
           target: 'esp32s3'
           path: 'esp32'
+          extra_docker_args: -e CCACHE_DIR=/app/${{ github.repository }}/.ccache -e CCACHE_MAXSIZE=300M
 
   e2e-tests:
     needs: build
