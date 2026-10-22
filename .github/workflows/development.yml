@@ -56,6 +56,13 @@ jobs:
           restore-keys: |
             build-${{ matrix.os }}-${{ matrix.build_type }}-${{ matrix.c_compiler }}-
 
+      # The compiler cache makes the build fast when the cache of the build folder cannot be used.
+      - name: Set up ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ matrix.os }}-${{ matrix.build_type }}-${{ matrix.c_compiler }}
+          max-size: 500M
+
       - name: Configure CMake
         run: >
           cmake
@@ -63,12 +70,17 @@ jobs:
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           -DBUILD_TESTS=ON
           -DBUILD_EXAMPLES=ON
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           -B ${{ steps.strings.outputs.build-dir }}
           -G Ninja
           -S ${{ github.workspace }}
 
       - name: Build
         run: cmake --build ${{ steps.strings.outputs.build-dir }} --config ${{ matrix.build_type }} --parallel
+
+      - name: Show ccache statistics
+        run: ccache --show-stats
 
       - name: Run Unit Tests
         working-directory: ${{ steps.strings.outputs.build-dir }}
