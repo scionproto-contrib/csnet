@@ -671,6 +671,102 @@ static void test_socket_receive_error_queue(void **state)
 	assert_true(timestamps.ts[0].tv_sec > 0);
 }
 
+static void test_socket_send_control_message(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(sender);
+	bind_loopback(receiver);
+	struct sockaddr_in receiver_addr = bound_address(receiver);
+
+	// The control messages of the underlying socket have no meaning for a SCION socket.
+	union {
+		char buf[CMSG_SPACE(sizeof(int))];
+		struct cmsghdr align;
+	} control;
+	char data[] = "x";
+	struct iovec iov = { .iov_base = data, .iov_len = 1 };
+	struct msghdr msg = { .msg_name = &receiver_addr,
+		.msg_namelen = sizeof(receiver_addr),
+		.msg_iov = &iov,
+		.msg_iovlen = 1,
+		.msg_control = control.buf,
+		.msg_controllen = sizeof(control.buf) };
+	int tos = 0;
+	struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+	cmsg->cmsg_level = IPPROTO_IP;
+	cmsg->cmsg_type = IP_TOS;
+	cmsg->cmsg_len = CMSG_LEN(sizeof(tos));
+	memcpy(CMSG_DATA(cmsg), &tos, sizeof(tos));
+
+	assert_int_equal(scion_sendmsg(sender, &msg, 0, local_ia_of(fixture), NULL), SCION_ERR_CONTROL_MSG_NOT_IMPLEMENTED);
+}
+
+// Receives a packet with the options for the control messages of the underlying socket set on the receiver.
+static void receive_with_control_messages(struct socket_fixture *fixture, int timestamping, struct msghdr *msg,
+	struct iovec *iov, char *buf, size_t buf_len, char *control, size_t control_len)
+{
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(sender);
+	bind_loopback(receiver);
+	set_receive_timeout(receiver, 1000);
+	struct sockaddr_in receiver_addr = bound_address(receiver);
+
+	// The underlying socket returns the destination address of the packet in a control message.
+	int on = 1;
+	assert_int_equal(scion_setsockopt(receiver, IPPROTO_IP, IP_PKTINFO, &on, sizeof(on)), 0);
+	if (timestamping != 0) {
+		assert_int_equal(
+			scion_setsockopt(receiver, SOL_SOCKET, SO_TIMESTAMPING, &timestamping, sizeof(timestamping)), 0);
+		wait_for_kernel_timestamping();
+	}
+
+	assert_int_equal(scion_sendto(sender, "x", 1, 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr),
+						 local_ia_of(fixture), NULL),
+		1);
+
+	*iov = (struct iovec) { .iov_base = buf, .iov_len = buf_len };
+	*msg = (struct msghdr) { .msg_iov = iov, .msg_iovlen = 1, .msg_control = control, .msg_controllen = control_len };
+	assert_int_equal(scion_recvmsg(receiver, msg, 0, NULL, NULL), 1);
+}
+
+static void test_socket_receive_drops_control_messages(void **state)
+{
+	struct msghdr msg;
+	struct iovec iov;
+	char buf[16];
+	union {
+		char buf[256];
+		struct cmsghdr align;
+	} control;
+	receive_with_control_messages(*state, 0, &msg, &iov, buf, sizeof(buf), control.buf, sizeof(control.buf));
+
+	assert_int_equal(msg.msg_controllen, 0);
+}
+
+static void test_socket_receive_keeps_the_timestamps(void **state)
+{
+	struct msghdr msg;
+	struct iovec iov;
+	char buf[16];
+	union {
+		char buf[256];
+		struct cmsghdr align;
+	} control;
+	receive_with_control_messages(*state, SOF_TIMESTAMPING_SOFTWARE | SOF_TIMESTAMPING_RX_SOFTWARE, &msg, &iov, buf,
+		sizeof(buf), control.buf, sizeof(control.buf));
+
+	// The timestamps are the only control message that remains.
+	assert_int_equal(msg.msg_controllen, CMSG_SPACE(sizeof(struct scm_timestamping)));
+	struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+	assert_non_null(cmsg);
+	assert_int_equal(cmsg->cmsg_level, SOL_SOCKET);
+	assert_int_equal(cmsg->cmsg_type, SCM_TIMESTAMPING);
+	assert_null(CMSG_NXTHDR(&msg, cmsg));
+}
+
 static void test_socket_receive_empty_error_queue(void **state)
 {
 	struct socket_fixture *fixture = *state;
@@ -807,6 +903,9 @@ int run_socket_tests(void)
 		cmocka_unit_test_setup_teardown(test_socket_receive_no_control_messages, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_receive_error_queue, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_receive_empty_error_queue, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_send_control_message, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_receive_drops_control_messages, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_receive_keeps_the_timestamps, setup_fixture, teardown_fixture),
 #endif
 		cmocka_unit_test_setup_teardown(
 			test_socket_creation_failure_does_not_leak_the_descriptor, setup_fixture, teardown_fixture),
