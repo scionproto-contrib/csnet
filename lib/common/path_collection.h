@@ -25,36 +25,3 @@ struct scion_path_collection {
 };
 
 int scion_path_collection_init(struct scion_path_collection **paths);
-
-void scion_path_collection_free(struct scion_path_collection *paths);
-
-struct scion_path *scion_path_collection_find(
-	struct scion_path_collection *paths, struct scion_path_predicate predicate);
-
-struct scion_path *scion_path_collection_pop(struct scion_path_collection *paths);
-
-struct scion_path *scion_path_collection_first(struct scion_path_collection *paths);
-
-void scion_path_collection_sort(struct scion_path_collection *paths, struct scion_path_comparator comparator);
-
-void scion_path_collection_filter(struct scion_path_collection *paths, struct scion_path_predicate predicate);
-
-size_t scion_path_collection_size(struct scion_path_collection *paths);
-
-struct scion_path **scion_path_collection_as_array(struct scion_path_collection *paths, size_t *len);
-
-/*
- * FUNCTION: scion_path_collection_print
- * -------------------
- * Prints all the paths from a collection.
- * """
- * [0]:  Hops: [1ff0000000111 42>2 1ff0000000110 3>51 1ff0000000112] MTU: 1280
- * [1]:  Hops: [1ff0000000111 42>2 1ff0000000110 4>52 1ff0000000112] MTU: 1280
- * [2]:  Hops: [1ff0000000111 41>1 1ff0000000110 3>51 1ff0000000112] MTU: 1280
- * [3]:  Hops: [1ff0000000111 41>1 1ff0000000110 4>52 1ff0000000112] MTU: 1280
- * """
- *
- * Arguments:
- *      - struct scion_path_collection *paths: Pointer to a scion_path_collection which contains scion_path structs.
- */
-void scion_path_collection_print(struct scion_path_collection *paths);
