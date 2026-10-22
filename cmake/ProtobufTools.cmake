@@ -25,7 +25,7 @@ function(scion_add_protobuf_tools)
             GIT_TAG v31.1
             GIT_SHALLOW TRUE
             UPDATE_DISCONNECTED TRUE
-            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${ARG_INSTALL_DIR} -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_PROTOC_BINARIES=ON -Dprotobuf_BUILD_LIBUPB=ON -Dprotobuf_WITH_ZLIB=OFF -DABSL_PROPAGATE_CXX_STD=ON ${cxx_args} ${host_args}
+            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${ARG_INSTALL_DIR} -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_PROTOC_BINARIES=ON -Dprotobuf_BUILD_LIBUPB=ON -Dprotobuf_WITH_ZLIB=OFF -DABSL_PROPAGATE_CXX_STD=ON ${cxx_args} ${host_args} ${DEPENDENCY_LAUNCHER_ARGS}
             BUILD_BYPRODUCTS ${ARG_INSTALL_DIR}/bin/protoc
     )
 
@@ -38,7 +38,7 @@ function(scion_add_protobuf_tools)
             UPDATE_DISCONNECTED TRUE
             SOURCE_SUBDIR build-cmake
             DEPENDS protobuf
-            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${ARG_INSTALL_DIR} -DCMAKE_PREFIX_PATH=${ARG_INSTALL_DIR} -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTS=OFF -DBUILD_PROTOC=ON ${cxx_args} ${host_args}
+            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${ARG_INSTALL_DIR} -DCMAKE_PREFIX_PATH=${ARG_INSTALL_DIR} -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTS=OFF -DBUILD_PROTOC=ON ${cxx_args} ${host_args} ${DEPENDENCY_LAUNCHER_ARGS}
             BUILD_BYPRODUCTS ${ARG_INSTALL_DIR}/lib/libprotobuf-c.a ${ARG_INSTALL_DIR}/bin/protoc-gen-c
     )
 endfunction()

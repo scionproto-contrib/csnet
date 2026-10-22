@@ -26,6 +26,10 @@ set(ALLOW_DUPLICATE_CUSTOM_TARGETS TRUE)
 set(CMAKE_MAKEFILE true)
 set(BUILD_TESTING ${BUILD_TESTS})
 
+# ExternalProject does not pass the compiler launchers (for example ccache) on to the dependencies.
+set(DEPENDENCY_LAUNCHER_ARGS -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
+        -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER})
+
 if (BUILD_LIB OR BUILD_CMD OR BUILD_TESTS OR BUILD_EXAMPLES)
     add_subdirectory(lib)
 endif ()

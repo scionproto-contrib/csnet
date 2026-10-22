@@ -3,6 +3,12 @@ set(DEPENDENCY_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/dependencies)
 # The dependencies that use make would otherwise be built with one job.
 cmake_host_system_information(RESULT JOBS QUERY NUMBER_OF_LOGICAL_CORES)
 
+# The same goes for the dependencies that use configure scripts and make, which take the compiler from CC.
+if (CMAKE_C_COMPILER_LAUNCHER)
+    string(JOIN " " DEPENDENCY_CC ${CMAKE_C_COMPILER_LAUNCHER} ${CMAKE_C_COMPILER})
+    set(DEPENDENCY_ENV ${CMAKE_COMMAND} -E env "CC=${DEPENDENCY_CC}")
+endif ()
+
 add_executable(bootstrapper_example bootstrapper.c)
 target_link_libraries(bootstrapper_example PRIVATE scion)
 
@@ -43,7 +49,7 @@ ExternalProject_Add(
         GIT_TAG master
         GIT_SHALLOW TRUE
         UPDATE_DISCONNECTED TRUE
-        CONFIGURE_COMMAND ./configure --prefix=${DEPENDENCY_INSTALL_DIR} --disable-shared
+        CONFIGURE_COMMAND ${DEPENDENCY_ENV} ./configure --prefix=${DEPENDENCY_INSTALL_DIR} --disable-shared
         BUILD_COMMAND make -j${JOBS}
         INSTALL_COMMAND make install
         BUILD_IN_SOURCE 1
@@ -57,7 +63,7 @@ ExternalProject_Add(
         GIT_TAG OpenSSL_1_1_1w+quic
         GIT_SHALLOW TRUE
         UPDATE_DISCONNECTED TRUE
-        CONFIGURE_COMMAND ./config --prefix=${DEPENDENCY_INSTALL_DIR} --openssldir=${DEPENDENCY_INSTALL_DIR}/ssl no-shared no-tests
+        CONFIGURE_COMMAND ${DEPENDENCY_ENV} ./config --prefix=${DEPENDENCY_INSTALL_DIR} --openssldir=${DEPENDENCY_INSTALL_DIR}/ssl no-shared no-tests
         BUILD_COMMAND make -j${JOBS}
         INSTALL_COMMAND make install_sw
         BUILD_IN_SOURCE 1
@@ -71,7 +77,7 @@ ExternalProject_Add(
         GIT_TAG v1.12.0
         GIT_SHALLOW TRUE
         UPDATE_DISCONNECTED TRUE
-        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DENABLE_LIB_ONLY=ON -DENABLE_SHARED_LIB=OFF -DBUILD_TESTING=OFF -DOPENSSL_ROOT_DIR=${DEPENDENCY_INSTALL_DIR} -DLIBEV_INCLUDE_DIR=${DEPENDENCY_INSTALL_DIR}/include -DLIBEV_LIBRARY=${DEPENDENCY_INSTALL_DIR}/lib -DENABLE_DEBUG=ON
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DENABLE_LIB_ONLY=ON -DENABLE_SHARED_LIB=OFF -DBUILD_TESTING=OFF -DOPENSSL_ROOT_DIR=${DEPENDENCY_INSTALL_DIR} -DLIBEV_INCLUDE_DIR=${DEPENDENCY_INSTALL_DIR}/include -DLIBEV_LIBRARY=${DEPENDENCY_INSTALL_DIR}/lib -DENABLE_DEBUG=ON ${DEPENDENCY_LAUNCHER_ARGS}
         BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libngtcp2.a ${DEPENDENCY_INSTALL_DIR}/lib/libngtcp2_crypto_quictls.a
 )
 add_dependencies(ngtcp2 libev quictls)
