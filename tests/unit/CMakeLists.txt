@@ -5,6 +5,7 @@ ExternalProject_Add(
         cmocka
         GIT_REPOSITORY https://gitlab.com/cmocka/cmocka.git
         GIT_TAG cmocka-2.0.2
+        GIT_SHALLOW TRUE
         UPDATE_DISCONNECTED TRUE
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DWITH_EXAMPLES=OFF
         BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libcmocka.a
