@@ -396,7 +396,7 @@ void scion_path_collection_print(struct scion_path_collection *paths);
  * @return 0 on success, a negative error code on failure.
  */
 int scion_path_collection_fetch(
-	struct scion_network *network, scion_ia dst, uint opt, struct scion_path_collection **paths);
+	struct scion_network *network, scion_ia dst, unsigned int opt, struct scion_path_collection **paths);
 
 #ifdef __cplusplus
 }

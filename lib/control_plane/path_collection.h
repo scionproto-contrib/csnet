@@ -36,4 +36,5 @@
  * Returns:
  *      - An integer status code, 0 for success or an error code as defined in error.h.
  */
-int scion_path_collection_fetch(struct scion_network *network, scion_ia dst, uint opt, struct scion_path_collection **paths);
+int scion_path_collection_fetch(
+	struct scion_network *network, scion_ia dst, unsigned int opt, struct scion_path_collection **paths);

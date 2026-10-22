@@ -38,4 +38,4 @@
  */
 int scion_build_paths(scion_ia src, scion_ia dst, struct scion_topology *topology, struct scion_path_segment **ups,
 	size_t ups_length, struct scion_path_segment **cores, size_t cores_length, struct scion_path_segment **downs,
-	size_t downs_length, struct scion_list *paths, uint opt);
+	size_t downs_length, struct scion_list *paths, unsigned int opt);
