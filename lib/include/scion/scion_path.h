@@ -382,7 +382,15 @@ size_t scion_path_collection_size(struct scion_path_collection *paths);
 struct scion_path **scion_path_collection_as_array(struct scion_path_collection *paths, size_t *len);
 
 /**
- * Prints a path collection to stdout.
+ * Prints a path collection to stdout, grouped by the number of hops. For example:
+ * @code
+ * Available paths:
+ * 3 Hops:
+ * [0]:  Hops: [1-ff00:0:111 42>2 1-ff00:0:110 3>51 1-ff00:0:112] MTU: 1280
+ * [1]:  Hops: [1-ff00:0:111 42>2 1-ff00:0:110 4>52 1-ff00:0:112] MTU: 1280
+ * [2]:  Hops: [1-ff00:0:111 41>1 1-ff00:0:110 3>51 1-ff00:0:112] MTU: 1280
+ * [3]:  Hops: [1-ff00:0:111 41>1 1-ff00:0:110 4>52 1-ff00:0:112] MTU: 1280
+ * @endcode
  * @param[in] paths The path list to print.
  */
 void scion_path_collection_print(struct scion_path_collection *paths);

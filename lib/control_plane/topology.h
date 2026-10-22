@@ -64,9 +64,3 @@ int scion_topology_next_underlay_hop(
  *      - A Boolean: true if the local AS is a CORE AS, false if it's not a CORE AS.
  */
 bool scion_topology_is_local_as_core(struct scion_topology *t);
-
-scion_ia scion_topology_get_local_ia(struct scion_topology *topo);
-
-int scion_topology_from_file(struct scion_topology **topology, const char *path);
-
-void scion_topology_free(struct scion_topology *topo);

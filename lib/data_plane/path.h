@@ -91,26 +91,6 @@ int scion_path_raw_init(struct scion_path_raw *raw_path, struct scion_path_meta_
 void scion_path_raw_free(struct scion_path_raw *raw_path);
 
 /*
- * FUNCTION: scion_path_metadata_free
- * -------------------
- * Frees a scion_path_metadata struct.
- *
- * Arguments:
- *      - struct scion_path_metadata *path_meta: Pointer to the path metadata to be free'd.
- */
-void scion_path_metadata_free(struct scion_path_metadata *path_meta);
-
-/*
- * FUNCTION: scion_path_free
- * -------------------
- * Frees a scion_path struct.
- *
- * Arguments:
- *      - struct scion_path *path: Pointer to the scion_path struct to be free'd.
- */
-void scion_path_free(struct scion_path *path);
-
-/*
  * FUNCTION: scion_path_raw_reverse
  * -------------------
  * Reverses a scion_path_raw. Used to respond to a packet received from a source where no
@@ -126,23 +106,7 @@ int scion_path_raw_reverse(struct scion_path_raw *path);
 
 void scion_path_print_interfaces(struct scion_path_interface *interfaces, size_t interfaces_len);
 
-/*
- * FUNCTION: scion_path_print
- * -------------------
- * Prints a path, i.e. the hops (ASes and interfaces) and metadata.
- * Example: "Hops: [1ff0000000111 41>1 1ff0000000110 3>51 1ff0000000112] MTU: 1280\n"
- * Important: ADDS newline character at the end.
- *
- * Arguments:
- *      - const struct scion_path *path: Pointer to the scion_path.
- */
-void scion_path_print(const struct scion_path *path);
-
 uint32_t scion_path_byte_size(struct scion_path *path, bool print_details);
-
-int scion_path_reverse(struct scion_path *path);
-
-size_t scion_path_get_numhops(const struct scion_path *path);
 
 /*
  * FUNCTION: scion_path_serialize
@@ -195,7 +159,3 @@ int scion_path_deserialize(
 	struct scion_list *hop_fields);
 
 int scion_path_meta_hdr_deserialize(const uint8_t *buf, struct scion_path_meta_hdr *hdr);
-
-const struct scion_path_metadata *scion_path_get_metadata(const struct scion_path *path);
-
-void scion_path_print_metadata(const struct scion_path *path);

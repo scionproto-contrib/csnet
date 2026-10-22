@@ -48,38 +48,3 @@ struct scion_socket {
 	bool debug;
 	struct scion_socket_timestamps *timestamps;
 };
-
-int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_family, int type,
-	enum scion_proto protocol, struct scion_network *network);
-
-int scion_bind(struct scion_socket *scion_sock, const struct sockaddr *addr, socklen_t addrlen);
-
-int scion_connect(struct scion_socket *scion_sock, const struct sockaddr *addr, socklen_t addrlen, scion_ia ia);
-
-ssize_t scion_send(struct scion_socket *scion_sock, const void *buf, size_t size, int flags);
-
-ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t size, int flags,
-	const struct sockaddr *dst_addr, socklen_t addrlen, scion_ia dst_ia, struct scion_path *path);
-
-ssize_t scion_sendmsg(
-	struct scion_socket *scion_sock, const struct msghdr *msg, int flags, scion_ia dst_ia, struct scion_path *path);
-
-ssize_t scion_recv(struct scion_socket *scion_sock, void *buf, size_t size, int flags);
-
-ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, int flags, struct sockaddr *src_addr,
-	socklen_t *addrlen, scion_ia *src_ia, struct scion_path **path);
-
-ssize_t scion_recvmsg(
-	struct scion_socket *scion_sock, struct msghdr *msg, int flags, scion_ia *src_ia, struct scion_path **path);
-
-int scion_close(struct scion_socket *scion_sock);
-
-int scion_getsockopt(struct scion_socket *scion_sock, int level, int optname, void *optval, socklen_t *optlen);
-
-int scion_setsockopt(struct scion_socket *scion_sock, int level, int optname, const void *optval, socklen_t optlen);
-
-int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, socklen_t *addrlen, scion_ia *ia);
-
-int scion_getsockfd(struct scion_socket *scion_sock, int *fd);
-
-int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy policy);

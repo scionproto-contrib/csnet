@@ -35,5 +35,3 @@ scion_isd scion_ia_get_isd(scion_ia ia);
 scion_as scion_ia_get_as(scion_ia ia);
 scion_ia scion_ia_to_wildcard(scion_ia ia);
 bool scion_ia_is_wildcard(scion_ia ia);
-void scion_ia_print(scion_ia ia);
-int scion_ia_parse(const char *str, size_t len, scion_ia *ia);
