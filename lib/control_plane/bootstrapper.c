@@ -32,15 +32,6 @@
 
 #define MAX_NAPTR_RECURSION_DEPTH 5
 
-// MAKE_NV based on nghttp2 - HTTP/2 client tutorial, by Tatsuhiro Tsujikawa
-// https://nghttp2.org/documentation/tutorial-client.html
-// clang-format off
-#define MAKE_NV(NAME, VALUE)                                                                 \
-{                                                                                        \
-(uint8_t *)NAME, (uint8_t *)VALUE, strlen(NAME), strlen(VALUE), NGHTTP2_NV_FLAG_NONE \
-}
-// clang-format on
-
 struct naptr_record {
 	uint16_t order;
 	uint16_t preference;

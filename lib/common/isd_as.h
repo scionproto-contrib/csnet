@@ -28,7 +28,6 @@
 
 typedef uint16_t scion_isd;
 typedef uint64_t scion_as;
-typedef uint64_t scion_ia;
 
 scion_ia scion_ia_from_isd_as(scion_isd isd, scion_as as);
 scion_isd scion_ia_get_isd(scion_ia ia);

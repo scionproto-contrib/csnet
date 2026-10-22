@@ -23,8 +23,6 @@
 #include "scion/scion_policy.h"
 #include "scion/scion_scmp.h"
 
-#define SCION_SO_DEBUG 200
-
 struct scion_socket_timestamps;
 
 struct scion_socket {
