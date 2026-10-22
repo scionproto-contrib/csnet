@@ -16,7 +16,6 @@
 #include <stdlib.h>
 
 #include "common/path_collection.h"
-#include "control_plane/policy.h"
 #include "data_plane/path.h"
 #include "scion/scion.h"
 #include "scion/scion_path.h"

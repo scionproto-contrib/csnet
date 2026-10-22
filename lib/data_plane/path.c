@@ -23,7 +23,6 @@
 #include "common/hop_field.h"
 #include "common/info_field.h"
 #include "common/isd_as.h"
-#include "control_plane/path_collection.h"
 #include "data_plane/path.h"
 #include "scion/scion_path.h"
 #include "util/endian.h"

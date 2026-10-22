@@ -20,8 +20,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "data_plane/scmp.h"
+#include "scion/scion_scmp.h"
 #include "util/endian.h"
+
+#define SCION_SCMP_HDR_LEN 4
+#define SCION_SCMP_ECHO_HDR_LEN (SCION_SCMP_HDR_LEN + 4)
 
 enum scion_scmp_type scion_scmp_get_type(const uint8_t *buf, uint16_t buf_len)
 {

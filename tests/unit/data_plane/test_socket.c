@@ -29,7 +29,6 @@
 #include "control_plane/network.h"
 #include "control_plane/topology.h"
 #include "data_plane/path.h"
-#include "data_plane/scmp.h"
 #include "data_plane/socket.h"
 #include "scion/scion.h"
 #include "scion/scion_path.h"
@@ -366,7 +365,7 @@ static void test_socket_scmp_echo_round_trip(void **state)
 	uint8_t data[] = { 1, 2, 3 };
 	struct scion_scmp_echo echo
 		= { .type = SCION_SCMP_TYPE_ECHO_REQUEST, .id = 7, .seqno = 3, .data = data, .data_length = sizeof(data) };
-	uint8_t request[SCION_SCMP_ECHO_HDR_LEN + sizeof(data)];
+	uint8_t request[scion_scmp_echo_len(&echo)];
 	assert_int_equal(scion_scmp_echo_serialize(&echo, request, sizeof(request)), 0);
 
 	assert_int_equal(scion_sendto(sender, request, sizeof(request), 0, (struct sockaddr *)&receiver_addr,
