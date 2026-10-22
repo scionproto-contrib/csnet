@@ -1,5 +1,8 @@
 set(DEPENDENCY_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/dependencies)
 
+# The dependencies that use make would otherwise be built with one job.
+cmake_host_system_information(RESULT JOBS QUERY NUMBER_OF_LOGICAL_CORES)
+
 add_executable(bootstrapper_example bootstrapper.c)
 target_link_libraries(bootstrapper_example PRIVATE scion)
 
@@ -38,9 +41,10 @@ ExternalProject_Add(
         libev
         GIT_REPOSITORY https://github.com/enki/libev.git
         GIT_TAG master
+        GIT_SHALLOW TRUE
         UPDATE_DISCONNECTED TRUE
         CONFIGURE_COMMAND ./configure --prefix=${DEPENDENCY_INSTALL_DIR} --disable-shared
-        BUILD_COMMAND make
+        BUILD_COMMAND make -j${JOBS}
         INSTALL_COMMAND make install
         BUILD_IN_SOURCE 1
         BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libev.a
@@ -51,9 +55,10 @@ ExternalProject_Add(
         quictls
         GIT_REPOSITORY https://github.com/quictls/openssl.git
         GIT_TAG OpenSSL_1_1_1w+quic
+        GIT_SHALLOW TRUE
         UPDATE_DISCONNECTED TRUE
-        CONFIGURE_COMMAND ./config --prefix=${DEPENDENCY_INSTALL_DIR} --openssldir=${DEPENDENCY_INSTALL_DIR}/ssl no-shared
-        BUILD_COMMAND make
+        CONFIGURE_COMMAND ./config --prefix=${DEPENDENCY_INSTALL_DIR} --openssldir=${DEPENDENCY_INSTALL_DIR}/ssl no-shared no-tests
+        BUILD_COMMAND make -j${JOBS}
         INSTALL_COMMAND make install_sw
         BUILD_IN_SOURCE 1
         BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libssl.a ${DEPENDENCY_INSTALL_DIR}/lib/libcrypto.a
@@ -64,6 +69,7 @@ ExternalProject_Add(
         ngtcp2
         GIT_REPOSITORY https://github.com/ngtcp2/ngtcp2.git
         GIT_TAG v1.12.0
+        GIT_SHALLOW TRUE
         UPDATE_DISCONNECTED TRUE
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DENABLE_LIB_ONLY=ON -DENABLE_SHARED_LIB=OFF -DBUILD_TESTING=OFF -DOPENSSL_ROOT_DIR=${DEPENDENCY_INSTALL_DIR} -DLIBEV_INCLUDE_DIR=${DEPENDENCY_INSTALL_DIR}/include -DLIBEV_LIBRARY=${DEPENDENCY_INSTALL_DIR}/lib -DENABLE_DEBUG=ON
         BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libngtcp2.a ${DEPENDENCY_INSTALL_DIR}/lib/libngtcp2_crypto_quictls.a

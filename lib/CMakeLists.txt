@@ -9,6 +9,7 @@ ExternalProject_Add(
         nghttp2
         GIT_REPOSITORY https://github.com/nghttp2/nghttp2.git
         GIT_TAG v1.66.0
+        GIT_SHALLOW TRUE
         UPDATE_DISCONNECTED TRUE
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DENABLE_LIB_ONLY=ON -DBUILD_STATIC_LIBS=ON
         BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libnghttp2.a
@@ -19,6 +20,7 @@ ExternalProject_Add(
         zlib
         GIT_REPOSITORY https://github.com/madler/zlib
         GIT_TAG v1.3.1
+        GIT_SHALLOW TRUE
         UPDATE_DISCONNECTED TRUE
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DZLIB_BUILD_EXAMPLES=OFF
         BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libz.a
@@ -29,6 +31,7 @@ ExternalProject_Add(
         curl
         GIT_REPOSITORY https://github.com/curl/curl.git
         GIT_TAG curl-8_14_1
+        GIT_SHALLOW TRUE
         UPDATE_DISCONNECTED TRUE
         CMAKE_ARGS
         -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DHTTP_ONLY=ON -DBUILD_CURL_EXE=OFF -DBUILD_EXAMPLES=OFF

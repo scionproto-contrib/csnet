@@ -23,6 +23,7 @@ function(scion_add_protobuf_tools)
             protobuf
             GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
             GIT_TAG v31.1
+            GIT_SHALLOW TRUE
             UPDATE_DISCONNECTED TRUE
             CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${ARG_INSTALL_DIR} -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_PROTOC_BINARIES=ON -Dprotobuf_BUILD_LIBUPB=ON -Dprotobuf_WITH_ZLIB=OFF -DABSL_PROPAGATE_CXX_STD=ON ${cxx_args} ${host_args}
             BUILD_BYPRODUCTS ${ARG_INSTALL_DIR}/bin/protoc
@@ -33,6 +34,7 @@ function(scion_add_protobuf_tools)
             protobuf-c
             GIT_REPOSITORY https://github.com/protobuf-c/protobuf-c.git
             GIT_TAG v1.5.2
+            GIT_SHALLOW TRUE
             UPDATE_DISCONNECTED TRUE
             SOURCE_SUBDIR build-cmake
             DEPENDS protobuf
