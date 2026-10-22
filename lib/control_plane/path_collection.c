@@ -26,8 +26,6 @@
 #include "util/list.h"
 
 /**
- * FUNCTION: scion_path_collection_fetch
- * -----------------
  * Returns a list of available paths between a given source AS and a given destination AS by
  * fetching the required path segments from the local Control Server.
  *

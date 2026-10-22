@@ -94,8 +94,6 @@ struct scion_packet {
 };
 
 /*
- * FUNCTION: scion_packet_addr_type_len
- * -------------------
  * Returns the number of bytes required to represent a given raw address, depending on the type of the address.
  *
  * Arguments:
@@ -107,8 +105,6 @@ struct scion_packet {
 uint8_t scion_packet_addr_type_len(uint8_t addr_type);
 
 /*
- * FUNCTION: scion_packet_addr_hdr_len
- * -------------------
  * Returns the number of bytes required to represent the address header part of the SCION header of a given SCION
  * packet.
  *
@@ -123,8 +119,6 @@ uint16_t scion_packet_addr_hdr_len(struct scion_packet *packet);
 size_t scion_packet_len(struct scion_packet *packet);
 
 /*
- * FUNCTION: scion_packet_free_members
- * -------------------
  * Frees, if applicable, and set all internal members to 0 or NULL of a scion_packet struct, without freeing the struct
  * itself.
  *
@@ -134,8 +128,6 @@ size_t scion_packet_len(struct scion_packet *packet);
 void scion_packet_free_members(struct scion_packet *packet);
 
 /*
- * FUNCTION: scion_packet_free
- * -------------------
  * Frees a scion_packet struct.
  *
  * Arguments:
@@ -144,8 +136,6 @@ void scion_packet_free_members(struct scion_packet *packet);
 void scion_packet_free(struct scion_packet *packet);
 
 /*
- * FUNCTION: scion_packet_serialize
- * -----------------
  * Serializes a scion packet into the provided buffer.
  *
  * Arguments:
@@ -161,8 +151,6 @@ void scion_packet_free(struct scion_packet *packet);
 int scion_packet_serialize(struct scion_packet *packet, uint8_t *buf, size_t *buf_len);
 
 /*
- * FUNCTION: scion_packet_deserialize
- * -------------------
  * Takes a buffer which contains a serialized SCION packet and deserializes it into a scion_packet struct.
  * IMPORTANT: the scion_packet struct need to be allocated before calling this function.
  *
