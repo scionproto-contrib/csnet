@@ -580,9 +580,6 @@ static ssize_t scion_sendmsg_path(
 		underlying_msg.msg_iovlen = 1;
 		underlying_msg.msg_iov = iov;
 
-		underlying_msg.msg_control = msg->msg_control;
-		underlying_msg.msg_controllen = msg->msg_controllen;
-
 		underlying_msg.msg_flags = msg->msg_flags;
 
 		ret = sendmsg(scion_sock->socket_fd, &underlying_msg, flags);
@@ -700,6 +697,10 @@ ssize_t scion_sendmsg(
 	struct msghdr underlying_msg = *msg;
 
 	ssize_t ret;
+
+	if (msg->msg_control != NULL && msg->msg_controllen > 0) {
+		return SCION_ERR_CONTROL_MSG_NOT_IMPLEMENTED;
+	}
 
 	if (path == NULL && scion_sock->network == NULL) {
 		return SCION_ERR_NETWORK_UNKNOWN;
@@ -831,6 +832,45 @@ static ssize_t recv_error_queue(struct scion_socket *scion_sock, struct msghdr *
 	return ret;
 }
 #endif
+
+// Whether the library implements a control message of the underlying socket.
+static bool is_implemented_control_message(const struct cmsghdr *cmsg)
+{
+#ifdef SCM_TIMESTAMPING
+	return cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_TIMESTAMPING;
+#else
+	(void)cmsg;
+	return false;
+#endif
+}
+
+// Removes the control messages that the library does not implement, and moves the others to the start of the buffer.
+static void remove_unimplemented_control_messages(struct msghdr *msg)
+{
+	char *control = msg->msg_control;
+	size_t kept = 0;
+
+	struct cmsghdr *cmsg = CMSG_FIRSTHDR(msg);
+	while (cmsg != NULL) {
+		// A message that is moved is overwritten, so the next one is looked up first.
+		struct cmsghdr *next = CMSG_NXTHDR(msg, cmsg);
+
+		if (is_implemented_control_message(cmsg) && cmsg->cmsg_len >= CMSG_LEN(0)) {
+			size_t offset = (size_t)((char *)cmsg - control);
+			size_t space = CMSG_SPACE(cmsg->cmsg_len - CMSG_LEN(0));
+			if (space > msg->msg_controllen - offset) {
+				space = msg->msg_controllen - offset;
+			}
+
+			(void)memmove(control + kept, cmsg, space);
+			kept += space;
+		}
+
+		cmsg = next;
+	}
+
+	msg->msg_controllen = (socklen_t)kept;
+}
 
 ssize_t scion_recvmsg(
 	struct scion_socket *scion_sock, struct msghdr *msg, int flags, scion_ia *src_ia, struct scion_path **path)
@@ -1039,6 +1079,7 @@ ssize_t scion_recvmsg(
 
 		msg->msg_flags = raw_msg.msg_flags;
 		msg->msg_controllen = raw_msg.msg_controllen;
+		remove_unimplemented_control_messages(msg);
 
 		if (msg->msg_name != NULL) {
 			if (msg->msg_namelen < sender_addr_len) {

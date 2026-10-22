@@ -480,6 +480,8 @@ ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t si
  * @return The amount of data sent on success, a negative error code on failure.
  *
  * @note The currently supported send flags are MSG_CONFIRM, MSG_DONTWAIT and MSG_MORE.
+ * @note No control messages are implemented for sending. A message with control messages is rejected with
+ * SCION_ERR_CONTROL_MSG_NOT_IMPLEMENTED.
  */
 ssize_t scion_sendmsg(
 	struct scion_socket *scion_sock, const struct msghdr *msg, int flags, scion_ia dst_ia, struct scion_path *path);
@@ -527,8 +529,9 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
  * @return The amount of data received on success, a negative error code on failure.
  *
  * @note The currently supported receive flags are MSG_DONTWAIT and MSG_PEEK. On Linux, MSG_ERRQUEUE is supported, too.
- * @note The control messages of the underlying socket are returned in the control buffer of the message, for example
- * the SCM_TIMESTAMPING message that the socket option SO_TIMESTAMPING enables.
+ * @note The only control message that is returned in the control buffer of the message is SCM_TIMESTAMPING, which the
+ * socket option SO_TIMESTAMPING enables. The other control messages of the underlying socket describe it and not the
+ * SCION packet, so they are removed.
  * @note MSG_ERRQUEUE reads the error queue of the underlying socket, where the kernel puts the transmit timestamps.
  * The message is returned as the kernel provides it, without the sender IA and the path.
  */
