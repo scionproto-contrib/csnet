@@ -99,6 +99,8 @@ char *scion_strerror(int err)
 		return "not supported";
 	case SCION_ERR_PERMISSION_DENIED:
 		return "permission denied";
+	case SCION_ERR_CONTROL_MSG_NOT_IMPLEMENTED:
+		return "control message not implemented";
 	default:
 		return "unknown error";
 	}

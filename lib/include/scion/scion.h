@@ -212,6 +212,10 @@ enum scion_error {
 	 * The operation requires privileges the process does not have.
 	 */
 	SCION_ERR_PERMISSION_DENIED = -38,
+	/**
+	 * The control message is not implemented by the library.
+	 */
+	SCION_ERR_CONTROL_MSG_NOT_IMPLEMENTED = -39,
 	// Internal errors
 	SCION_ERR_NOT_ENOUGH_DATA = -201,
 	SCION_ERR_PACKET_FIELD_INVALID = -202,
