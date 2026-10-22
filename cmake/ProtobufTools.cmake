@@ -16,6 +16,13 @@ function(scion_add_protobuf_tools)
         find_program(HOST_CXX_COMPILER NAMES c++ g++ clang++ REQUIRED)
         set(host_args -DCMAKE_TOOLCHAIN_FILE= -DCMAKE_C_COMPILER=${HOST_C_COMPILER}
                 -DCMAKE_CXX_COMPILER=${HOST_CXX_COMPILER})
+
+        # The cross-compiled build has no compiler launcher for the host compilers, so use ccache if it is installed.
+        find_program(HOST_CCACHE ccache)
+        if (HOST_CCACHE)
+            list(APPEND host_args -DCMAKE_C_COMPILER_LAUNCHER=${HOST_CCACHE}
+                    -DCMAKE_CXX_COMPILER_LAUNCHER=${HOST_CCACHE})
+        endif ()
     endif ()
 
     # Fetch protobuf
