@@ -570,7 +570,11 @@ int http2_rpc_perform_read_write(http2_rpc_handle *hd)
 
 		if (want_read) {
 			ret = nghttp2_session_recv(hd->nghttp2_session);
-			if (ret != 0 && ret != NGHTTP2_ERR_EOF) {
+			if (ret != 0) {
+				if (ret == NGHTTP2_ERR_EOF) {
+					// The control service closed the connection
+					break;
+				}
 				return ret;
 			}
 		}
