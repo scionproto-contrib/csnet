@@ -33,8 +33,6 @@ char *scion_strerror(int err)
 		return "unknown address family";
 	case SCION_ERR_MAX_HDR_LEN_EXCEEDED:
 		return "max header length exceeded";
-	case SCION_ERR_GRPC_FAIL:
-		return "grpc error";
 	case SCION_ERR_FILE_NOT_FOUND:
 		return "file not found";
 	case SCION_ERR_TOPOLOGY_INVALID:
@@ -101,6 +99,14 @@ char *scion_strerror(int err)
 		return "permission denied";
 	case SCION_ERR_CONTROL_MSG_NOT_IMPLEMENTED:
 		return "control message not implemented";
+	case SCION_ERR_CONTROL_SERVICE_CONNECT_FAIL:
+		return "could not connect to the control service";
+	case SCION_ERR_CONTROL_SERVICE_REQUEST_FAIL:
+		return "request to the control service failed";
+	case SCION_ERR_CONTROL_SERVICE_RESPONSE_INVALID:
+		return "invalid response of the control service";
+	case SCION_ERR_CONTROL_SERVICE_ERROR:
+		return "control service error";
 	default:
 		return "unknown error";
 	}
