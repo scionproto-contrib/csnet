@@ -377,6 +377,17 @@ static int protobuf_to_path_segments(
 }
 
 /*
+ * Returns the error for a gRPC status code that is not 0. The status code is -1 if the control service did not send one.
+ */
+static int grpc_status_to_error(int grpc_status_code)
+{
+	if (grpc_status_code == -1) {
+		return SCION_ERR_CONTROL_SERVICE_REQUEST_FAIL;
+	}
+	return SCION_ERR_CONTROL_SERVICE_ERROR;
+}
+
+/*
  *  Looks up the path segments required to build a path between a given source AS and destination AS
  *  by making the required gRPC calls to a SCION control server.
  *
@@ -431,14 +442,14 @@ int scion_path_segments_lookup(
 	}
 
 	if (hd.grpc_status_code != 0) {
-		ret = SCION_ERR_GRPC_FAIL;
+		ret = grpc_status_to_error(hd.grpc_status_code);
 		goto cleanup_rpc_handle;
 	}
 
 	Proto__ControlPlane__V1__SegmentsResponse *response = proto__control_plane__v1__segments_response__unpack(
 		NULL, hd.bytes_written, (const uint8_t *)hd.output_buffer);
 	if (response == NULL) {
-		ret = -1;
+		ret = SCION_ERR_CONTROL_SERVICE_RESPONSE_INVALID;
 		goto cleanup_rpc_handle;
 	}
 
@@ -539,7 +550,7 @@ int scion_dst_core_check(struct scion_topology *topology, scion_ia src, scion_ia
 			Proto__ControlPlane__V1__SegmentsResponse *response = proto__control_plane__v1__segments_response__unpack(
 				NULL, hd.bytes_written, (const uint8_t *)hd.output_buffer);
 			if (response == NULL) {
-				ret = SCION_ERR_GENERIC;
+				ret = SCION_ERR_CONTROL_SERVICE_RESPONSE_INVALID;
 			} else if (response->n_segments > 0) {
 				int32_t seg_type = response->segments[0]->key;
 				if (seg_type == 3) {
@@ -556,7 +567,7 @@ int scion_dst_core_check(struct scion_topology *topology, scion_ia src, scion_ia
 			}
 			proto__control_plane__v1__segments_response__free_unpacked(response, NULL);
 		} else {
-			ret = SCION_ERR_GRPC_FAIL;
+			ret = grpc_status_to_error(hd.grpc_status_code);
 		}
 	} else {
 		if (hd.grpc_status_code == 0) {
@@ -564,7 +575,7 @@ int scion_dst_core_check(struct scion_topology *topology, scion_ia src, scion_ia
 		} else if (hd.grpc_status_code == 2) {
 			ret = 0;
 		} else {
-			ret = SCION_ERR_GRPC_FAIL;
+			ret = grpc_status_to_error(hd.grpc_status_code);
 		}
 	}
 

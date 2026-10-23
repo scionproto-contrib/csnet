@@ -29,6 +29,7 @@
 #include <nghttp2/nghttp2.h>
 #include <zlib.h>
 
+#include "scion/scion.h"
 #include "util/http2_rpc.h"
 
 // MAKE_NV based on nghttp2 - HTTP/2 client tutorial, by Tatsuhiro Tsujikawa
@@ -503,20 +504,20 @@ int http2_rpc_connect(http2_rpc_handle *hd)
 	hd->socket_fd = socket(hd->dst_addr->sa_family, SOCK_STREAM, 0);
 	if (hd->socket_fd == -1) {
 		http2_rpc_handle_free(hd);
-		return -1;
+		return SCION_ERR_CONTROL_SERVICE_CONNECT_FAIL;
 	}
 
 	ret = connect(hd->socket_fd, hd->dst_addr, hd->dst_addr_len);
 	if (ret != 0) {
 		http2_rpc_handle_free(hd);
-		return ret;
+		return SCION_ERR_CONTROL_SERVICE_CONNECT_FAIL;
 	}
 
 	struct timeval receiving_timeout;
 	receiving_timeout.tv_sec = 1;
 	receiving_timeout.tv_usec = 0;
 	if (setsockopt(hd->socket_fd, SOL_SOCKET, SO_RCVTIMEO, &receiving_timeout, sizeof(receiving_timeout)) < 0) {
-		return -1;
+		return SCION_ERR_CONTROL_SERVICE_CONNECT_FAIL;
 	}
 
 	struct linger linger;
@@ -533,13 +534,13 @@ int http2_rpc_connect(http2_rpc_handle *hd)
 	// Set socket to non-blocking
 	int flags = fcntl(hd->socket_fd, F_GETFL, 0);
 	if (fcntl(hd->socket_fd, F_SETFL, O_NONBLOCK | flags) < 0) {
-		return -1;
+		return SCION_ERR_CONTROL_SERVICE_CONNECT_FAIL;
 	}
 
 	ret = nghttp2_init(hd);
 	if (ret != 0) {
 		http2_rpc_handle_free(hd);
-		return ret;
+		return SCION_ERR_CONTROL_SERVICE_REQUEST_FAIL;
 	}
 	return 0;
 }
@@ -596,7 +597,7 @@ int http2_rpc_request(http2_rpc_handle *hd, const char *path, const u_int8_t *da
 	ret = http2_rpc_connect(hd);
 	if (ret != 0) {
 		http2_rpc_handle_free(hd);
-		return -1;
+		return ret;
 	}
 
 	(void)http2_rpc_send_ping(hd);
@@ -616,20 +617,20 @@ int http2_rpc_request(http2_rpc_handle *hd, const char *path, const u_int8_t *da
 		hd->nghttp2_session, NULL, headers, sizeof(headers) / sizeof(headers[0]), &data_provider, hd);
 	if (ret < 0) {
 		http2_rpc_handle_free(hd);
-		return ret;
+		return SCION_ERR_CONTROL_SERVICE_REQUEST_FAIL;
 	}
 
 	ret = http2_rpc_perform_read_write(hd);
 	if (ret < 0) {
 		http2_rpc_handle_free(hd);
-		return ret;
+		return SCION_ERR_CONTROL_SERVICE_REQUEST_FAIL;
 	}
 
 	// Attempt to decompress gRPC response if it's gzip compressed
 	ret = decompress_grpc_response(hd);
 	if (ret < 0) {
 		http2_rpc_handle_free(hd);
-		return -1;
+		return SCION_ERR_CONTROL_SERVICE_RESPONSE_INVALID;
 	}
 	if (ret > 0) {
 		if (hd->bytes_written >= 5) {

@@ -216,10 +216,25 @@ enum scion_error {
 	 * The control message is not implemented by the library.
 	 */
 	SCION_ERR_CONTROL_MSG_NOT_IMPLEMENTED = -39,
+	/**
+	 * The connection to the control service could not be established.
+	 */
+	SCION_ERR_CONTROL_SERVICE_CONNECT_FAIL = -40,
+	/**
+	 * The request to the control service failed, or the control service did not answer it.
+	 */
+	SCION_ERR_CONTROL_SERVICE_REQUEST_FAIL = -41,
+	/**
+	 * The response of the control service could not be decoded.
+	 */
+	SCION_ERR_CONTROL_SERVICE_RESPONSE_INVALID = -42,
+	/**
+	 * The control service answered the request with an error.
+	 */
+	SCION_ERR_CONTROL_SERVICE_ERROR = -43,
 	// Internal errors
 	SCION_ERR_NOT_ENOUGH_DATA = -201,
 	SCION_ERR_PACKET_FIELD_INVALID = -202,
-	SCION_ERR_GRPC_FAIL = -203,
 	SCION_ERR_META_HDR_INVALID = -204,
 	SCION_ERR_PATH_TYPE_INVALID = -205,
 	SCION_ERR_SCMP_CODE_INVALID = -206,
