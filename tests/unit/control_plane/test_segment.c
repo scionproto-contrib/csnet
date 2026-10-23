@@ -12,13 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <arpa/inet.h>
 #include <cmocka.h>
+#include <netinet/in.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #include "common/isd_as.h"
 #include "common/path_segment.h"
 #include "control_plane/segment.h"
+#include "control_plane/topology.h"
 #include "scion/scion.h"
 #include "test_segment.h"
 
@@ -214,6 +220,95 @@ static void test_pathsegment_list_byte_size(void **)
 	scion_free_pathseglist_internal(&list);
 }
 
+// Starts listening on a free port of the loopback interface.
+static int listen_on_loopback(struct sockaddr_in *addr)
+{
+	int fd = socket(AF_INET, SOCK_STREAM, 0);
+	assert_true(fd >= 0);
+
+	memset(addr, 0, sizeof(*addr));
+	addr->sin_family = AF_INET;
+	addr->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	assert_int_equal(bind(fd, (struct sockaddr *)addr, sizeof(*addr)), 0);
+	assert_int_equal(listen(fd, 1), 0);
+
+	socklen_t addr_len = sizeof(*addr);
+	assert_int_equal(getsockname(fd, (struct sockaddr *)addr, &addr_len), 0);
+	return fd;
+}
+
+static void set_control_service(struct scion_topology *topology, const struct sockaddr_in *addr)
+{
+	memset(topology, 0, sizeof(*topology));
+	memcpy(&topology->cs_addr, addr, sizeof(*addr));
+	topology->cs_addr_len = sizeof(*addr);
+}
+
+// Starts a control service in a child process that answers two connections with the reply (if any) and closes them.
+static pid_t start_control_service(int listen_fd, const char *reply)
+{
+	pid_t pid = fork();
+	assert_true(pid >= 0);
+	if (pid == 0) {
+		for (int i = 0; i < 2; i++) {
+			int fd = accept(listen_fd, NULL, NULL);
+			if (fd >= 0 && reply != NULL) {
+				(void)write(fd, reply, strlen(reply));
+			}
+			if (fd >= 0) {
+				close(fd);
+			}
+		}
+		_exit(0);
+	}
+	return pid;
+}
+
+// Both requests to the control service fail with the expected error.
+static void assert_requests_fail(const struct sockaddr_in *addr, int expected)
+{
+	struct scion_topology topology;
+	set_control_service(&topology, addr);
+	scion_ia src = parse_ia("1-ff00:0:111");
+	scion_ia dst = parse_ia("1-ff00:0:112");
+
+	struct scion_path_segment_list segments;
+	assert_int_equal(scion_path_segments_lookup(&topology, src, dst, &segments), expected);
+	assert_int_equal(scion_dst_core_check(&topology, src, dst), expected);
+}
+
+static void test_requests_control_service_not_reachable(void **)
+{
+	// Nothing listens on the port after the listening socket is closed.
+	struct sockaddr_in addr;
+	close(listen_on_loopback(&addr));
+
+	assert_requests_fail(&addr, SCION_ERR_CONTROL_SERVICE_CONNECT_FAIL);
+}
+
+static void test_requests_control_service_closes_connection(void **)
+{
+	struct sockaddr_in addr;
+	int listen_fd = listen_on_loopback(&addr);
+
+	pid_t pid = start_control_service(listen_fd, NULL);
+	assert_requests_fail(&addr, SCION_ERR_CONTROL_SERVICE_REQUEST_FAIL);
+	waitpid(pid, NULL, 0);
+	close(listen_fd);
+}
+
+static void test_requests_control_service_sends_garbage(void **)
+{
+	struct sockaddr_in addr;
+	int listen_fd = listen_on_loopback(&addr);
+
+	const char *reply = "this is not http/2, it is some plain text of a server";
+	pid_t pid = start_control_service(listen_fd, reply);
+	assert_requests_fail(&addr, SCION_ERR_CONTROL_SERVICE_REQUEST_FAIL);
+	waitpid(pid, NULL, 0);
+	close(listen_fd);
+}
+
 int run_segment_tests(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -227,6 +322,9 @@ int run_segment_tests(void)
 		cmocka_unit_test(test_split_segments_diff_isd_neither_core),
 		cmocka_unit_test(test_free_pathseglist_internal),
 		cmocka_unit_test(test_pathsegment_list_byte_size),
+		cmocka_unit_test(test_requests_control_service_not_reachable),
+		cmocka_unit_test(test_requests_control_service_closes_connection),
+		cmocka_unit_test(test_requests_control_service_sends_garbage),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);
