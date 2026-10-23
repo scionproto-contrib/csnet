@@ -233,9 +233,16 @@ ssize_t data_provider_cb(nghttp2_session *session, int32_t stream_id, uint8_t *b
 // Based on idf-extra-components/sh2lib/sh2lib.c by Espressif Systems (Shanghai) CO LTD
 // https://github.com/espressif/idf-extra-components/blob/master/sh2lib/sh2lib.c
 
+// Sending to a connection that the control service closed must not raise SIGPIPE, which would terminate the process.
+#ifdef MSG_NOSIGNAL
+#define SEND_FLAGS MSG_NOSIGNAL
+#else
+#define SEND_FLAGS 0
+#endif
+
 static ssize_t callback_send_inner(http2_rpc_handle *hd, const uint8_t *data, size_t length)
 {
-	ssize_t ret = send(hd->socket_fd, data, length, 0);
+	ssize_t ret = send(hd->socket_fd, data, length, SEND_FLAGS);
 	if (ret <= 0) {
 		// TODO change to correct error messages using errno.
 		if (errno == EWOULDBLOCK) {
@@ -516,6 +523,12 @@ int http2_rpc_connect(http2_rpc_handle *hd)
 	linger.l_onoff = 1;
 	linger.l_linger = 0;
 	(void)setsockopt(hd->socket_fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger));
+
+#ifdef SO_NOSIGPIPE
+	// macOS has no MSG_NOSIGNAL
+	int no_sigpipe = 1;
+	(void)setsockopt(hd->socket_fd, SOL_SOCKET, SO_NOSIGPIPE, &no_sigpipe, sizeof(no_sigpipe));
+#endif
 
 	// Set socket to non-blocking
 	int flags = fcntl(hd->socket_fd, F_GETFL, 0);
