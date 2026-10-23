@@ -17,14 +17,20 @@
 #include <pthread.h>
 #include <scion/scion.h>
 #include <scion/scion_path.h>
+#include <stdatomic.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #define NUM_CLIENTS 4
+#define SERVER_START_TIMEOUT_S 10
+#define SERVER_POLL_INTERVAL_MS 10
 
 const char *topo_base_path;
+
+static atomic_bool server_started = false;
 
 struct host {
 	char *topo_path;
@@ -61,6 +67,7 @@ void *server_fn(void *arg)
 	assert(scion_bind(scion_sock, host->server_addr, host->server_addr_len) == 0);
 
 	printf("Started server\n");
+	atomic_store(&server_started, true);
 
 	while (1) {
 		struct sockaddr_storage client_addr;
@@ -158,7 +165,14 @@ int main(int argc, char *argv[])
 	pthread_t server_thread;
 	assert(pthread_create(&server_thread, NULL, server_fn, &server) == 0);
 
-	sleep(10); // Give the server some time to start
+	// Wait until the server is bound
+	for (int waited_ms = 0; !atomic_load(&server_started); waited_ms += SERVER_POLL_INTERVAL_MS) {
+		if (waited_ms >= SERVER_START_TIMEOUT_S * 1000) {
+			fprintf(stderr, "The server did not start\n");
+			exit(EXIT_FAILURE);
+		}
+		usleep(SERVER_POLL_INTERVAL_MS * 1000);
+	}
 
 	for (size_t i = 0; i < NUM_CLIENTS; i++) {
 		clients[i].server_addr = (struct sockaddr *)&server_addr;
