@@ -229,6 +229,8 @@ static int fetch_paths(struct scion_socket *scion_sock, scion_ia dst_ia, struct 
 		return ret;
 	}
 
+	scion_sock->policy.fn(*paths, scion_sock->policy.ctx);
+
 	return ret;
 }
 
@@ -345,8 +347,6 @@ static int refresh_connected_paths(struct scion_socket *scion_sock)
 	if (ret != 0) {
 		return ret;
 	}
-
-	scion_sock->policy.fn(scion_sock->paths, scion_sock->policy.ctx);
 
 	if (scion_path_collection_size(scion_sock->paths) == 0) {
 		return SCION_ERR_NO_PATHS;
@@ -751,6 +751,7 @@ ssize_t scion_sendmsg(
 
 		path = scion_path_collection_pop(paths);
 		if (path == NULL) {
+			scion_path_collection_free(paths);
 			return SCION_ERR_NO_PATHS;
 		}
 
