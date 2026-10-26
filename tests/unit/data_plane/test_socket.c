@@ -32,6 +32,7 @@
 #include "data_plane/socket.h"
 #include "scion/scion.h"
 #include "scion/scion_path.h"
+#include "scion/scion_policy.h"
 #include "socket_fixture.h"
 #include "test_socket.h"
 #include "util/list.h"
@@ -212,6 +213,57 @@ static void test_socket_connect_address_family_mismatch(void **state)
 	scion_ia local_ia = scion_topology_get_local_ia(fixture->topology);
 	assert_int_equal(
 		scion_connect(sock, (struct sockaddr *)&dst, sizeof(dst), local_ia), SCION_ERR_ADDR_FAMILY_MISMATCH);
+}
+
+static void count_policy_calls(struct scion_path_collection *paths, void *ctx)
+{
+	(void)paths;
+	(*(int *)ctx)++;
+}
+
+static bool reject_path(struct scion_path *path, void *ctx)
+{
+	(void)path;
+	(void)ctx;
+	return false;
+}
+
+static void remove_all_paths(struct scion_path_collection *paths, void *ctx)
+{
+	(void)ctx;
+	scion_path_collection_filter(paths, (struct scion_path_predicate){ .fn = reject_path });
+}
+
+static void test_socket_sendto_applies_the_policy(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(receiver);
+	struct sockaddr_in receiver_addr = bound_address(receiver);
+
+	int calls = 0;
+	assert_int_equal(scion_setsockpolicy(sender, (struct scion_policy){ .fn = count_policy_calls, .ctx = &calls }), 0);
+
+	assert_int_equal(scion_sendto(sender, "hello", 5, 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr),
+						 local_ia_of(fixture), NULL),
+		5);
+	assert_int_equal(calls, 1);
+}
+
+static void test_socket_sendto_policy_removes_all_paths(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(receiver);
+	struct sockaddr_in receiver_addr = bound_address(receiver);
+
+	assert_int_equal(scion_setsockpolicy(sender, (struct scion_policy){ .fn = remove_all_paths, .ctx = NULL }), 0);
+
+	assert_int_equal(scion_sendto(sender, "hello", 5, 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr),
+						 local_ia_of(fixture), NULL),
+		SCION_ERR_NO_PATHS);
 }
 
 static void test_socket_udp_round_trip(void **state)
@@ -887,6 +939,8 @@ int run_socket_tests(void)
 		cmocka_unit_test_setup_teardown(test_socket_send_path_for_other_destination, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_connect_address_family_mismatch, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_udp_round_trip, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_sendto_applies_the_policy, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_sendto_policy_removes_all_paths, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_empty_payload, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(
 			test_socket_receive_is_truncated_to_the_buffer, setup_fixture, teardown_fixture),
