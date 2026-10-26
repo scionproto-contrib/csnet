@@ -1022,12 +1022,12 @@ ssize_t scion_recvmsg(
 			goto cleanup_packet;
 		}
 
-		// SCMP error received
-		if (packet.next_hdr == SCION_PROTO_SCMP && scion_scmp_is_error(packet.payload, recv_len)) {
+		// SCMP error received. The whole message is needed, even if the buffer of the caller is smaller.
+		if (packet.next_hdr == SCION_PROTO_SCMP && scion_scmp_is_error(packet.payload, packet.payload_len)) {
 			// Trigger SCMP error callback
 			if (scion_sock->scmp_error_cb != NULL) {
 				struct scion_scmp_error scmp_error;
-				ret = scion_scmp_error_deserialize(packet.payload, recv_len, &scmp_error);
+				ret = scion_scmp_error_deserialize(packet.payload, packet.payload_len, &scmp_error);
 				if (ret == 0) {
 					scion_sock->scmp_error_cb(&scmp_error, scion_sock->scmp_error_ctx);
 					scion_scmp_error_free_members(&scmp_error);
