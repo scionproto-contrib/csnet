@@ -33,6 +33,7 @@
 #include "scion/scion.h"
 #include "scion/scion_path.h"
 #include "scion/scion_policy.h"
+#include "scion/scion_scmp.h"
 #include "socket_fixture.h"
 #include "test_socket.h"
 #include "util/list.h"
@@ -488,6 +489,37 @@ static void test_socket_scmp_error_calls_the_callback(void **state)
 	assert_int_equal(record.type, 1);
 	assert_int_equal(record.code, 4);
 	assert_uint_equal(record.packet_length, 2);
+}
+
+static void test_socket_scmp_error_with_small_buffer(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *generator = open_socket(fixture, SCION_SOCK_RAW, SCION_PROTO_SCMP);
+	struct scion_socket *sock = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(generator);
+	bind_loopback(sock);
+	struct sockaddr_in sock_addr = bound_address(sock);
+	set_receive_timeout(sock, 100);
+
+	struct scmp_error_record record = { 0 };
+	assert_int_equal(scion_setsockerrcb(sock, record_scmp_error, &record), 0);
+
+	struct scion_scmp_error error = { .type = SCION_SCMP_TYPE_EXTERNAL_INTERFACE_DOWN,
+		.info.external_interface_down = { .ia = local_ia_of(fixture), .interface = 5 } };
+	uint8_t message[64];
+	size_t message_len = scion_scmp_error_len(&error);
+	assert_true(message_len <= sizeof(message));
+	assert_int_equal(scion_scmp_error_serialize(&error, message, sizeof(message)), 0);
+	assert_int_equal(scion_sendto(generator, message, message_len, 0, (struct sockaddr *)&sock_addr, sizeof(sock_addr),
+						 local_ia_of(fixture), NULL),
+		(ssize_t)message_len);
+
+	// The buffer is smaller than the error message
+	char buf[4];
+	assert_int_equal(scion_recv(sock, buf, sizeof(buf), 0), SCION_ERR_WOULD_BLOCK);
+
+	assert_int_equal(record.calls, 1);
+	assert_int_equal(record.type, SCION_SCMP_TYPE_EXTERNAL_INTERFACE_DOWN);
 }
 
 static void test_socket_invalid_scmp_error_is_ignored(void **state)
@@ -949,6 +981,7 @@ int run_socket_tests(void)
 		cmocka_unit_test_setup_teardown(test_socket_connected_ignores_other_senders, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_scmp_echo_round_trip, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_scmp_error_calls_the_callback, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_scmp_error_with_small_buffer, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_invalid_scmp_error_is_ignored, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(
 			test_socket_scmp_informational_message_is_not_an_error, setup_fixture, teardown_fixture),
