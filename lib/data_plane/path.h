@@ -23,6 +23,7 @@
 #include "data_plane/underlay.h"
 #include "scion/scion.h"
 #include "scion/scion_path.h"
+#include "scion/scion_scmp.h"
 #include "util/list.h"
 
 #define SCION_MAX_INFS 3
@@ -44,6 +45,8 @@ struct scion_path {
 	struct scion_path_raw *raw_path;
 	struct scion_path_metadata *metadata;
 	uint32_t weight;
+	// The monotonic time in nanoseconds at which an SCMP error reported the path as down, 0 if it was not
+	uint64_t down_since;
 };
 
 struct scion_path_meta_hdr {
@@ -147,3 +150,15 @@ int scion_path_deserialize(
 	struct scion_list *hop_fields);
 
 int scion_path_meta_hdr_deserialize(const uint8_t *buf, struct scion_path_meta_hdr *hdr);
+
+/**
+ * Checks if two paths are the same. Paths are the same if they use the same interfaces, whatever their expiry times
+ * and MAC fields are.
+ */
+bool scion_path_is_same(const struct scion_path *a, const struct scion_path *b);
+
+/**
+ * Checks if an SCMP error affects a path. An external interface error affects the paths that use the interface. An
+ * internal connectivity error affects the paths that pass through the AS between the two interfaces.
+ */
+bool scion_path_is_affected_by_scmp_error(const struct scion_path *path, const struct scion_scmp_error *error);

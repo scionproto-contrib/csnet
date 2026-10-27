@@ -17,6 +17,7 @@
 #include <stdbool.h>
 
 #include "data_plane/path.h"
+#include "scion/scion_scmp.h"
 #include <scion/scion.h>
 #include <scion/scion_path.h>
 
@@ -25,3 +26,15 @@ struct scion_path_collection {
 };
 
 int scion_path_collection_init(struct scion_path_collection **paths);
+
+/**
+ * Marks the paths that an SCMP error affects as down. A path that is down keeps the time of its first mark.
+ */
+void scion_path_collection_mark_down(struct scion_path_collection *paths, const struct scion_scmp_error *error);
+
+/**
+ * Takes over the down marks of the old paths to the paths that are the same.
+ * @return The new path that is the same as the old current path, or NULL if there is none.
+ */
+struct scion_path *scion_path_collection_carry_over(struct scion_path_collection *new_paths,
+	struct scion_path_collection *old_paths, const struct scion_path *old_current);

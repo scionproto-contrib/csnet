@@ -54,6 +54,14 @@ int scion_path_reverse(struct scion_path *path);
 size_t scion_path_get_numhops(const struct scion_path *path);
 
 /**
+ * Checks if a path was reported as down. A socket marks the paths that are affected by an SCMP error that it
+ * receives. The mark is kept when the paths are refreshed.
+ * @param[in] path The path.
+ * @return true if the path was reported as down, false otherwise.
+ */
+bool scion_path_is_down(const struct scion_path *path);
+
+/**
  * Makes the border router of one interface of a path process the SCMP message sent along the path.
  *
  * The router alert flag of the hop field that belongs to the interface is set and the flag of every other hop field is

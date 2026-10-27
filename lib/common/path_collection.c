@@ -17,9 +17,12 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "common/path_collection.h"
+#include "data_plane/path.h"
 #include "scion/scion_path.h"
+#include "util/list.h"
 
 int scion_path_collection_init(struct scion_path_collection **paths)
 {
@@ -166,4 +169,51 @@ void scion_path_collection_print(struct scion_path_collection *paths)
 		i++;
 		curr = curr->next;
 	}
+}
+
+static uint64_t now_ns(void)
+{
+	struct timespec now;
+	(void)clock_gettime(CLOCK_MONOTONIC, &now);
+	return (uint64_t)now.tv_sec * 1000000000 + (uint64_t)now.tv_nsec + 1;
+}
+
+void scion_path_collection_mark_down(struct scion_path_collection *paths, const struct scion_scmp_error *error)
+{
+	assert(paths);
+
+	uint64_t now = now_ns();
+	for (struct scion_list_node *node = paths->list->first; node != NULL; node = node->next) {
+		struct scion_path *path = node->value;
+		if (path->down_since == 0 && scion_path_is_affected_by_scmp_error(path, error)) {
+			path->down_since = now;
+		}
+	}
+}
+
+struct scion_path *scion_path_collection_carry_over(struct scion_path_collection *new_paths,
+	struct scion_path_collection *old_paths, const struct scion_path *old_current)
+{
+	assert(new_paths);
+
+	struct scion_path *new_current = NULL;
+	if (old_paths == NULL) {
+		return NULL;
+	}
+
+	for (struct scion_list_node *new_node = new_paths->list->first; new_node != NULL; new_node = new_node->next) {
+		struct scion_path *new_path = new_node->value;
+		for (struct scion_list_node *old_node = old_paths->list->first; old_node != NULL; old_node = old_node->next) {
+			const struct scion_path *old_path = old_node->value;
+			if (scion_path_is_same(new_path, old_path)) {
+				new_path->down_since = old_path->down_since;
+				if (old_path == old_current) {
+					new_current = new_path;
+				}
+				break;
+			}
+		}
+	}
+
+	return new_current;
 }
