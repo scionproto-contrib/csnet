@@ -66,6 +66,7 @@ if (BUILD_DOCS)
             lib/include/scion/scion_path.h
             lib/include/scion/scion_policy.h
             lib/include/scion/scion_scmp.h
+            lib/include/scion/scion_selector.h
             lib/include/scion/scion_timestamp.h
             README.md
             docs/getting-started.md

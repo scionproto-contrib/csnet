@@ -24,6 +24,7 @@ set(SOURCES
         "../../lib/data_plane/path.c"
         "../../lib/data_plane/packet.c"
         "../../lib/data_plane/underlay.c"
+        "../../lib/data_plane/selector.c"
         "../../lib/data_plane/socket.c"
         "../../lib/data_plane/timestamp.c"
         "../../lib/data_plane/udp.c"

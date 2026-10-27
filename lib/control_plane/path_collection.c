@@ -66,6 +66,7 @@ int scion_path_collection_fetch(
 		empty_path->raw_path = NULL;
 		empty_path->metadata = NULL;
 		empty_path->weight = 0;
+		empty_path->down_since = 0;
 		scion_list_append(new_paths->list, empty_path);
 
 		ret = 0;

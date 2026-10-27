@@ -19,9 +19,9 @@ To use csnet in your C application, include the following public header:
 #include <scion/scion.h>
 ```
 
-The paths, the path policies, SCMP and the timestamps have their own headers, `scion/scion_path.h`,
-`scion/scion_policy.h`, `scion/scion_scmp.h` and `scion/scion_timestamp.h`, which are included in the same way when
-they are needed.
+The paths, the path policies, SCMP, the path selectors and the timestamps have their own headers, `scion/scion_path.h`,
+`scion/scion_policy.h`, `scion/scion_scmp.h`, `scion/scion_selector.h` and `scion/scion_timestamp.h`, which are
+included in the same way when they are needed.
 
 ### Creating the Topology and Network
 

@@ -520,3 +520,79 @@ void scion_path_print_metadata(const struct scion_path *path)
 {
 	scion_path_metadata_print(path->metadata);
 }
+
+// Two paths are the same if they use the same interfaces.
+bool scion_path_is_same(const struct scion_path *a, const struct scion_path *b)
+{
+	const struct scion_path_metadata *meta_a = scion_path_get_metadata(a);
+	const struct scion_path_metadata *meta_b = scion_path_get_metadata(b);
+
+	if (meta_a == NULL || meta_b == NULL) {
+		return meta_a == meta_b && a->path_type == b->path_type;
+	}
+	if (meta_a->interfaces_len != meta_b->interfaces_len) {
+		return false;
+	}
+	for (size_t i = 0; i < meta_a->interfaces_len; i++) {
+		const struct scion_path_interface *interface_a = &meta_a->interfaces[i];
+		const struct scion_path_interface *interface_b = &meta_b->interfaces[i];
+		if (interface_a->ia != interface_b->ia || interface_a->id != interface_b->id) {
+			return false;
+		}
+	}
+	return true;
+}
+
+static bool path_uses_interface(const struct scion_path_metadata *meta, scion_ia ia, scion_ifid id)
+{
+	for (size_t i = 0; i < meta->interfaces_len; i++) {
+		if (meta->interfaces[i].ia == ia && meta->interfaces[i].id == id) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// The path enters the AS on one of the interfaces and leaves it on the other one.
+static bool path_uses_connection(const struct scion_path_metadata *meta, scion_ia ia, scion_ifid one, scion_ifid other)
+{
+	for (size_t i = 0; i + 1 < meta->interfaces_len; i++) {
+		const struct scion_path_interface *first = &meta->interfaces[i];
+		const struct scion_path_interface *second = &meta->interfaces[i + 1];
+		if (first->ia == ia && second->ia == ia
+			&& ((first->id == one && second->id == other) || (first->id == other && second->id == one))) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool scion_path_is_affected_by_scmp_error(const struct scion_path *path, const struct scion_scmp_error *error)
+{
+	assert(path);
+	assert(error);
+
+	const struct scion_path_metadata *meta = scion_path_get_metadata(path);
+	if (meta == NULL) {
+		return false;
+	}
+
+	switch (error->type) {
+	case SCION_SCMP_TYPE_EXTERNAL_INTERFACE_DOWN:
+		return path_uses_interface(
+			meta, error->info.external_interface_down.ia, error->info.external_interface_down.interface);
+	case SCION_SCMP_TYPE_INTERNAL_CONNECTIVITY_DOWN:
+		return path_uses_connection(meta, error->info.internal_connectivity_down.ia,
+			error->info.internal_connectivity_down.ingress_interface,
+			error->info.internal_connectivity_down.egress_interface);
+	default:
+		return false;
+	}
+}
+
+bool scion_path_is_down(const struct scion_path *path)
+{
+	assert(path);
+
+	return path->down_since != 0;
+}

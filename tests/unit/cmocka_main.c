@@ -25,6 +25,7 @@
 #include "data_plane/test_packet.h"
 #include "data_plane/test_path.h"
 #include "data_plane/test_scmp.h"
+#include "data_plane/test_selector.h"
 #include "data_plane/test_socket.h"
 #include "data_plane/test_timestamp.h"
 #include "data_plane/test_udp.h"
@@ -50,6 +51,7 @@ int main(void)
 	failed += run_packet_tests();
 	failed += run_path_tests();
 	failed += run_scmp_tests();
+	failed += run_selector_tests();
 	failed += run_socket_tests();
 	failed += run_timestamp_tests();
 	failed += run_udp_tests();
