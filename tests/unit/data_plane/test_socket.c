@@ -34,6 +34,7 @@
 #include "scion/scion_path.h"
 #include "scion/scion_policy.h"
 #include "scion/scion_scmp.h"
+#include "scion/scion_selector.h"
 #include "socket_fixture.h"
 #include "test_socket.h"
 #include "util/list.h"
@@ -958,6 +959,162 @@ static void test_socket_receive_skips_malformed_packets(void **state)
 	assert_memory_equal(buf, "ok", 2);
 }
 
+struct recording_selector {
+	int calls;
+	const struct scion_path *last_current;
+	struct scion_path *last_chosen;
+	bool no_path;
+};
+
+static struct scion_path *recording_select(
+	struct scion_path_collection *paths, const struct scion_path *current, void *ctx)
+{
+	struct recording_selector *selector = ctx;
+	selector->calls++;
+	selector->last_current = current;
+	selector->last_chosen = selector->no_path ? NULL : scion_path_collection_first(paths);
+	return selector->last_chosen;
+}
+
+static struct scion_selector as_selector(struct recording_selector *selector)
+{
+	return (struct scion_selector){ .fn = recording_select, .ctx = selector };
+}
+
+// A client that is connected to a server in the local AS.
+static struct scion_socket *connect_to_server(
+	struct socket_fixture *fixture, struct scion_socket **server, struct sockaddr_in *server_addr)
+{
+	struct scion_socket *client = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	*server = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(*server);
+	*server_addr = bound_address(*server);
+	set_receive_timeout(*server, 1000);
+
+	assert_int_equal(
+		scion_connect(client, (struct sockaddr *)server_addr, sizeof(*server_addr), local_ia_of(fixture)), 0);
+	return client;
+}
+
+static void assert_received(struct scion_socket *server, const char *message)
+{
+	char buf[16] = { 0 };
+	assert_int_equal(scion_recv(server, buf, sizeof(buf), 0), (ssize_t)strlen(message));
+	assert_memory_equal(buf, message, strlen(message));
+}
+
+static void test_socket_selector_is_asked_for_every_packet(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *server;
+	struct sockaddr_in server_addr;
+	struct scion_socket *client = connect_to_server(fixture, &server, &server_addr);
+
+	struct recording_selector selector = { 0 };
+	assert_int_equal(scion_setsockselector(client, as_selector(&selector)), 0);
+	assert_int_equal(selector.calls, 0);
+
+	assert_int_equal(scion_send(client, "one", 3, 0), 3);
+	assert_received(server, "one");
+	assert_int_equal(selector.calls, 1);
+	assert_null(selector.last_current);
+	struct scion_path *first = selector.last_chosen;
+	assert_non_null(first);
+
+	// The selector gets the path of the previous packet
+	assert_int_equal(scion_send(client, "two", 3, 0), 3);
+	assert_received(server, "two");
+	assert_int_equal(selector.calls, 2);
+	assert_ptr_equal(selector.last_current, first);
+}
+
+static void test_socket_selector_without_a_path(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *server;
+	struct sockaddr_in server_addr;
+	struct scion_socket *client = connect_to_server(fixture, &server, &server_addr);
+
+	struct recording_selector selector = { .no_path = true };
+	assert_int_equal(scion_setsockselector(client, as_selector(&selector)), 0);
+
+	assert_int_equal(scion_send(client, "one", 3, 0), SCION_ERR_NO_PATHS);
+}
+
+static void test_socket_selector_before_the_connection(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *client = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *server = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(server);
+	struct sockaddr_in server_addr = bound_address(server);
+	set_receive_timeout(server, 1000);
+
+	struct recording_selector selector = { 0 };
+	assert_int_equal(scion_setsockselector(client, as_selector(&selector)), 0);
+	assert_int_equal(
+		scion_connect(client, (struct sockaddr *)&server_addr, sizeof(server_addr), local_ia_of(fixture)), 0);
+
+	assert_int_equal(scion_send(client, "one", 3, 0), 3);
+	assert_received(server, "one");
+	assert_int_equal(selector.calls, 1);
+}
+
+static void test_socket_scmp_error_marks_the_paths_as_down(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *generator = open_socket(fixture, SCION_SOCK_RAW, SCION_PROTO_SCMP);
+	bind_loopback(generator);
+	struct scion_socket *server;
+	struct sockaddr_in server_addr;
+	struct scion_socket *client = connect_to_server(fixture, &server, &server_addr);
+	struct sockaddr_in client_addr = bound_address(client);
+	set_receive_timeout(client, 100);
+
+	// The path of the local AS has no interfaces, so it gets some
+	struct scion_path *path = scion_path_collection_first(client->paths);
+	assert_null(path->metadata);
+	path->metadata = calloc(1, sizeof(*path->metadata));
+	path->metadata->interfaces_len = 2;
+	path->metadata->interfaces = calloc(2, sizeof(*path->metadata->interfaces));
+	path->metadata->interfaces[0] = (struct scion_path_interface){ .ia = local_ia_of(fixture), .id = 4 };
+	path->metadata->interfaces[1] = (struct scion_path_interface){ .ia = local_ia_of(fixture), .id = 5 };
+	assert_false(scion_path_is_down(path));
+
+	struct scion_scmp_error error = { .type = SCION_SCMP_TYPE_EXTERNAL_INTERFACE_DOWN,
+		.info.external_interface_down = { .ia = local_ia_of(fixture), .interface = 5 } };
+	uint8_t message[64];
+	size_t message_len = scion_scmp_error_len(&error);
+	assert_true(message_len <= sizeof(message));
+	assert_int_equal(scion_scmp_error_serialize(&error, message, sizeof(message)), 0);
+	assert_int_equal(scion_sendto(generator, message, message_len, 0, (struct sockaddr *)&client_addr,
+						 sizeof(client_addr), local_ia_of(fixture), NULL),
+		(ssize_t)message_len);
+
+	// There is no callback for SCMP errors, and the buffer is smaller than the error message
+	char buf[4];
+	assert_int_equal(scion_recv(client, buf, sizeof(buf), 0), SCION_ERR_WOULD_BLOCK);
+	assert_true(scion_path_is_down(path));
+}
+
+static void test_socket_failed_connect_keeps_the_destination(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *server;
+	struct sockaddr_in server_addr;
+	struct scion_socket *client = connect_to_server(fixture, &server, &server_addr);
+
+	// An IPv6 destination in an IPv4 network
+	struct sockaddr_in6 other = {
+		.sin6_family = AF_INET6, .sin6_addr = IN6ADDR_LOOPBACK_INIT, .sin6_port = htons(30000)
+	};
+	assert_int_equal(scion_connect(client, (struct sockaddr *)&other, sizeof(other), local_ia_of(fixture)),
+		SCION_ERR_ADDR_FAMILY_MISMATCH);
+
+	assert_int_equal(scion_send(client, "one", 3, 0), 3);
+	assert_received(server, "one");
+}
+
 int run_socket_tests(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -997,6 +1154,14 @@ int run_socket_tests(void)
 		cmocka_unit_test_setup_teardown(
 			test_socket_creation_failure_does_not_leak_the_descriptor, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_receive_skips_malformed_packets, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(
+			test_socket_selector_is_asked_for_every_packet, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_selector_without_a_path, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_selector_before_the_connection, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(
+			test_socket_scmp_error_marks_the_paths_as_down, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(
+			test_socket_failed_connect_keeps_the_destination, setup_fixture, teardown_fixture),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);

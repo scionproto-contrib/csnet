@@ -30,12 +30,14 @@
 #include "control_plane/topology.h"
 #include "data_plane/packet.h"
 #include "data_plane/path.h"
+#include "data_plane/selector.h"
 #include "data_plane/socket.h"
 #include "data_plane/timestamp.h"
 #include "data_plane/udp.h"
 #include "data_plane/underlay.h"
 #include "scion/scion_path.h"
 #include "scion/scion_policy.h"
+#include "scion/scion_selector.h"
 
 #ifndef MSG_CONFIRM
 #define MSG_CONFIRM 0
@@ -302,6 +304,8 @@ int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_f
 
 	scion_sock_storage->paths = NULL;
 	scion_sock_storage->policy = scion_policy_least_hops;
+	scion_sock_storage->selector = scion_selector_default;
+	scion_sock_storage->current_path = NULL;
 
 	scion_sock_storage->src_addr_len = sizeof(scion_sock_storage->src_addr);
 
@@ -341,21 +345,26 @@ cleanup_socket_storage:
 
 static int refresh_connected_paths(struct scion_socket *scion_sock)
 {
-	scion_path_collection_free(scion_sock->paths);
-
-	int ret = fetch_paths(scion_sock, scion_sock->dst_ia, &scion_sock->paths);
+	struct scion_path_collection *new_paths;
+	int ret = fetch_paths(scion_sock, scion_sock->dst_ia, &new_paths);
 	if (ret != 0) {
 		return ret;
 	}
 
-	if (scion_path_collection_size(scion_sock->paths) == 0) {
+	if (scion_path_collection_size(new_paths) == 0) {
+		scion_path_collection_free(new_paths);
 		return SCION_ERR_NO_PATHS;
 	}
 
-	if (scion_path_collection_first(scion_sock->paths)->path_type == SCION_PATH_TYPE_EMPTY
+	if (scion_path_collection_first(new_paths)->path_type == SCION_PATH_TYPE_EMPTY
 		&& scion_sock->dst_addr.ss_family != scion_sock->local_addr_family) {
+		scion_path_collection_free(new_paths);
 		return SCION_ERR_ADDR_FAMILY_MISMATCH;
 	}
+
+	scion_sock->current_path = scion_path_collection_carry_over(new_paths, scion_sock->paths, scion_sock->current_path);
+	scion_path_collection_free(scion_sock->paths);
+	scion_sock->paths = new_paths;
 
 	return 0;
 }
@@ -375,12 +384,20 @@ int scion_connect(struct scion_socket *scion_sock, const struct sockaddr *addr, 
 		return ret;
 	}
 
+	struct sockaddr_storage old_dst_addr = scion_sock->dst_addr;
+	socklen_t old_dst_addr_len = scion_sock->dst_addr_len;
+	scion_ia old_dst_ia = scion_sock->dst_ia;
+
 	(void)memcpy(&scion_sock->dst_addr, addr, addrlen);
 	scion_sock->dst_addr_len = addrlen;
 	scion_sock->dst_ia = ia;
 
 	ret = refresh_connected_paths(scion_sock);
 	if (ret != 0) {
+		// The paths still belong to the old destination
+		scion_sock->dst_addr = old_dst_addr;
+		scion_sock->dst_addr_len = old_dst_addr_len;
+		scion_sock->dst_ia = old_dst_ia;
 		return ret;
 	}
 
@@ -633,9 +650,16 @@ cleanup_packet:
 	return ret;
 }
 
+static struct scion_path *select_path(struct scion_socket *scion_sock)
+{
+	scion_sock->current_path = scion_sock->selector.fn(
+		scion_sock->paths, scion_sock->current_path, scion_sock->selector.ctx);
+	return scion_sock->current_path;
+}
+
 static ssize_t scion_sendmsg_connected_path(struct scion_socket *scion_sock, struct msghdr *msg, int flags)
 {
-	struct scion_path *path = scion_path_collection_first(scion_sock->paths);
+	struct scion_path *path = select_path(scion_sock);
 	if (path == NULL) {
 		return SCION_ERR_NO_PATHS;
 	}
@@ -648,7 +672,7 @@ static ssize_t scion_sendmsg_connected_path(struct scion_socket *scion_sock, str
 			return ret;
 		}
 
-		path = scion_path_collection_first(scion_sock->paths);
+		path = select_path(scion_sock);
 		if (path == NULL) {
 			return SCION_ERR_NO_PATHS;
 		}
@@ -1024,12 +1048,17 @@ ssize_t scion_recvmsg(
 
 		// SCMP error received. The whole message is needed, even if the buffer of the caller is smaller.
 		if (packet.next_hdr == SCION_PROTO_SCMP && scion_scmp_is_error(packet.payload, packet.payload_len)) {
-			// Trigger SCMP error callback
-			if (scion_sock->scmp_error_cb != NULL) {
+			// Mark the affected paths as down and trigger SCMP error callback
+			if (scion_sock->paths != NULL || scion_sock->scmp_error_cb != NULL) {
 				struct scion_scmp_error scmp_error;
 				ret = scion_scmp_error_deserialize(packet.payload, packet.payload_len, &scmp_error);
 				if (ret == 0) {
-					scion_sock->scmp_error_cb(&scmp_error, scion_sock->scmp_error_ctx);
+					if (scion_sock->paths != NULL) {
+						scion_path_collection_mark_down(scion_sock->paths, &scmp_error);
+					}
+					if (scion_sock->scmp_error_cb != NULL) {
+						scion_sock->scmp_error_cb(&scmp_error, scion_sock->scmp_error_ctx);
+					}
 					scion_scmp_error_free_members(&scmp_error);
 				} else if (scion_sock->debug) {
 					(void)fprintf(stderr, "Ignoring an SCMP error message that cannot be parsed (%s, code %d)\n",
@@ -1311,3 +1340,13 @@ int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy pol
 
 	return ret;
 };
+
+int scion_setsockselector(struct scion_socket *scion_sock, struct scion_selector selector)
+{
+	assert(scion_sock);
+	assert(selector.fn);
+
+	scion_sock->selector = selector;
+
+	return 0;
+}
