@@ -59,6 +59,16 @@ struct scion_selector {
 	void *ctx;
 };
 
+/**
+ * Sets the path selector of a socket. A socket that is connected uses it to choose the path of each packet. A new
+ * socket has a default selector that keeps using the current path for as long as possible. If the current path is
+ * down, it uses the first path that is not down. If all paths are down, it uses the path that went down first.
+ * @param scion_sock The socket.
+ * @param selector The path selector.
+ * @return 0 on success, a negative error code on failure.
+ */
+int scion_setsockselector(struct scion_socket *scion_sock, struct scion_selector selector);
+
 #ifdef __cplusplus
 }
 #endif

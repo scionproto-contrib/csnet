@@ -22,6 +22,7 @@
 #include "scion/scion.h"
 #include "scion/scion_policy.h"
 #include "scion/scion_scmp.h"
+#include "scion/scion_selector.h"
 
 struct scion_socket_timestamps;
 
@@ -39,6 +40,8 @@ struct scion_socket {
 	scion_ia dst_ia;
 	struct scion_path_collection *paths;
 	struct scion_policy policy;
+	struct scion_selector selector;
+	struct scion_path *current_path;
 	scion_socket_scmp_error_cb *scmp_error_cb;
 	void *scmp_error_ctx;
 	bool is_bound;
