@@ -27,6 +27,9 @@ target_link_libraries(features_example PRIVATE scion)
 add_executable(policy_example policy.c)
 target_link_libraries(policy_example PRIVATE scion)
 
+add_executable(selector_example selector.c)
+target_link_libraries(selector_example PRIVATE scion)
+
 add_executable(server_example server.c)
 target_link_libraries(server_example PRIVATE scion)
 
