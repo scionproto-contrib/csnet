@@ -23,6 +23,9 @@ The following examples are available:
 
 - `policy.c`: Shows how to use a custom path policy. Requires a running `scripts/run-testserver.sh`.
 
+- `selector.c`: Shows how to implement a custom path selector that sends each packet over the next path and skips the
+  paths that SCMP errors reported as down. Requires a running `scripts/run-testserver.sh`.
+
 - `bootstrapper.c`: Shows how to use the bootstrapper. Requires you to be in a network where DNS-bootstrapping is
   configured, e.g. in the ETHZ network (via VPN for example).
 
