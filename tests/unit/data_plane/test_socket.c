@@ -1115,6 +1115,111 @@ static void test_socket_failed_connect_keeps_the_destination(void **state)
 	assert_received(server, "one");
 }
 
+static void test_socket_selector_replaces_the_selector(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *server;
+	struct sockaddr_in server_addr;
+	struct scion_socket *client = connect_to_server(fixture, &server, &server_addr);
+
+	// The default selector chooses the path of the first packet
+	assert_int_equal(scion_send(client, "one", 3, 0), 3);
+	assert_received(server, "one");
+
+	struct recording_selector first = { 0 };
+	assert_int_equal(scion_setsockselector(client, as_selector(&first)), 0);
+	assert_int_equal(scion_send(client, "two", 3, 0), 3);
+	assert_received(server, "two");
+	assert_int_equal(first.calls, 1);
+	assert_non_null(first.last_current);
+
+	// The replaced selector is not called anymore
+	struct recording_selector second = { 0 };
+	assert_int_equal(scion_setsockselector(client, as_selector(&second)), 0);
+	assert_int_equal(scion_send(client, "three", 5, 0), 5);
+	assert_received(server, "three");
+	assert_int_equal(first.calls, 1);
+	assert_int_equal(second.calls, 1);
+	assert_ptr_equal(second.last_current, first.last_chosen);
+}
+
+static void test_socket_selector_survives_a_refresh(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *server;
+	struct sockaddr_in server_addr;
+	struct scion_socket *client = connect_to_server(fixture, &server, &server_addr);
+
+	struct recording_selector selector = { 0 };
+	assert_int_equal(scion_setsockselector(client, as_selector(&selector)), 0);
+	assert_int_equal(scion_send(client, "one", 3, 0), 3);
+	assert_received(server, "one");
+
+	// Setting the policy of a connected socket fetches the paths again
+	assert_int_equal(scion_setsockpolicy(client, scion_policy_least_hops), 0);
+	assert_int_equal(scion_send(client, "two", 3, 0), 3);
+	assert_received(server, "two");
+
+	// The current path is the same path in the new paths
+	assert_int_equal(selector.calls, 2);
+	assert_ptr_equal(selector.last_current, scion_path_collection_first(client->paths));
+}
+
+static void test_socket_selector_recovers_from_no_path(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *server;
+	struct sockaddr_in server_addr;
+	struct scion_socket *client = connect_to_server(fixture, &server, &server_addr);
+
+	struct recording_selector selector = { .no_path = true };
+	assert_int_equal(scion_setsockselector(client, as_selector(&selector)), 0);
+	assert_int_equal(scion_send(client, "one", 3, 0), SCION_ERR_NO_PATHS);
+
+	selector.no_path = false;
+	assert_int_equal(scion_send(client, "two", 3, 0), 3);
+	assert_received(server, "two");
+	assert_int_equal(selector.calls, 2);
+}
+
+static void test_socket_selector_not_used_unconnected(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *client = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *server = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(server);
+	struct sockaddr_in server_addr = bound_address(server);
+	set_receive_timeout(server, 1000);
+
+	struct recording_selector selector = { 0 };
+	assert_int_equal(scion_setsockselector(client, as_selector(&selector)), 0);
+
+	assert_int_equal(scion_sendto(client, "one", 3, 0, (struct sockaddr *)&server_addr, sizeof(server_addr),
+						 local_ia_of(fixture), NULL),
+		3);
+	assert_received(server, "one");
+	assert_int_equal(selector.calls, 0);
+}
+
+static void test_socket_selector_not_used_with_path(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *server;
+	struct sockaddr_in server_addr;
+	struct scion_socket *client = connect_to_server(fixture, &server, &server_addr);
+
+	struct recording_selector selector = { 0 };
+	assert_int_equal(scion_setsockselector(client, as_selector(&selector)), 0);
+
+	// A packet with a path of its own does not need the selector
+	struct scion_path *path = scion_path_collection_first(client->paths);
+	assert_int_equal(scion_sendto(client, "one", 3, 0, (struct sockaddr *)&server_addr, sizeof(server_addr),
+						 local_ia_of(fixture), path),
+		3);
+	assert_received(server, "one");
+	assert_int_equal(selector.calls, 0);
+}
+
 int run_socket_tests(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -1162,6 +1267,11 @@ int run_socket_tests(void)
 			test_socket_scmp_error_marks_the_paths_as_down, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(
 			test_socket_failed_connect_keeps_the_destination, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_selector_replaces_the_selector, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_selector_survives_a_refresh, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_selector_recovers_from_no_path, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_selector_not_used_unconnected, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_selector_not_used_with_path, setup_fixture, teardown_fixture),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);
