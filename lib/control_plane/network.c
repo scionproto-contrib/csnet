@@ -22,7 +22,7 @@
 
 #include "control_plane/network.h"
 
-int scion_network(struct scion_network **net, struct scion_topology *topology)
+int scion_network(struct scion_network **net, const struct scion_topology *topology)
 {
 	assert(net);
 	assert(topology);
@@ -44,7 +44,7 @@ void scion_network_free(struct scion_network *net)
 	free(net);
 }
 
-enum scion_addr_family scion_network_get_local_addr_family(struct scion_network *net)
+enum scion_addr_family scion_network_get_local_addr_family(const struct scion_network *net)
 {
 	return net->topology->local_addr_family;
 }

@@ -443,7 +443,7 @@ int scion_topology_from_file(struct scion_topology **topology, const char *path)
 }
 
 int scion_topology_next_underlay_hop(
-	struct scion_topology *topology, scion_ifid ifid, struct scion_underlay *underlay)
+	const struct scion_topology *topology, scion_ifid ifid, struct scion_underlay *underlay)
 {
 	assert(topology);
 	assert(topology->border_routers);
@@ -475,7 +475,7 @@ int scion_topology_next_underlay_hop(
 	return SCION_ERR_TOPOLOGY_INVALID;
 }
 
-bool scion_topology_is_local_as_core(struct scion_topology *t)
+bool scion_topology_is_local_as_core(const struct scion_topology *t)
 {
 	if (t == NULL) {
 		return false;
@@ -483,7 +483,7 @@ bool scion_topology_is_local_as_core(struct scion_topology *t)
 	return t->local_core;
 }
 
-scion_ia scion_topology_get_local_ia(struct scion_topology *topo)
+scion_ia scion_topology_get_local_ia(const struct scion_topology *topo)
 {
 	assert(topo != NULL);
 

@@ -98,7 +98,7 @@ void scion_path_collection_filter(struct scion_path_collection *paths, struct sc
 		(struct scion_list_predicate){ .fn = (scion_list_predicate_fn)predicate.fn, .ctx = predicate.ctx });
 }
 
-size_t scion_path_collection_size(struct scion_path_collection *paths)
+size_t scion_path_collection_size(const struct scion_path_collection *paths)
 {
 	assert(paths);
 
@@ -125,7 +125,7 @@ struct scion_path **scion_path_collection_as_array(struct scion_path_collection 
 	return path_array;
 }
 
-void scion_path_collection_print(struct scion_path_collection *paths)
+void scion_path_collection_print(const struct scion_path_collection *paths)
 {
 	if (!paths) {
 		return;

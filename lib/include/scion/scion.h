@@ -245,7 +245,7 @@ enum scion_error {
  * @param err A SCION error.
  * @return A string representation of the error.
  */
-char *scion_strerror(int err);
+const char *scion_strerror(int err);
 
 /**
  * The address families that SCION supports.
@@ -354,7 +354,7 @@ int scion_topology_from_file(struct scion_topology **topology, const char *path)
  * @param[in] topo The topology.
  * @return The IA of the topology.
  */
-scion_ia scion_topology_get_local_ia(struct scion_topology *topo);
+scion_ia scion_topology_get_local_ia(const struct scion_topology *topo);
 
 /**
  * Frees a topology.
@@ -389,7 +389,7 @@ struct scion_network;
  * @param[in] topology The topology of the network.
  * @return 0 on success, a negative error code on failure.
  */
-int scion_network(struct scion_network **net, struct scion_topology *topology);
+int scion_network(struct scion_network **net, const struct scion_topology *topology);
 
 /**
  * Frees a network.
@@ -402,7 +402,7 @@ void scion_network_free(struct scion_network *net);
  * @param[in] net The network.
  * @return The local address family.
  */
-enum scion_addr_family scion_network_get_local_addr_family(struct scion_network *net);
+enum scion_addr_family scion_network_get_local_addr_family(const struct scion_network *net);
 
 // A SCION path, see scion_path.h.
 struct scion_path;
@@ -440,7 +440,7 @@ struct scion_socket;
  * @return 0 on success, a negative error code on failure.
  */
 int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_family, int type,
-	enum scion_proto protocol, struct scion_network *network);
+	enum scion_proto protocol, const struct scion_network *network);
 
 /**
  * Binds a SCION socket to an address.
@@ -582,7 +582,7 @@ int scion_close(struct scion_socket *scion_sock);
  * @note Directly gets a socket option on the underlying system socket. Additionally, supports the socket level
  * option SCION_SO_DEBUG, which allows for better debugging.
  */
-int scion_getsockopt(struct scion_socket *scion_sock, int level, int optname, void *optval, socklen_t *optlen);
+int scion_getsockopt(const struct scion_socket *scion_sock, int level, int optname, void *optval, socklen_t *optlen);
 
 /**
  * Sets a SCION socket option.
@@ -609,7 +609,7 @@ int scion_setsockopt(struct scion_socket *scion_sock, int level, int optname, co
  *
  * @note If a networkless socket is used, the IA must be NULL.
  */
-int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, socklen_t *addrlen, scion_ia *ia);
+int scion_getsockname(const struct scion_socket *scion_sock, struct sockaddr *addr, socklen_t *addrlen, scion_ia *ia);
 
 /**
  * Gets the file descriptor of the underlying system socket.
@@ -617,7 +617,7 @@ int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, so
  * @param[out] fd The file descriptor of the underlying system socket.
  * @return 0 on success, a negative error code on failure.
  */
-int scion_getsockfd(struct scion_socket *scion_sock, int *fd);
+int scion_getsockfd(const struct scion_socket *scion_sock, int *fd);
 
 /**
  * Sets the path selection policy of a socket.

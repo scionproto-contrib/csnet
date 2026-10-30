@@ -18,5 +18,5 @@
 #include "scion/scion.h"
 
 struct scion_network {
-	struct scion_topology *topology;
+	const struct scion_topology *topology;
 };

@@ -169,7 +169,7 @@ const char *scion_scmp_code_str(enum scion_scmp_type type, uint8_t code)
 
 // #######  Echo messages  #######
 
-uint16_t scion_scmp_echo_len(struct scion_scmp_echo *scmp_echo)
+uint16_t scion_scmp_echo_len(const struct scion_scmp_echo *scmp_echo)
 {
 	assert(scmp_echo);
 	return SCION_SCMP_ECHO_HDR_LEN + scmp_echo->data_length;

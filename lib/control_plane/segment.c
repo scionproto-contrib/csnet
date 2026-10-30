@@ -404,7 +404,7 @@ static int grpc_status_to_error(int grpc_status_code)
  *      - An integer status code, 0 for success or an error code as defined in error.h.
  */
 int scion_path_segments_lookup(
-	struct scion_topology *topology, scion_ia src, scion_ia dst, struct scion_path_segment_list *segments)
+	const struct scion_topology *topology, scion_ia src, scion_ia dst, struct scion_path_segment_list *segments)
 {
 	assert(topology);
 	assert(segments);
@@ -510,7 +510,7 @@ void scion_free_pathseglist_internal(struct scion_path_segment_list *pathseg_lis
  *      - An integer status code, 0 if dst is a non-core AS, 1 if dst is a core AS and
  * 		  otherwise an error code as defined in error.h.
  */
-int scion_dst_core_check(struct scion_topology *topology, scion_ia src, scion_ia dst)
+int scion_dst_core_check(const struct scion_topology *topology, scion_ia src, scion_ia dst)
 {
 	assert(topology);
 	int ret;

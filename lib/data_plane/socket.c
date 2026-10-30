@@ -164,18 +164,18 @@ static void set_source_address(struct scion_socket *socket, struct sockaddr *add
 	}
 }
 
-static int get_source_address(struct scion_socket *socket, struct sockaddr *addr, socklen_t *addr_len)
+static int get_source_address(const struct scion_socket *socket, struct sockaddr *addr, socklen_t *addr_len)
 {
 	if (!socket->is_src_addr_set) {
 		return SCION_ERR_SRC_ADDR_UNKNOWN;
 	}
 
-	sockaddr_copy_address(addr, addr_len, (struct sockaddr *)&socket->src_addr, socket->src_addr_len);
-	sockaddr_copy_port(addr, addr_len, (struct sockaddr *)&socket->src_addr, socket->src_addr_len);
+	sockaddr_copy_address(addr, addr_len, (const struct sockaddr *)&socket->src_addr, socket->src_addr_len);
+	sockaddr_copy_port(addr, addr_len, (const struct sockaddr *)&socket->src_addr, socket->src_addr_len);
 	return 0;
 }
 
-static bool is_source_address_set(struct scion_socket *socket)
+static bool is_source_address_set(const struct scion_socket *socket)
 {
 	return socket->is_src_addr_set;
 }
@@ -237,7 +237,7 @@ static int fetch_paths(struct scion_socket *scion_sock, scion_ia dst_ia, struct 
 }
 
 int scion_socket(struct scion_socket **scion_sock, enum scion_addr_family addr_family, int type,
-	enum scion_proto protocol, struct scion_network *network)
+	enum scion_proto protocol, const struct scion_network *network)
 {
 	assert(scion_sock);
 	int ret;
@@ -1142,7 +1142,7 @@ cleanup_packet:
 	return (ssize_t)recv_len;
 }
 
-int scion_getsockopt(struct scion_socket *scion_sock, int level, int optname, void *optval, socklen_t *optlen)
+int scion_getsockopt(const struct scion_socket *scion_sock, int level, int optname, void *optval, socklen_t *optlen)
 {
 	assert(scion_sock);
 	assert(optval);
@@ -1269,7 +1269,7 @@ int scion_close(struct scion_socket *scion_sock)
 	return 0;
 }
 
-int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, socklen_t *addrlen, scion_ia *ia)
+int scion_getsockname(const struct scion_socket *scion_sock, struct sockaddr *addr, socklen_t *addrlen, scion_ia *ia)
 {
 	assert(scion_sock);
 
@@ -1307,7 +1307,7 @@ int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, so
 	return 0;
 }
 
-int scion_getsockfd(struct scion_socket *scion_sock, int *fd)
+int scion_getsockfd(const struct scion_socket *scion_sock, int *fd)
 {
 	assert(scion_sock);
 	assert(fd);
