@@ -127,6 +127,62 @@ void scion_path_free(struct scion_path *path)
 	free(path);
 }
 
+// Reads the meta header and calculates how many info and hop fields the path has. Checks that the buffer is long enough
+// for them.
+static int path_count_fields(
+	const uint8_t *buf, size_t buf_len, struct scion_path_meta_hdr *hdr, uint8_t *num_inf, uint8_t *num_hf)
+{
+	int ret;
+
+	if (buf_len < SCION_META_LEN) {
+		return SCION_ERR_NOT_ENOUGH_DATA;
+	}
+
+	ret = scion_path_meta_hdr_deserialize(buf, hdr);
+	if (ret != 0) {
+		return ret;
+	}
+
+	*num_inf = 0;
+	*num_hf = 0;
+
+	// Calculate num_inf and num_hf
+	for (int8_t i = 2; i >= 0; i--) {
+		if ((hdr->seg_len[i] == 0) && (*num_inf > 0)) {
+			return SCION_ERR_META_HDR_INVALID;
+		}
+		if (hdr->seg_len[i] > 0 && *num_inf == 0) {
+			*num_inf = (uint8_t)i + 1;
+		}
+		*num_hf += hdr->seg_len[i];
+	}
+
+	if (buf_len < SCION_META_LEN + (size_t)*num_inf * SCION_INFO_LEN + (size_t)*num_hf * SCION_HOP_LEN) {
+		return SCION_ERR_NOT_ENOUGH_DATA;
+	}
+
+	return 0;
+}
+
+// Swaps two fields of the raw path.
+static void swap_fields(uint8_t *a, uint8_t *b, size_t len)
+{
+	uint8_t tmp[SCION_HOP_LEN];
+	assert(len <= sizeof(tmp));
+
+	(void)memcpy(tmp, a, len);
+	(void)memcpy(a, b, len);
+	(void)memcpy(b, tmp, len);
+}
+
+// Reverses the order of the fields in the raw path.
+static void reverse_fields(uint8_t *fields, size_t num_fields, size_t len)
+{
+	for (size_t i = 0; i < num_fields / 2; i++) {
+		swap_fields(fields + i * len, fields + (num_fields - 1 - i) * len, len);
+	}
+}
+
 int scion_path_raw_reverse(struct scion_path_raw *path)
 {
 	assert(path);
@@ -140,50 +196,42 @@ int scion_path_raw_reverse(struct scion_path_raw *path)
 	assert(path->raw);
 
 	struct scion_path_meta_hdr hdr;
-	struct scion_list *info_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
-	struct scion_list *hop_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
-
-	ret = scion_path_deserialize(path->raw, path->length, &hdr, info_fields, hop_fields);
+	uint8_t num_inf;
+	uint8_t num_hf;
+	ret = path_count_fields(path->raw, path->length, &hdr, &num_inf, &num_hf);
 	if (ret != 0) {
-		goto cleanup_info_and_hop_fields;
+		return ret;
+	}
+
+	uint8_t *info_fields = path->raw + SCION_META_LEN;
+	uint8_t *hop_fields = info_fields + (size_t)num_inf * SCION_INFO_LEN;
+
+	// reverse cons dir flag
+	for (uint8_t i = 0; i < num_inf; i++) {
+		info_fields[(size_t)i * SCION_INFO_LEN] ^= SCION_INFO_FLAG_CONS_DIR;
 	}
 
 	// reverse info fields
-	scion_list_reverse(info_fields);
-	if (info_fields->size == 3) {
+	reverse_fields(info_fields, num_inf, SCION_INFO_LEN);
+	if (num_inf == 3) {
 		uint8_t first_seg_len = hdr.seg_len[0];
 		hdr.seg_len[0] = hdr.seg_len[2];
 		hdr.seg_len[2] = first_seg_len;
-	} else if (info_fields->size == 2) {
+	} else if (num_inf == 2) {
 		uint8_t first_seg_len = hdr.seg_len[0];
 		hdr.seg_len[0] = hdr.seg_len[1];
 		hdr.seg_len[1] = first_seg_len;
 	}
 
-	// reverse cons dir flag
-	struct scion_info_field *info;
-	struct scion_list_node *curr = info_fields->first;
-	while (curr) {
-		info = curr->value;
-		info->cons_dir = !(info->cons_dir);
-		curr = curr->next;
-	}
-
 	// reverse hop fields
-	scion_list_reverse(hop_fields);
+	reverse_fields(hop_fields, num_hf, SCION_HOP_LEN);
 
 	// Update curr_inf and curr_hf
 	// We don't simply reset to 0, as it might not be 0 if we are not the last hop in the path.
-	hdr.curr_inf = (uint8_t)(info_fields->size - hdr.curr_inf - 1);
-	hdr.curr_hf = (uint8_t)(hop_fields->size - hdr.curr_hf - 1);
+	hdr.curr_inf = (uint8_t)(num_inf - hdr.curr_inf - 1);
+	hdr.curr_hf = (uint8_t)(num_hf - hdr.curr_hf - 1);
 
-	ret = scion_path_serialize(&hdr, info_fields, hop_fields, path->raw);
-
-cleanup_info_and_hop_fields:
-	scion_list_free(info_fields);
-	scion_list_free(hop_fields);
-
-	return ret;
+	return scion_path_meta_hdr_serialize(&hdr, path->raw);
 }
 
 int scion_path_reverse(struct scion_path *path)
@@ -236,6 +284,18 @@ static bool is_shortcut(const struct scion_info_field *info_field, const struct 
 		   && arrival_interface(next_info_field, next_hop_field) != 0;
 }
 
+// The hop field with the index in the raw path.
+static uint8_t *hop_field_at(uint8_t *raw, uint8_t num_inf, size_t index)
+{
+	return raw + SCION_META_LEN + num_inf * SCION_INFO_LEN + index * SCION_HOP_LEN;
+}
+
+// Reads the hop field with the index from the raw path.
+static int load_hop_field(uint8_t *raw, uint8_t num_inf, size_t index, struct scion_hop_field *hop_field)
+{
+	return scion_hop_field_deserialize(hop_field_at(raw, num_inf, index), hop_field);
+}
+
 int scion_path_set_router_alert(struct scion_path *path, size_t interface_index)
 {
 	assert(path);
@@ -247,19 +307,21 @@ int scion_path_set_router_alert(struct scion_path *path, size_t interface_index)
 	assert(path->raw_path);
 	assert(path->raw_path->raw);
 
+	uint8_t *raw = path->raw_path->raw;
 	struct scion_path_meta_hdr hdr;
-	struct scion_list *info_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
-	struct scion_list *hop_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
-
-	int ret = scion_path_deserialize(path->raw_path->raw, path->raw_path->length, &hdr, info_fields, hop_fields);
+	uint8_t num_inf;
+	uint8_t num_hf;
+	int ret = path_count_fields(raw, path->raw_path->length, &hdr, &num_inf, &num_hf);
 	if (ret != 0) {
-		goto cleanup;
+		return ret;
 	}
 
-	for (struct scion_list_node *node = hop_fields->first; node != NULL; node = node->next) {
-		struct scion_hop_field *hop_field = node->value;
-		hop_field->ingress_router_alert = false;
-		hop_field->egress_router_alert = false;
+	struct scion_info_field info_fields[SCION_MAX_INFS];
+	for (uint8_t i = 0; i < num_inf; i++) {
+		ret = scion_info_field_deserialize(raw + SCION_META_LEN + i * SCION_INFO_LEN, &info_fields[i]);
+		if (ret != 0) {
+			return ret;
+		}
 	}
 
 	// The hop fields are in the order the packet travels, also in a segment that is not traversed in its
@@ -267,29 +329,40 @@ int scion_path_set_router_alert(struct scion_path *path, size_t interface_index)
 	bool found = false;
 	size_t index = 0;
 	size_t first_hop = 0;
-	for (size_t segment = 0; segment < info_fields->size && !found; segment++) {
-		struct scion_info_field *info_field = scion_list_get(info_fields, segment);
+	size_t found_hop = 0;
+	uint8_t found_alert = 0;
+	for (size_t segment = 0; segment < num_inf && !found; segment++) {
+		const struct scion_info_field *info_field = &info_fields[segment];
 		size_t segment_len = hdr.seg_len[segment];
-		bool has_next_segment = segment + 1 < info_fields->size;
+		bool has_next_segment = segment + 1 < num_inf;
 
 		for (size_t i = 0; i < segment_len && !found; i++) {
-			struct scion_hop_field *hop_field = scion_list_get(hop_fields, first_hop + i);
+			struct scion_hop_field hop_field;
+			ret = load_hop_field(raw, num_inf, first_hop + i, &hop_field);
+			if (ret != 0) {
+				return ret;
+			}
 
-			bool arrival_used = arrival_interface(info_field, hop_field) != 0;
-			bool departure_used = departure_interface(info_field, hop_field) != 0;
+			bool arrival_used = arrival_interface(info_field, &hop_field) != 0;
+			bool departure_used = departure_interface(info_field, &hop_field) != 0;
 
 			if (i == 0 && segment > 0) {
-				struct scion_info_field *last_info_field = scion_list_get(info_fields, segment - 1);
-				struct scion_hop_field *last_hop_field = scion_list_get(hop_fields, first_hop - 1);
-				if (is_shortcut(last_info_field, last_hop_field, info_field, hop_field)) {
+				struct scion_hop_field last_hop_field;
+				ret = load_hop_field(raw, num_inf, first_hop - 1, &last_hop_field);
+				if (ret != 0) {
+					return ret;
+				}
+				if (is_shortcut(&info_fields[segment - 1], &last_hop_field, info_field, &hop_field)) {
 					arrival_used = false;
 				}
 			}
 			if (i + 1 == segment_len && has_next_segment) {
-				struct scion_info_field *next_info_field = scion_list_get(info_fields, segment + 1);
-				struct scion_hop_field *next_hop_field
-					= scion_list_get(hop_fields, first_hop + segment_len);
-				if (is_shortcut(info_field, hop_field, next_info_field, next_hop_field)) {
+				struct scion_hop_field next_hop_field;
+				ret = load_hop_field(raw, num_inf, first_hop + segment_len, &next_hop_field);
+				if (ret != 0) {
+					return ret;
+				}
+				if (is_shortcut(info_field, &hop_field, &info_fields[segment + 1], &next_hop_field)) {
 					departure_used = false;
 				}
 			}
@@ -298,16 +371,18 @@ int scion_path_set_router_alert(struct scion_path *path, size_t interface_index)
 			// the router of the construction egress interface.
 			if (arrival_used) {
 				if (index == interface_index) {
-					hop_field->ingress_router_alert = info_field->cons_dir;
-					hop_field->egress_router_alert = !info_field->cons_dir;
+					found_hop = first_hop + i;
+					found_alert = info_field->cons_dir ? SCION_HOP_FLAG_INGRESS_ROUTER_ALERT :
+														 SCION_HOP_FLAG_EGRESS_ROUTER_ALERT;
 					found = true;
 				}
 				index++;
 			}
 			if (departure_used && !found) {
 				if (index == interface_index) {
-					hop_field->ingress_router_alert = !info_field->cons_dir;
-					hop_field->egress_router_alert = info_field->cons_dir;
+					found_hop = first_hop + i;
+					found_alert = info_field->cons_dir ? SCION_HOP_FLAG_EGRESS_ROUTER_ALERT :
+														 SCION_HOP_FLAG_INGRESS_ROUTER_ALERT;
 					found = true;
 				}
 				index++;
@@ -318,17 +393,18 @@ int scion_path_set_router_alert(struct scion_path *path, size_t interface_index)
 	}
 
 	if (!found) {
-		ret = SCION_ERR_INDEX_OUT_OF_RANGE;
-		goto cleanup;
+		return SCION_ERR_INDEX_OUT_OF_RANGE;
 	}
 
-	ret = scion_path_serialize(&hdr, info_fields, hop_fields, path->raw_path->raw);
+	// Only the hop field of the interface has an alert, the others lose theirs
+	const uint8_t alerts = SCION_HOP_FLAG_INGRESS_ROUTER_ALERT | SCION_HOP_FLAG_EGRESS_ROUTER_ALERT;
+	for (size_t i = 0; i < num_hf; i++) {
+		uint8_t *flags = hop_field_at(raw, num_inf, i);
+		*flags = (uint8_t)(*flags & ~alerts);
+	}
+	*hop_field_at(raw, num_inf, found_hop) |= found_alert;
 
-cleanup:
-	scion_list_free(info_fields);
-	scion_list_free(hop_fields);
-
-	return ret;
+	return 0;
 }
 
 /*
@@ -493,32 +569,14 @@ int scion_path_deserialize(
 	assert(hop_fields);
 	int ret;
 
-	if (buf_len < SCION_META_LEN) {
-		return SCION_ERR_NOT_ENOUGH_DATA;
-	}
-
-	ret = scion_path_meta_hdr_deserialize(buf, hdr);
+	uint8_t num_inf;
+	uint8_t num_hf;
+	ret = path_count_fields(buf, buf_len, hdr, &num_inf, &num_hf);
 	if (ret != 0) {
 		return ret;
 	}
+
 	uint16_t offset = (uint16_t)SCION_META_LEN;
-
-	uint8_t num_inf = 0;
-	uint8_t num_hf = 0;
-	// Calculate num_inf and num_hf
-	for (int8_t i = 2; i >= 0; i--) {
-		if ((hdr->seg_len[i] == 0) && (num_inf > 0)) {
-			return SCION_ERR_META_HDR_INVALID;
-		}
-		if (hdr->seg_len[i] > 0 && num_inf == 0) {
-			num_inf = (uint8_t)i + 1;
-		}
-		num_hf += hdr->seg_len[i];
-	}
-
-	if (buf_len < SCION_META_LEN + (size_t)num_inf * SCION_INFO_LEN + (size_t)num_hf * SCION_HOP_LEN) {
-		return SCION_ERR_NOT_ENOUGH_DATA;
-	}
 
 	for (uint8_t i = 0; i < num_inf; i++) {
 		struct scion_info_field *info = malloc(sizeof(*info));

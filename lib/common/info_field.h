@@ -29,6 +29,10 @@
 // SCION_INFO_LEN is the size of an InfoField in bytes.
 #define SCION_INFO_LEN 8
 
+// The flags in the first byte of an info field
+#define SCION_INFO_FLAG_CONS_DIR 0x1
+#define SCION_INFO_FLAG_PEER 0x2
+
 // scion_info_field is the InfoField used in the SCION and OneHop path types.
 struct scion_info_field {
 	// peer is the peering flag. If set to true, then the forwarding path is built as a peering
