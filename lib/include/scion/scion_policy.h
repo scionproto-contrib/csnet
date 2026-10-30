@@ -82,14 +82,6 @@ extern const struct scion_policy scion_policy_highest_bandwidth;
  */
 struct scion_policy scion_policy_min_mtu(uint32_t *mtu);
 
-/**
- * Sets the path selection policy of a socket.
- * @param scion_sock The socket.
- * @param policy The path selection policy to use.
- * @return 0 on success, a negative error code on failure.
- */
-int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy policy);
-
 #ifdef __cplusplus
 }
 #endif
