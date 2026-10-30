@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
 	}
 
 	struct scion_policy policy = { .fn = policy_fn, .ctx = NULL };
-	ret = scion_setsockpolicy(scion_sock, policy);
+	ret = scion_setsockpolicy(scion_sock, &policy);
 	if (ret != 0) {
 		printf("ERROR: Setting socket policy failed with error code: %d\n", ret);
 		ret = EXIT_FAILURE;

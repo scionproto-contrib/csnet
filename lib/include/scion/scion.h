@@ -625,7 +625,7 @@ int scion_getsockfd(struct scion_socket *scion_sock, int *fd);
  * @param policy The path selection policy to use.
  * @return 0 on success, a negative error code on failure.
  */
-int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy policy);
+int scion_setsockpolicy(struct scion_socket *scion_sock, const struct scion_policy *policy);
 
 /**
  * Sets the path selector of a socket. A socket that is connected uses it to choose the path of each packet. A new
@@ -635,7 +635,7 @@ int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy pol
  * @param selector The path selector.
  * @return 0 on success, a negative error code on failure.
  */
-int scion_setsockselector(struct scion_socket *scion_sock, struct scion_selector selector);
+int scion_setsockselector(struct scion_socket *scion_sock, const struct scion_selector *selector);
 
 /**
  * Sets the SCMP error handler that is called when a SCMP error is received by the socket.
