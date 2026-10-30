@@ -387,14 +387,6 @@ struct scion_scmp_error_handler {
 	void *ctx;
 };
 
-/**
- * Sets the SCMP error handler that is called when a SCMP error is received by the socket.
- * @param[in,out] scion_sock The socket.
- * @param[in] handler The handler to use.
- * @return 0 on success, a negative error code on failure.
- */
-int scion_setsockerrhandler(struct scion_socket *scion_sock, const struct scion_scmp_error_handler *handler);
-
 #ifdef __cplusplus
 }
 #endif

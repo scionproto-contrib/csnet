@@ -407,6 +407,15 @@ enum scion_addr_family scion_network_get_local_addr_family(struct scion_network 
 // A SCION path, see scion_path.h.
 struct scion_path;
 
+// A path policy, see scion_policy.h.
+struct scion_policy;
+
+// A path selector, see scion_selector.h.
+struct scion_selector;
+
+// A handler for SCMP errors, see scion_scmp.h.
+struct scion_scmp_error_handler;
+
 /**
  * An interface identifier.
  */
@@ -609,6 +618,32 @@ int scion_getsockname(struct scion_socket *scion_sock, struct sockaddr *addr, so
  * @return 0 on success, a negative error code on failure.
  */
 int scion_getsockfd(struct scion_socket *scion_sock, int *fd);
+
+/**
+ * Sets the path selection policy of a socket.
+ * @param scion_sock The socket.
+ * @param policy The path selection policy to use.
+ * @return 0 on success, a negative error code on failure.
+ */
+int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy policy);
+
+/**
+ * Sets the path selector of a socket. A socket that is connected uses it to choose the path of each packet. A new
+ * socket has a default selector that keeps using the current path for as long as possible. If the current path is
+ * down, it uses the first path that is not down. If all paths are down, it uses the path that went down first.
+ * @param scion_sock The socket.
+ * @param selector The path selector.
+ * @return 0 on success, a negative error code on failure.
+ */
+int scion_setsockselector(struct scion_socket *scion_sock, struct scion_selector selector);
+
+/**
+ * Sets the SCMP error handler that is called when a SCMP error is received by the socket.
+ * @param[in,out] scion_sock The socket.
+ * @param[in] handler The handler to use.
+ * @return 0 on success, a negative error code on failure.
+ */
+int scion_setsockerrhandler(struct scion_socket *scion_sock, const struct scion_scmp_error_handler *handler);
 
 #ifdef __cplusplus
 }
