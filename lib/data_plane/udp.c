@@ -76,7 +76,7 @@ int scion_udp_serialize(struct scion_udp *udp, uint8_t *buf, uint16_t *len)
 	return 0;
 }
 
-int scion_udp_deserialize(const uint8_t *buf, uint16_t len, struct scion_udp *udp)
+int scion_udp_header_deserialize(const uint8_t *buf, uint16_t len, struct scion_udp *udp)
 {
 	assert(udp);
 	assert(buf);
@@ -95,14 +95,24 @@ int scion_udp_deserialize(const uint8_t *buf, uint16_t len, struct scion_udp *ud
 		return SCION_ERR_PACKET_FIELD_INVALID;
 	}
 
-	if (len < udp_len) {
-		// incomplete packet
-		return SCION_ERR_NOT_ENOUGH_DATA;
-	}
-
 	udp->data_length = udp_len - SCION_UDP_HDR_LEN;
 
 	udp->data = udp->data_length > 0 ? buf + SCION_UDP_HDR_LEN : NULL;
+
+	return 0;
+}
+
+int scion_udp_deserialize(const uint8_t *buf, uint16_t len, struct scion_udp *udp)
+{
+	int ret = scion_udp_header_deserialize(buf, len, udp);
+	if (ret != 0) {
+		return ret;
+	}
+
+	if (len < scion_udp_len(udp)) {
+		// incomplete packet
+		return SCION_ERR_NOT_ENOUGH_DATA;
+	}
 
 	return 0;
 }

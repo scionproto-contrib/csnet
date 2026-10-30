@@ -894,6 +894,73 @@ static void remove_unimplemented_control_messages(struct msghdr *msg)
 	msg->msg_controllen = (socklen_t)kept;
 }
 
+// The maximum length of a SCION packet with an SCMP message, so an SCMP error is received whole in a buffer of it.
+// https://github.com/scionproto/scion/blob/1774186e80e43118a2f9a3f7e989d4af3479a937/pkg/slayers/scmp.go#L39
+#define SCION_RECV_HEAD_LEN 1232
+
+_Static_assert(SCION_RECV_HEAD_LEN >= SCION_MAX_HDR_LEN + SCION_UDP_HDR_LEN, "the headers must fit in the head buffer");
+
+// Finds the buffer of a message that contains the byte at the offset, and makes the offset relative to that buffer.
+static size_t find_iov(const struct iovec *iov, size_t *offset)
+{
+	size_t i = 0;
+	while (*offset >= iov[i].iov_len) {
+		*offset -= iov[i].iov_len;
+		i++;
+	}
+
+	return i;
+}
+
+// Moves bytes in the buffers of a message to a later offset. They are moved from the end, so they are not overwritten
+// before they are moved.
+static void iov_move_forward(const struct iovec *iov, size_t dst, size_t src, size_t len)
+{
+	while (len > 0) {
+		size_t src_offset = src + len - 1;
+		size_t src_i = find_iov(iov, &src_offset);
+		size_t dst_offset = dst + len - 1;
+		size_t dst_i = find_iov(iov, &dst_offset);
+
+		// The last bytes that are in one buffer both where they are and where they go
+		size_t chunk = src_offset < dst_offset ? src_offset + 1 : dst_offset + 1;
+		if (chunk > len) {
+			chunk = len;
+		}
+
+		(void)memmove((uint8_t *)iov[dst_i].iov_base + dst_offset + 1 - chunk,
+			(uint8_t *)iov[src_i].iov_base + src_offset + 1 - chunk, chunk);
+		len -= chunk;
+	}
+}
+
+// Copies bytes to the start of the buffers of a message.
+static void copy_to_iov(const struct iovec *iov, const uint8_t *src, size_t len)
+{
+	for (size_t i = 0; len > 0; i++) {
+		size_t chunk = iov[i].iov_len < len ? iov[i].iov_len : len;
+		(void)memcpy(iov[i].iov_base, src, chunk);
+		src += chunk;
+		len -= chunk;
+	}
+}
+
+// Puts the data of a received packet at the start of the buffers of a message, as much as fits. The kernel received
+// the first part of the data in the head buffer and the rest at the start of the buffers. Returns the length that fits.
+static size_t move_data_to_iov(
+	const struct iovec *iov, size_t buf_len, const uint8_t *head_data, size_t head_data_len, size_t rest_len)
+{
+	size_t first_len = head_data_len < buf_len ? head_data_len : buf_len;
+	size_t moved_len = rest_len < buf_len - first_len ? rest_len : buf_len - first_len;
+
+	if (first_len > 0) {
+		iov_move_forward(iov, first_len, 0, moved_len);
+		copy_to_iov(iov, head_data, first_len);
+	}
+
+	return first_len + moved_len;
+}
+
 ssize_t scion_recvmsg(
 	struct scion_socket *scion_sock, struct msghdr *msg, int flags, scion_ia *src_ia, struct scion_path *path)
 {
@@ -901,7 +968,7 @@ ssize_t scion_recvmsg(
 	assert(msg);
 
 	ssize_t ret;
-	uint16_t recv_len = 0;
+	size_t recv_len = 0;
 
 	if ((flags & IMPLEMENTED_RECV_FLAGS) != flags) {
 		return SCION_ERR_FLAG_NOT_IMPLEMENTED;
@@ -913,6 +980,10 @@ ssize_t scion_recvmsg(
 	}
 #endif
 
+	if ((size_t)msg->msg_iovlen > SCION_IOV_MAX) {
+		return SCION_ERR_MSG_TOO_LARGE;
+	}
+
 	size_t buf_len = 0;
 	for (size_t i = 0; i < (size_t)msg->msg_iovlen; i++) {
 		buf_len += msg->msg_iov[i].iov_len;
@@ -920,7 +991,6 @@ ssize_t scion_recvmsg(
 
 	bool received_anticipated_packet = false;
 	while (!received_anticipated_packet) {
-		uint8_t packet_buf[buf_len + SCION_MAX_HDR_LEN];
 		struct sockaddr_storage sender_addr;
 		socklen_t sender_addr_len;
 
@@ -930,12 +1000,19 @@ ssize_t scion_recvmsg(
 		raw_msg.msg_name = &underlay_addr;
 		raw_msg.msg_namelen = sizeof(underlay_addr);
 
-		struct iovec iov = { 0 };
-		iov.iov_base = packet_buf;
-		iov.iov_len = sizeof(packet_buf);
+		// The headers are received in the head buffer and the packet continues in the buffers of the caller, so the
+		// data is copied once, to the start of the buffers. An SCMP error is needed whole, even if the buffers are
+		// smaller, and it fits in the head buffer.
+		uint8_t head[SCION_RECV_HEAD_LEN];
+		struct iovec iov[SCION_IOV_MAX + 1];
+		iov[0].iov_base = head;
+		iov[0].iov_len = sizeof(head);
+		for (size_t i = 0; i < (size_t)msg->msg_iovlen; i++) {
+			iov[i + 1] = msg->msg_iov[i];
+		}
 
-		raw_msg.msg_iov = &iov;
-		raw_msg.msg_iovlen = 1;
+		raw_msg.msg_iov = iov;
+		raw_msg.msg_iovlen = msg->msg_iovlen + 1;
 
 		raw_msg.msg_control = msg->msg_control;
 		raw_msg.msg_controllen = msg->msg_controllen;
@@ -956,63 +1033,58 @@ ssize_t scion_recvmsg(
 			return ret;
 		}
 
+		size_t received_len = (size_t)ret;
+		size_t head_len = received_len < sizeof(head) ? received_len : sizeof(head);
+
 		struct scion_packet packet = { 0 };
-		ret = scion_packet_deserialize(packet_buf, (size_t)ret, &packet);
+		ret = scion_packet_header_deserialize(head, head_len, &packet);
 		if (ret != 0) {
 			// Ignore packet
 			ret = 0;
 			goto cleanup_packet;
 		}
 
+		// A packet that is shorter than its header announces is malformed, unless it did not fit in the buffers
+		size_t hdr_len = scion_packet_hdr_len(&packet);
+		bool truncated = (raw_msg.msg_flags & MSG_TRUNC) != 0;
+		if (!truncated && received_len < hdr_len + packet.payload_len) {
+			// Ignore packet
+			goto cleanup_packet;
+		}
+
+		// The part of the payload that was received, and the part of it that is in the head buffer
+		size_t payload_len = received_len - hdr_len;
+		if (payload_len > packet.payload_len) {
+			payload_len = packet.payload_len;
+		}
+		size_t head_payload_len = head_len - hdr_len;
+		if (head_payload_len > payload_len) {
+			head_payload_len = payload_len;
+		}
+
 		uint16_t src_port;
+		// Where the data starts in the payload, and its length as the headers announce it
+		size_t data_offset;
+		size_t data_len;
 
 		// Deserialize packet
 		if (packet.next_hdr == 17) {
 			struct scion_udp udp = { 0 };
-			ret = scion_udp_deserialize(packet.payload, packet.payload_len, &udp);
-			if (ret != 0) {
+			ret = scion_udp_header_deserialize(packet.payload, (uint16_t)head_payload_len, &udp);
+			if (ret != 0 || scion_udp_len(&udp) > packet.payload_len) {
 				// Ignore packet
 				ret = 0;
 				goto cleanup_packet;
 			}
 
 			src_port = udp.src_port;
-			recv_len = udp.data_length > buf_len ? (uint16_t)buf_len : udp.data_length;
-
-			size_t offset = 0;
-			for (size_t i = 0; i < (size_t)msg->msg_iovlen; i++) {
-				size_t remaining_len = recv_len - offset;
-
-				if (remaining_len == 0) {
-					break;
-				}
-
-				size_t curr_recv_len = msg->msg_iov[i].iov_len > remaining_len ? remaining_len :
-																				 msg->msg_iov[i].iov_len;
-				(void)memcpy(msg->msg_iov[i].iov_base, udp.data + offset, curr_recv_len);
-
-				offset += curr_recv_len;
-			}
-
+			data_offset = SCION_UDP_HDR_LEN;
+			data_len = udp.data_length;
 		} else if (packet.next_hdr == 202) {
 			// SCMP message
 			src_port = 0; // No port on SCMP
-			recv_len = packet.payload_len > buf_len ? (uint16_t)buf_len : packet.payload_len;
-
-			size_t offset = 0;
-			for (size_t i = 0; i < (size_t)msg->msg_iovlen; i++) {
-				size_t remaining_len = recv_len - offset;
-
-				if (remaining_len == 0) {
-					break;
-				}
-
-				size_t curr_recv_len = msg->msg_iov[i].iov_len > remaining_len ? remaining_len :
-																				 msg->msg_iov[i].iov_len;
-				(void)memcpy(msg->msg_iov[i].iov_base, packet.payload + offset, curr_recv_len);
-
-				offset += curr_recv_len;
-			}
+			data_offset = 0;
+			data_len = packet.payload_len;
 		} else {
 			// Ignore packet
 			goto cleanup_packet;
@@ -1038,13 +1110,13 @@ ssize_t scion_recvmsg(
 			goto cleanup_packet;
 		}
 
-		// SCMP error received. The whole message is needed, even if the buffer of the caller is smaller.
-		if (packet.next_hdr == SCION_PROTO_SCMP && scion_scmp_is_error(packet.payload, packet.payload_len)) {
+		// SCMP error received. It is in the head buffer, which is as long as an SCMP error can be.
+		if (packet.next_hdr == SCION_PROTO_SCMP && scion_scmp_is_error(packet.payload, (uint16_t)head_payload_len)) {
 			// Mark the affected paths as down and trigger the SCMP error handler
 			if (scion_sock->paths != NULL || scion_sock->scmp_error_handler.fn != NULL) {
 				struct scion_scmp_error scmp_error;
 				const uint8_t *quoted_packet;
-				ret = scion_scmp_error_parse(packet.payload, packet.payload_len, &scmp_error, &quoted_packet);
+				ret = scion_scmp_error_parse(packet.payload, head_payload_len, &scmp_error, &quoted_packet);
 				if (ret == 0) {
 					// The handler only reads the quoted packet, which is in the buffer of this function
 					scmp_error.packet = (uint8_t *)quoted_packet;
@@ -1102,7 +1174,22 @@ ssize_t scion_recvmsg(
 			}
 		}
 
-		msg->msg_flags = raw_msg.msg_flags;
+		// The data that was received, and the part of it that is in the head buffer
+		size_t received_data_len = payload_len - data_offset;
+		if (received_data_len > data_len) {
+			received_data_len = data_len;
+		}
+		size_t head_data_len = head_payload_len - data_offset;
+		if (head_data_len > received_data_len) {
+			head_data_len = received_data_len;
+		}
+		recv_len = move_data_to_iov(
+			msg->msg_iov, buf_len, packet.payload + data_offset, head_data_len, received_data_len - head_data_len);
+
+		msg->msg_flags = raw_msg.msg_flags & ~MSG_TRUNC;
+		if (recv_len < data_len) {
+			msg->msg_flags |= MSG_TRUNC;
+		}
 		msg->msg_controllen = raw_msg.msg_controllen;
 		remove_unimplemented_control_messages(msg);
 

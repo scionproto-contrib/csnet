@@ -175,7 +175,7 @@ static int scion_deserialize_addr_hdr(const uint8_t *buf, size_t buf_len, struct
 	return 0;
 }
 
-int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_packet *packet)
+int scion_packet_header_deserialize(const uint8_t *buf, size_t buf_len, struct scion_packet *packet)
 {
 	assert(packet);
 	assert(buf);
@@ -219,8 +219,8 @@ int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_pa
 		return SCION_ERR_PACKET_FIELD_INVALID;
 	}
 
-	if ((size_t)(current_offset + path_hdr_len + packet->payload_len) > buf_len) {
-		// missing part of the payload
+	if ((size_t)(current_offset + path_hdr_len) > buf_len) {
+		// missing part of the path
 		return SCION_ERR_NOT_ENOUGH_DATA;
 	}
 
@@ -229,6 +229,21 @@ int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_pa
 	current_offset += path_hdr_len;
 
 	packet->payload = buf + current_offset;
+
+	return 0;
+}
+
+int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_packet *packet)
+{
+	int ret = scion_packet_header_deserialize(buf, buf_len, packet);
+	if (ret != 0) {
+		return ret;
+	}
+
+	if (scion_packet_len(packet) > buf_len) {
+		// missing part of the payload
+		return SCION_ERR_NOT_ENOUGH_DATA;
+	}
 
 	return 0;
 }

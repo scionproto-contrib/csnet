@@ -351,6 +351,27 @@ static void test_deserialize_scion_packet_empty_path_with_path_header(void **)
 	assert_deserialize_fails(buf, sizeof(buf), SCION_ERR_PACKET_FIELD_INVALID);
 }
 
+// The payload can continue in another buffer, so only the headers need to be in this one.
+static void test_deserialize_scion_packet_header_without_payload(void **)
+{
+	struct scion_packet packet = { 0 };
+	assert_int_equal(scion_packet_header_deserialize(empty_path_packet, EMPTY_PATH_HDR_LEN, &packet), 0);
+
+	assert_uint_equal(packet.payload_len, 3);
+	assert_ptr_equal(packet.payload, empty_path_packet + EMPTY_PATH_HDR_LEN);
+}
+
+static void test_deserialize_scion_packet_header_truncated_path(void **)
+{
+	uint8_t buf[EMPTY_PATH_HDR_LEN + 4];
+	memcpy(buf, empty_path_packet, EMPTY_PATH_HDR_LEN);
+	buf[5] = (EMPTY_PATH_HDR_LEN + 4) / 4;
+	buf[8] = SCION_PATH_TYPE_SCION;
+
+	struct scion_packet packet = { 0 };
+	assert_int_equal(scion_packet_header_deserialize(buf, EMPTY_PATH_HDR_LEN + 2, &packet), SCION_ERR_NOT_ENOUGH_DATA);
+}
+
 int run_packet_tests(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -366,6 +387,8 @@ int run_packet_tests(void)
 		cmocka_unit_test(test_deserialize_scion_packet_truncated_payload),
 		cmocka_unit_test(test_deserialize_scion_packet_hdr_len_shorter_than_headers),
 		cmocka_unit_test(test_deserialize_scion_packet_empty_path_with_path_header),
+		cmocka_unit_test(test_deserialize_scion_packet_header_without_payload),
+		cmocka_unit_test(test_deserialize_scion_packet_header_truncated_path),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);

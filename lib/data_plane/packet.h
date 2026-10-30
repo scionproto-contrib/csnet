@@ -122,6 +122,9 @@ uint8_t scion_packet_addr_type_len(uint8_t addr_type);
  */
 uint16_t scion_packet_addr_hdr_len(struct scion_packet *packet);
 
+// The length of the SCION header of a packet, with its path.
+uint16_t scion_packet_hdr_len(struct scion_packet *packet);
+
 size_t scion_packet_len(struct scion_packet *packet);
 
 /*
@@ -167,3 +170,10 @@ int scion_packet_serialize(struct scion_packet *packet, uint8_t *buf, size_t *bu
  *      - An integer status code, 0 for success or an error code as defined in error.h.
  */
 int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_packet *packet);
+
+/*
+ * Deserializes the SCION header of a packet like scion_packet_deserialize, but the buffer does not need to contain the
+ * whole payload, for example if the payload continues in another buffer. The payload points to where it starts in the
+ * buffer, and payload_len is the length that the header announces.
+ */
+int scion_packet_header_deserialize(const uint8_t *buf, size_t buf_len, struct scion_packet *packet);

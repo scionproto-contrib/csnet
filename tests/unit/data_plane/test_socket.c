@@ -387,6 +387,98 @@ static void test_socket_receive_is_truncated_to_the_buffer(void **state)
 	assert_memory_equal(buf, "0123", 4);
 }
 
+// Longer than the head buffer of a receive, so the data continues in the buffers of the caller.
+#define LONG_DATA_LEN 3000
+
+static void fill_long_data(uint8_t *data)
+{
+	for (size_t i = 0; i < LONG_DATA_LEN; i++) {
+		data[i] = (uint8_t)(i % 251);
+	}
+}
+
+// A packet that is much longer than the buffer is truncated, not dropped.
+static void test_socket_receive_truncates_a_long_packet(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(sender);
+	bind_loopback(receiver);
+	struct sockaddr_in receiver_addr = bound_address(receiver);
+	set_receive_timeout(receiver, 1000);
+
+	uint8_t data[LONG_DATA_LEN];
+	fill_long_data(data);
+	assert_int_equal(scion_sendto(sender, data, sizeof(data), 0, (struct sockaddr *)&receiver_addr,
+						 sizeof(receiver_addr), local_ia_of(fixture), NULL),
+		(ssize_t)sizeof(data));
+
+	uint8_t buf[16];
+	struct iovec iov = { .iov_base = buf, .iov_len = sizeof(buf) };
+	struct msghdr msg = { .msg_iov = &iov, .msg_iovlen = 1 };
+	assert_int_equal(scion_recvmsg(receiver, &msg, 0, NULL, NULL), (ssize_t)sizeof(buf));
+	assert_memory_equal(buf, data, sizeof(buf));
+	assert_true((msg.msg_flags & MSG_TRUNC) != 0);
+}
+
+// The buffers are parts of one array, so the data that is received in them can be compared at once.
+static void receive_long_data_into_buffers(struct socket_fixture *fixture, const size_t *buffer_lens,
+	size_t num_buffers, size_t expected_len, bool expected_truncated)
+{
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(sender);
+	bind_loopback(receiver);
+	struct sockaddr_in receiver_addr = bound_address(receiver);
+	set_receive_timeout(receiver, 1000);
+
+	uint8_t data[LONG_DATA_LEN];
+	fill_long_data(data);
+	assert_int_equal(scion_sendto(sender, data, sizeof(data), 0, (struct sockaddr *)&receiver_addr,
+						 sizeof(receiver_addr), local_ia_of(fixture), NULL),
+		(ssize_t)sizeof(data));
+
+	uint8_t buf[LONG_DATA_LEN + 100] = { 0 };
+	struct iovec iov[4];
+	size_t offset = 0;
+	for (size_t i = 0; i < num_buffers; i++) {
+		iov[i] = (struct iovec){ .iov_base = buf + offset, .iov_len = buffer_lens[i] };
+		offset += buffer_lens[i];
+	}
+	struct msghdr msg = { .msg_iov = iov, .msg_iovlen = num_buffers };
+	assert_int_equal(scion_recvmsg(receiver, &msg, 0, NULL, NULL), (ssize_t)expected_len);
+	assert_memory_equal(buf, data, expected_len);
+	assert_int_equal((msg.msg_flags & MSG_TRUNC) != 0, expected_truncated);
+}
+
+static void test_socket_receive_into_several_buffers(void **state)
+{
+	const size_t buffer_lens[] = { 7, 0, 1000, LONG_DATA_LEN + 100 - 1007 };
+	receive_long_data_into_buffers(*state, buffer_lens, 4, LONG_DATA_LEN, false);
+}
+
+static void test_socket_receive_truncates_several_buffers(void **state)
+{
+	const size_t buffer_lens[] = { 7, 1000, 993 };
+	receive_long_data_into_buffers(*state, buffer_lens, 3, 2000, true);
+}
+
+static void test_socket_receive_too_many_buffers(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(receiver);
+
+	char data[1];
+	struct iovec iov[SCION_IOV_MAX + 1];
+	for (size_t i = 0; i < SCION_IOV_MAX + 1; i++) {
+		iov[i] = (struct iovec){ .iov_base = data, .iov_len = 0 };
+	}
+	struct msghdr msg = { .msg_iov = iov, .msg_iovlen = SCION_IOV_MAX + 1 };
+	assert_int_equal(scion_recvmsg(receiver, &msg, MSG_DONTWAIT, NULL, NULL), SCION_ERR_MSG_TOO_LARGE);
+}
+
 static void test_socket_receive_without_data_would_block(void **state)
 {
 	struct socket_fixture *fixture = *state;
@@ -1426,6 +1518,10 @@ int run_socket_tests(void)
 		cmocka_unit_test_setup_teardown(test_socket_empty_payload, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(
 			test_socket_receive_is_truncated_to_the_buffer, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_receive_truncates_a_long_packet, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_receive_into_several_buffers, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_receive_truncates_several_buffers, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_receive_too_many_buffers, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_receive_without_data_would_block, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_connected_round_trip, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_connected_ignores_other_senders, setup_fixture, teardown_fixture),

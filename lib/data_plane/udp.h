@@ -72,3 +72,10 @@ int scion_udp_serialize(struct scion_udp *udp, uint8_t *buf, uint16_t *len);
  *      - An integer status code, 0 for success or an error code as defined in error.h.
  */
 int scion_udp_deserialize(const uint8_t *buf, uint16_t len, struct scion_udp *udp);
+
+/*
+ * Deserializes the header of a UDP packet like scion_udp_deserialize, but the buffer does not need to contain the
+ * whole data, for example if the data continues in another buffer. The data_length is the length that the header
+ * announces.
+ */
+int scion_udp_header_deserialize(const uint8_t *buf, uint16_t len, struct scion_udp *udp);
