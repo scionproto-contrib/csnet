@@ -22,10 +22,11 @@
 #include <scion/scion_path.h>
 #include <scion/scion_policy.h>
 
-static bool has_nine_hops(struct scion_path *path, void *ctx)
+// The context is the number of hops that a path must have
+static bool has_num_hops(struct scion_path *path, void *ctx)
 {
-	(void)ctx;
-	return scion_path_get_numhops(path) == 9;
+	const size_t *num_hops = ctx;
+	return scion_path_get_numhops(path) == *num_hops;
 }
 
 static int compare_mtu(struct scion_path *path_one, struct scion_path *path_two, void *ctx)
@@ -37,11 +38,11 @@ static int compare_mtu(struct scion_path *path_one, struct scion_path *path_two,
 	return (mtu_one > mtu_two) - (mtu_one < mtu_two);
 }
 
+// The context is the number of hops that a path must have
 static void policy_fn(struct scion_path_collection *paths, void *ctx)
 {
-	(void)ctx;
-	// only use paths that have exactly nine hops
-	scion_path_collection_filter(paths, (struct scion_path_predicate){ .fn = has_nine_hops });
+	// only use paths that have exactly the required number of hops
+	scion_path_collection_filter(paths, (struct scion_path_predicate){ .fn = has_num_hops, .ctx = ctx });
 	// sort paths with descending MTU
 	scion_path_collection_sort(paths, (struct scion_path_comparator){ .fn = compare_mtu, .ascending = false });
 }
@@ -89,7 +90,8 @@ int main(int argc, char *argv[])
 		goto cleanup_socket;
 	}
 
-	struct scion_policy policy = { .fn = policy_fn, .ctx = NULL };
+	size_t num_hops = 9;
+	struct scion_policy policy = { .fn = policy_fn, .ctx = &num_hops };
 	ret = scion_setsockpolicy(scion_sock, &policy);
 	if (ret != 0) {
 		printf("ERROR: Setting socket policy failed with error code: %d\n", ret);
