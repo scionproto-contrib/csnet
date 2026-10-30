@@ -42,8 +42,7 @@ struct scion_socket {
 	struct scion_policy policy;
 	struct scion_selector selector;
 	struct scion_path *current_path;
-	scion_socket_scmp_error_cb *scmp_error_cb;
-	void *scmp_error_ctx;
+	struct scion_scmp_error_handler scmp_error_handler;
 	bool is_bound;
 	bool is_connected;
 	bool debug;

@@ -228,7 +228,7 @@ size_t scion_scmp_error_len(const struct scion_scmp_error *scmp_error);
 int scion_scmp_error_serialize(const struct scion_scmp_error *scmp_error, uint8_t *buf, size_t buf_len);
 
 /**
- * Deserializes an SCMP error message, for example inside an SCMP error callback.
+ * Deserializes an SCMP error message, for example inside an SCMP error handler.
  * @param[in] buf The serialized SCMP error message.
  * @param[in] buf_len The length of the serialized SCMP error message.
  * @param[out] scmp_error The SCMP error message.
@@ -238,7 +238,7 @@ int scion_scmp_error_serialize(const struct scion_scmp_error *scmp_error, uint8_
  * @note The code and the checksum are not validated.
  * @note Free the members of the SCMP error message with @link scion_scmp_error_free_members @endlink.
  *
- * @see scion_setsockerrcb
+ * @see scion_setsockerrhandler
  */
 int scion_scmp_error_deserialize(const uint8_t *buf, size_t buf_len, struct scion_scmp_error *scmp_error);
 
@@ -359,27 +359,41 @@ int scion_scmp_traceroute_deserialize(
 	const uint8_t *buf, size_t buf_len, struct scion_scmp_traceroute *scmp_traceroute);
 
 /**
- * A callback for SCMP error handling.
- * @param scmp_error The SCMP error message that was received.
- * @param ctx The context that was provided when setting up the callback.
+ * A function that handles a received SCMP error message.
+ * @param[in] scmp_error The SCMP error message that was received.
+ * @param[in] ctx The user-defined context that was provided when setting up the handler.
  *
- * @note The SCMP error message is freed after the callback returns. A callback that needs the quoted packet later has
+ * @note The SCMP error message is freed after the function returns. A function that needs the quoted packet later has
  * to copy it.
- * @note A message that cannot be parsed, for example because of an unknown type, does not reach the callback. It is
+ * @note A message that cannot be parsed, for example because of an unknown type, does not reach the function. It is
  * reported on stderr if the socket option SCION_SO_DEBUG is set.
  *
- * @see @link scion_setsockerrcb @endlink
+ * @see @link scion_setsockerrhandler @endlink
  */
-typedef void scion_socket_scmp_error_cb(const struct scion_scmp_error *scmp_error, void *ctx);
+typedef void (*scion_scmp_error_handler_fn)(const struct scion_scmp_error *scmp_error, void *ctx);
 
 /**
- * Sets the SCMP error callback that is called when a SCMP error is received by the socket.
+ * A handler for SCMP error messages.
+ */
+struct scion_scmp_error_handler {
+	/**
+	 * The function that handles the SCMP error message.
+	 */
+	scion_scmp_error_handler_fn fn;
+
+	/**
+	 * The user-defined context that will be provided to every invocation of the function.
+	 */
+	void *ctx;
+};
+
+/**
+ * Sets the SCMP error handler that is called when a SCMP error is received by the socket.
  * @param[in,out] scion_sock The socket.
- * @param[in] cb The callback to use.
- * @param[in] ctx The user-defined context that is passed to every invocation of the callback. Can be NULL.
+ * @param[in] handler The handler to use.
  * @return 0 on success, a negative error code on failure.
  */
-int scion_setsockerrcb(struct scion_socket *scion_sock, scion_socket_scmp_error_cb cb, void *ctx);
+int scion_setsockerrhandler(struct scion_socket *scion_sock, const struct scion_scmp_error_handler *handler);
 
 #ifdef __cplusplus
 }

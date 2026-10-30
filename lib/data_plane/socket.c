@@ -1048,16 +1048,16 @@ ssize_t scion_recvmsg(
 
 		// SCMP error received. The whole message is needed, even if the buffer of the caller is smaller.
 		if (packet.next_hdr == SCION_PROTO_SCMP && scion_scmp_is_error(packet.payload, packet.payload_len)) {
-			// Mark the affected paths as down and trigger SCMP error callback
-			if (scion_sock->paths != NULL || scion_sock->scmp_error_cb != NULL) {
+			// Mark the affected paths as down and trigger the SCMP error handler
+			if (scion_sock->paths != NULL || scion_sock->scmp_error_handler.fn != NULL) {
 				struct scion_scmp_error scmp_error;
 				ret = scion_scmp_error_deserialize(packet.payload, packet.payload_len, &scmp_error);
 				if (ret == 0) {
 					if (scion_sock->paths != NULL) {
 						scion_path_collection_mark_down(scion_sock->paths, &scmp_error);
 					}
-					if (scion_sock->scmp_error_cb != NULL) {
-						scion_sock->scmp_error_cb(&scmp_error, scion_sock->scmp_error_ctx);
+					if (scion_sock->scmp_error_handler.fn != NULL) {
+						scion_sock->scmp_error_handler.fn(&scmp_error, scion_sock->scmp_error_handler.ctx);
 					}
 					scion_scmp_error_free_members(&scmp_error);
 				} else if (scion_sock->debug) {
@@ -1317,12 +1317,12 @@ int scion_getsockfd(struct scion_socket *scion_sock, int *fd)
 	return 0;
 }
 
-int scion_setsockerrcb(struct scion_socket *scion_sock, scion_socket_scmp_error_cb cb, void *ctx)
+int scion_setsockerrhandler(struct scion_socket *scion_sock, const struct scion_scmp_error_handler *handler)
 {
 	assert(scion_sock);
+	assert(handler);
 
-	scion_sock->scmp_error_cb = cb;
-	scion_sock->scmp_error_ctx = ctx;
+	scion_sock->scmp_error_handler = *handler;
 
 	return 0;
 }
