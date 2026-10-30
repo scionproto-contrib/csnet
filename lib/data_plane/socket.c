@@ -1043,15 +1043,17 @@ ssize_t scion_recvmsg(
 			// Mark the affected paths as down and trigger the SCMP error handler
 			if (scion_sock->paths != NULL || scion_sock->scmp_error_handler.fn != NULL) {
 				struct scion_scmp_error scmp_error;
-				ret = scion_scmp_error_deserialize(packet.payload, packet.payload_len, &scmp_error);
+				const uint8_t *quoted_packet;
+				ret = scion_scmp_error_parse(packet.payload, packet.payload_len, &scmp_error, &quoted_packet);
 				if (ret == 0) {
+					// The handler only reads the quoted packet, which is in the buffer of this function
+					scmp_error.packet = (uint8_t *)quoted_packet;
 					if (scion_sock->paths != NULL) {
 						scion_path_collection_mark_down(scion_sock->paths, &scmp_error);
 					}
 					if (scion_sock->scmp_error_handler.fn != NULL) {
 						scion_sock->scmp_error_handler.fn(&scmp_error, scion_sock->scmp_error_handler.ctx);
 					}
-					scion_scmp_error_free_members(&scmp_error);
 				} else if (scion_sock->debug) {
 					(void)fprintf(stderr, "Ignoring an SCMP error message that cannot be parsed (%s, code %d)\n",
 						scion_strerror((int)ret), (int)ret);

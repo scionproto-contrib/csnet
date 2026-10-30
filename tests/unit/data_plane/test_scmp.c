@@ -238,6 +238,27 @@ static void test_deserialize_scmp_error(void **)
 	}
 }
 
+static void test_parse_scmp_error(void **)
+{
+	for (size_t i = 0; i < sizeof(error_cases) / sizeof(error_cases[0]); i++) {
+		struct scion_scmp_error error;
+		const uint8_t *quoted_packet;
+		assert_int_equal(
+			scion_scmp_error_parse(error_cases[i].bytes, error_cases[i].length, &error, &quoted_packet), 0);
+
+		// The quoted packet is at the end of the message, it is not copied
+		assert_null(error.packet);
+		if (error.packet_length > 0) {
+			assert_ptr_equal(quoted_packet, error_cases[i].bytes + error_cases[i].length - error.packet_length);
+		} else {
+			assert_null(quoted_packet);
+		}
+
+		error.packet = (uint8_t *)quoted_packet;
+		assert_scmp_error_equal(&error, &error_cases[i].error);
+	}
+}
+
 static void test_serialize_scmp_error_buffer_too_small(void **)
 {
 	for (size_t i = 0; i < sizeof(error_cases) / sizeof(error_cases[0]); i++) {
@@ -506,6 +527,7 @@ int run_scmp_tests(void)
 		cmocka_unit_test(test_scmp_type_and_code_of_short_buffer),
 		cmocka_unit_test(test_serialize_scmp_error),
 		cmocka_unit_test(test_deserialize_scmp_error),
+		cmocka_unit_test(test_parse_scmp_error),
 		cmocka_unit_test(test_serialize_scmp_error_buffer_too_small),
 		cmocka_unit_test(test_scmp_error_unknown_type),
 		cmocka_unit_test(test_deserialize_scmp_error_too_short),
