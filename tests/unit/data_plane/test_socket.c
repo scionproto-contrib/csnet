@@ -474,7 +474,8 @@ static void test_socket_scmp_error_calls_the_callback(void **state)
 	set_receive_timeout(sock, 100);
 
 	struct scmp_error_record record = { 0 };
-	assert_int_equal(scion_setsockerrcb(sock, record_scmp_error, &record), 0);
+	struct scion_scmp_error_handler handler = { .fn = record_scmp_error, .ctx = &record };
+	assert_int_equal(scion_setsockerrhandler(sock, &handler), 0);
 
 	// Destination unreachable, code 4 (port unreachable), with two bytes of the offending packet.
 	const uint8_t error[] = { 0x01, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xaa, 0xbb };
@@ -503,7 +504,8 @@ static void test_socket_scmp_error_with_small_buffer(void **state)
 	set_receive_timeout(sock, 100);
 
 	struct scmp_error_record record = { 0 };
-	assert_int_equal(scion_setsockerrcb(sock, record_scmp_error, &record), 0);
+	struct scion_scmp_error_handler handler = { .fn = record_scmp_error, .ctx = &record };
+	assert_int_equal(scion_setsockerrhandler(sock, &handler), 0);
 
 	struct scion_scmp_error error = { .type = SCION_SCMP_TYPE_EXTERNAL_INTERFACE_DOWN,
 		.info.external_interface_down = { .ia = local_ia_of(fixture), .interface = 5 } };
@@ -534,7 +536,8 @@ static void test_socket_invalid_scmp_error_is_ignored(void **state)
 	set_receive_timeout(sock, 100);
 
 	struct scmp_error_record record = { 0 };
-	assert_int_equal(scion_setsockerrcb(sock, record_scmp_error, &record), 0);
+	struct scion_scmp_error_handler handler = { .fn = record_scmp_error, .ctx = &record };
+	assert_int_equal(scion_setsockerrhandler(sock, &handler), 0);
 
 	// Type 3 is not defined, and the second message is too short for its type.
 	const uint8_t unknown_type[] = { 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -564,7 +567,8 @@ static void test_socket_scmp_informational_message_is_not_an_error(void **state)
 	set_receive_timeout(sock, 100);
 
 	struct scmp_error_record record = { 0 };
-	assert_int_equal(scion_setsockerrcb(sock, record_scmp_error, &record), 0);
+	struct scion_scmp_error_handler handler = { .fn = record_scmp_error, .ctx = &record };
+	assert_int_equal(scion_setsockerrhandler(sock, &handler), 0);
 
 	// An echo request is neither an error nor UDP, so a UDP socket skips it.
 	const uint8_t echo[] = { 0x80, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01 };

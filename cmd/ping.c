@@ -387,7 +387,8 @@ int main(int argc, char **argv)
 		goto cleanup_socket;
 	}
 
-	ret = scion_setsockerrcb(socket, print_scmp_error, NULL);
+	struct scion_scmp_error_handler handler = { .fn = print_scmp_error, .ctx = NULL };
+	ret = scion_setsockerrhandler(socket, &handler);
 	if (ret != 0) {
 		fprintf(stderr, "Error: could not set SCMP error callback (%s, code %d)\n", scion_strerror(ret), ret);
 		ret = 2;

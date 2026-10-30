@@ -92,7 +92,8 @@ int main(int argc, char *argv[])
 		goto cleanup_network;
 	}
 
-	ret = scion_setsockerrcb(scion_sock, handle_scmp_error, /* ctx: */ NULL);
+	struct scion_scmp_error_handler handler = { .fn = handle_scmp_error, .ctx = NULL };
+	ret = scion_setsockerrhandler(scion_sock, &handler);
 	if (ret != 0) {
 		printf("ERROR: Setting socket SCMP error handler failed with error code: %d\n", ret);
 		ret = EXIT_FAILURE;
