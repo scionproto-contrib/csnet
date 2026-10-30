@@ -16,6 +16,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #define SCION_MAP_CUSTOM_FREE(free_fn) \
@@ -40,10 +41,24 @@ struct scion_map_key_config {
 	scion_map_serialize_key serialize;
 };
 
+struct scion_map_key_value_pair;
+
+// An entry of a hash table bucket, pointing to a pair of the key_value_pairs list
+struct scion_map_bucket_entry {
+	struct scion_map_key_value_pair *pair;
+	uint32_t hash;
+	struct scion_map_bucket_entry *next;
+};
+
 struct scion_map {
 	struct scion_map_key_config key_config;
 
+	// Owns the pairs, in insertion order
 	struct scion_list *key_value_pairs;
+
+	// Hash table over the pairs for constant average time lookups
+	struct scion_map_bucket_entry **buckets;
+	size_t num_buckets;
 
 	struct scion_map_value_free free_value;
 };

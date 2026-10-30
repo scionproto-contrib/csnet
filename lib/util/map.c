@@ -16,17 +16,26 @@
 
 #include "list.h"
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
-struct match_key_ctx {
-	void *serialized_key;
-	size_t key_size;
-};
+// The table doubles whenever there are more pairs than buckets
+#define INITIAL_NUM_BUCKETS 16
 
-static bool match_key(struct scion_map_key_value_pair *key_value_pair, struct match_key_ctx *ctx)
+// 32-bit FNV-1a, see http://www.isthe.com/chongo/tech/comp/fnv/index.html
+#define FNV_OFFSET_BASIS 2166136261U
+#define FNV_PRIME 16777619U
+
+static uint32_t hash_key(const void *key, size_t size)
 {
-	return memcmp(key_value_pair->key, ctx->serialized_key, ctx->key_size) == 0;
+	const unsigned char *bytes = key;
+	uint32_t hash = FNV_OFFSET_BASIS;
+	for (size_t i = 0; i < size; i++) {
+		hash ^= bytes[i];
+		hash *= FNV_PRIME;
+	}
+	return hash;
 }
 
 static void *serialize_key(struct scion_map *map, void *key)
@@ -65,54 +74,94 @@ struct scion_map *scion_map_create(struct scion_map_key_config key_config, struc
 	map->free_value = free_value;
 	map->key_value_pairs = scion_list_create(SCION_LIST_CUSTOM_FREE_WITH_CTX(free_key_value, &map->free_value));
 
+	map->num_buckets = INITIAL_NUM_BUCKETS;
+	map->buckets = calloc(map->num_buckets, sizeof(*map->buckets));
+
 	return map;
 }
 
-static struct scion_map_key_value_pair *get_key(struct scion_map *map, void *key)
+static struct scion_map_key_value_pair *find_pair(struct scion_map *map, const void *serialized_key, uint32_t hash)
 {
-	void *serialized_key = serialize_key(map, key);
+	for (struct scion_map_bucket_entry *entry = map->buckets[hash % map->num_buckets]; entry != NULL;
+		 entry = entry->next) {
+		if (entry->hash == hash && memcmp(entry->pair->key, serialized_key, map->key_config.size) == 0) {
+			return entry->pair;
+		}
+	}
 
-	struct match_key_ctx ctx = { .serialized_key = serialized_key, .key_size = map->key_config.size };
-	struct scion_list_predicate predicate = { .fn = (scion_list_predicate_fn)match_key, .ctx = &ctx };
+	return NULL;
+}
 
-	struct scion_map_key_value_pair *kvp = scion_list_find(map->key_value_pairs, predicate);
+// Doubles the number of buckets once there are more pairs than buckets
+static void grow_buckets(struct scion_map *map)
+{
+	if (scion_list_size(map->key_value_pairs) <= map->num_buckets) {
+		return;
+	}
 
-	free(serialized_key);
-	return kvp;
+	size_t num_buckets = map->num_buckets * 2;
+	struct scion_map_bucket_entry **buckets = calloc(num_buckets, sizeof(*buckets));
+
+	for (size_t i = 0; i < map->num_buckets; i++) {
+		struct scion_map_bucket_entry *entry = map->buckets[i];
+		while (entry != NULL) {
+			struct scion_map_bucket_entry *next = entry->next;
+			entry->next = buckets[entry->hash % num_buckets];
+			buckets[entry->hash % num_buckets] = entry;
+			entry = next;
+		}
+	}
+
+	free(map->buckets);
+	map->buckets = buckets;
+	map->num_buckets = num_buckets;
 }
 
 void scion_map_put(struct scion_map *map, void *key, void *value)
 {
-	struct scion_map_key_value_pair *entry = get_key(map, key);
+	void *serialized_key = serialize_key(map, key);
+	uint32_t hash = hash_key(serialized_key, map->key_config.size);
+	struct scion_map_key_value_pair *pair = find_pair(map, serialized_key, hash);
 
-	if (entry == NULL) {
+	if (pair == NULL) {
 		// insert value
-		void *serialized_key = serialize_key(map, key);
+		struct scion_map_key_value_pair *new_pair = malloc(sizeof(*new_pair));
+		new_pair->key = serialized_key;
+		new_pair->value = value;
+		scion_list_append(map->key_value_pairs, new_pair);
 
-		struct scion_map_key_value_pair *new_entry = malloc(sizeof(*new_entry));
-		new_entry->key = serialized_key;
-		new_entry->value = value;
-		scion_list_append(map->key_value_pairs, new_entry);
+		struct scion_map_bucket_entry *entry = malloc(sizeof(*entry));
+		entry->pair = new_pair;
+		entry->hash = hash;
+		entry->next = map->buckets[hash % map->num_buckets];
+		map->buckets[hash % map->num_buckets] = entry;
+
+		grow_buckets(map);
 	} else {
+		free(serialized_key);
+
 		// free old value
 		if (map->free_value.fn != NULL) {
-			map->free_value.fn(entry->value, map->free_value.ctx);
+			map->free_value.fn(pair->value, map->free_value.ctx);
 		}
 
 		// set new value
-		entry->value = value;
+		pair->value = value;
 	}
 }
 
 void *scion_map_get(struct scion_map *map, void *key)
 {
-	struct scion_map_key_value_pair *entry = get_key(map, key);
+	void *serialized_key = serialize_key(map, key);
+	uint32_t hash = hash_key(serialized_key, map->key_config.size);
+	struct scion_map_key_value_pair *pair = find_pair(map, serialized_key, hash);
+	free(serialized_key);
 
-	if (entry == NULL) {
+	if (pair == NULL) {
 		return NULL;
 	}
 
-	return entry->value;
+	return pair->value;
 }
 
 void scion_map_free(struct scion_map *map)
@@ -120,6 +169,16 @@ void scion_map_free(struct scion_map *map)
 	if (map == NULL) {
 		return;
 	}
+
+	for (size_t i = 0; i < map->num_buckets; i++) {
+		struct scion_map_bucket_entry *entry = map->buckets[i];
+		while (entry != NULL) {
+			struct scion_map_bucket_entry *next = entry->next;
+			free(entry);
+			entry = next;
+		}
+	}
+	free(map->buckets);
 
 	scion_list_free(map->key_value_pairs);
 
