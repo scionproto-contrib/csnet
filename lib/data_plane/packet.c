@@ -14,7 +14,6 @@
 
 #include <assert.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "data_plane/packet.h"
@@ -33,11 +32,7 @@ uint16_t scion_packet_addr_hdr_len(struct scion_packet *packet)
 
 uint16_t scion_packet_path_hdr_len(struct scion_packet *packet)
 {
-	if (packet->path_type == SCION_PATH_TYPE_EMPTY) {
-		return 0;
-	}
-
-	return packet->path->raw_path->length;
+	return packet->raw_path_length;
 }
 
 uint16_t scion_packet_hdr_len(struct scion_packet *packet)
@@ -50,54 +45,16 @@ size_t scion_packet_len(struct scion_packet *packet)
 	return scion_packet_hdr_len(packet) + packet->payload_len;
 }
 
-void scion_packet_free_members(struct scion_packet *packet)
-{
-	if (packet == NULL) {
-		return;
-	}
-
-	if (packet->raw_dst_addr != NULL) {
-		free(packet->raw_dst_addr);
-		packet->raw_dst_addr = NULL;
-	}
-
-	if (packet->raw_src_addr != NULL) {
-		free(packet->raw_src_addr);
-		packet->raw_src_addr = NULL;
-	}
-
-	if (packet->path != NULL) {
-		scion_path_free(packet->path);
-		packet->path = NULL;
-	}
-
-	if (packet->payload != NULL) {
-		free(packet->payload);
-		packet->payload = NULL;
-	}
-}
-
-void scion_packet_free(struct scion_packet *packet)
-{
-	if (packet == NULL) {
-		return;
-	}
-	scion_packet_free_members(packet);
-	free(packet);
-}
-
 /*
  * ##################################################################
  * #################### Serialize SCION Packet ######################
  * ##################################################################
  */
 
-int scion_packet_serialize(struct scion_packet *packet, uint8_t *buf, size_t *buf_len)
+int scion_packet_header_serialize(struct scion_packet *packet, uint8_t *buf, size_t *buf_len)
 {
 	assert(packet);
 	assert(buf);
-
-	(void)memset(buf, 0, *buf_len);
 
 	uint16_t path_length = scion_packet_path_hdr_len(packet);
 	uint16_t total_hdr_len = scion_packet_hdr_len(packet);
@@ -109,14 +66,12 @@ int scion_packet_serialize(struct scion_packet *packet, uint8_t *buf, size_t *bu
 	// header must be a multiple of line length. (i.e. header has to be 4 bytes aligned)
 	assert(total_hdr_len % SCION_LINE_LEN == 0);
 
-	size_t total_len = scion_packet_len(packet);
-
-	if (total_len > *buf_len) {
+	if (total_hdr_len > *buf_len) {
 		// buffer is not big enough.
 		return SCION_ERR_BUF_TOO_SMALL;
 	}
 
-	*buf_len = total_len;
+	*buf_len = total_hdr_len;
 
 	// Common Header
 	uint32_t first_line = ((uint32_t)packet->version) << 28 | ((uint32_t)packet->traffic_class) << 20
@@ -155,14 +110,36 @@ int scion_packet_serialize(struct scion_packet *packet, uint8_t *buf, size_t *bu
 
 	// Copy Path
 	if (path_length > 0) {
-		(void)memcpy(buf + offset, packet->path->raw_path->raw, path_length);
-		offset += path_length;
+		(void)memcpy(buf + offset, packet->raw_path, path_length);
 	}
 
-	// Copy payload
-	if (packet->payload_len > 0) {
-		(void)memcpy(buf + offset, packet->payload, packet->payload_len);
+	return 0;
+}
+
+int scion_packet_serialize(struct scion_packet *packet, uint8_t *buf, size_t *buf_len)
+{
+	assert(packet);
+	assert(buf);
+
+	(void)memset(buf, 0, *buf_len);
+
+	size_t hdr_len = *buf_len;
+	int ret = scion_packet_header_serialize(packet, buf, &hdr_len);
+	if (ret != 0) {
+		return ret;
 	}
+
+	size_t total_len = hdr_len + packet->payload_len;
+	if (total_len > *buf_len) {
+		// buffer is not big enough.
+		return SCION_ERR_BUF_TOO_SMALL;
+	}
+
+	if (packet->payload_len > 0) {
+		(void)memcpy(buf + hdr_len, packet->payload, packet->payload_len);
+	}
+
+	*buf_len = total_len;
 	return 0;
 }
 
@@ -189,12 +166,10 @@ static int scion_deserialize_addr_hdr(const uint8_t *buf, size_t buf_len, struct
 	offset += SCION_IA_BYTES;
 
 	packet->raw_dst_addr_length = scion_packet_addr_type_len(packet->dst_addr_type);
-	packet->raw_dst_addr = (uint8_t *)malloc(packet->raw_dst_addr_length);
 	(void)memcpy(packet->raw_dst_addr, buf + offset, packet->raw_dst_addr_length);
 	offset += packet->raw_dst_addr_length;
 
 	packet->raw_src_addr_length = scion_packet_addr_type_len(packet->src_addr_type);
-	packet->raw_src_addr = (uint8_t *)malloc(packet->raw_src_addr_length);
 	(void)memcpy(packet->raw_src_addr, buf + offset, packet->raw_src_addr_length);
 
 	return 0;
@@ -249,46 +224,11 @@ int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_pa
 		return SCION_ERR_NOT_ENOUGH_DATA;
 	}
 
-	// TODO: move this logic to path.c
-	packet->path = malloc(sizeof(*packet->path));
-	if (packet->path == NULL) {
-		return SCION_ERR_MEM_ALLOC_FAIL;
-	}
-	packet->path->dst = packet->dst_ia;
-	packet->path->src = packet->src_ia;
-	packet->path->path_type = packet->path_type;
-	packet->path->metadata = NULL;
-	// TODO: correct weight calculation?
-	packet->path->weight = 0;
-	if (packet->path->path_type == SCION_PATH_TYPE_EMPTY) {
-		packet->path->raw_path = NULL;
-	} else {
-		packet->path->raw_path = malloc(sizeof(*packet->path->raw_path));
-		if (packet->path->raw_path == NULL) {
-			ret = SCION_ERR_MEM_ALLOC_FAIL;
-			goto cleanup_path;
-		}
-		packet->path->raw_path->length = path_hdr_len;
-		packet->path->raw_path->raw = (uint8_t *)malloc(path_hdr_len);
-		(void)memcpy(packet->path->raw_path->raw, buf + current_offset, path_hdr_len);
-		current_offset += path_hdr_len;
-	}
+	packet->raw_path = path_hdr_len > 0 ? buf + current_offset : NULL;
+	packet->raw_path_length = path_hdr_len;
+	current_offset += path_hdr_len;
 
-	packet->payload = (uint8_t *)malloc(packet->payload_len);
-	if (packet->payload == NULL) {
-		ret = SCION_ERR_MEM_ALLOC_FAIL;
-		goto cleanup_raw_path;
-	}
-	(void)memcpy(packet->payload, buf + current_offset, packet->payload_len);
+	packet->payload = buf + current_offset;
 
-exit:
-	return ret;
-
-cleanup_raw_path:
-	free(packet->path->raw_path);
-
-cleanup_path:
-	free(packet->path);
-
-	goto exit;
+	return 0;
 }

@@ -112,8 +112,8 @@ static void test_deserialize_udp_with_data(void **)
 	assert_uint_equal(udp.dst_port, 31000);
 	assert_uint_equal(udp.data_length, 5);
 	assert_memory_equal(udp.data, "hello", 5);
-
-	scion_udp_free_members(&udp);
+	// The data is in the buffer, it is not copied
+	assert_ptr_equal(udp.data, buf + SCION_UDP_HDR_LEN);
 }
 
 static void test_deserialize_udp_ignores_trailing_bytes(void **)
@@ -126,8 +126,6 @@ static void test_deserialize_udp_ignores_trailing_bytes(void **)
 
 	assert_uint_equal(udp.data_length, 2);
 	assert_memory_equal(udp.data, "ab", 2);
-
-	scion_udp_free_members(&udp);
 }
 
 static void test_deserialize_udp_incomplete_header(void **)

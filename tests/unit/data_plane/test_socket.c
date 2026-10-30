@@ -742,6 +742,48 @@ static void test_socket_traceroute_with_router_alert(void **state)
 	}
 }
 
+// The buffers of a message are sent from where they are, in one packet.
+static void test_socket_sendmsg_gathers_the_buffers(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(receiver);
+	struct sockaddr_in receiver_addr = bound_address(receiver);
+
+	char first[] = "he";
+	char empty[] = "";
+	char last[] = "llo";
+	struct iovec iov[] = { { .iov_base = first, .iov_len = 2 }, { .iov_base = empty, .iov_len = 0 },
+		{ .iov_base = last, .iov_len = 3 } };
+	struct msghdr msg = { .msg_name = &receiver_addr,
+		.msg_namelen = sizeof(receiver_addr),
+		.msg_iov = iov,
+		.msg_iovlen = 3 };
+	assert_int_equal(scion_sendmsg(sender, &msg, 0, local_ia_of(fixture), NULL), 5);
+
+	char buf[16] = { 0 };
+	assert_int_equal(scion_recv(receiver, buf, sizeof(buf), 0), 5);
+	assert_memory_equal(buf, "hello", 5);
+}
+
+static void test_socket_sendmsg_too_many_buffers(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct sockaddr_in dst = loopback_addr(30000);
+
+	char data[] = "x";
+	// More buffers than a message can have
+	struct iovec iov[SCION_IOV_MAX + 1];
+	for (size_t i = 0; i < SCION_IOV_MAX + 1; i++) {
+		iov[i] = (struct iovec){ .iov_base = data, .iov_len = 0 };
+	}
+	struct msghdr msg
+		= { .msg_name = &dst, .msg_namelen = sizeof(dst), .msg_iov = iov, .msg_iovlen = SCION_IOV_MAX + 1 };
+	assert_int_equal(scion_sendmsg(sender, &msg, 0, local_ia_of(fixture), NULL), SCION_ERR_MSG_TOO_LARGE);
+}
+
 #ifdef __linux__
 static void test_socket_receive_no_control_messages(void **state)
 {
@@ -1393,6 +1435,8 @@ int run_socket_tests(void)
 		cmocka_unit_test_setup_teardown(
 			test_socket_scmp_informational_message_is_not_an_error, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_traceroute_with_router_alert, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_sendmsg_gathers_the_buffers, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_sendmsg_too_many_buffers, setup_fixture, teardown_fixture),
 #ifdef __linux__
 		cmocka_unit_test_setup_teardown(test_socket_receive_no_control_messages, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_receive_error_queue, setup_fixture, teardown_fixture),

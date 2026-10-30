@@ -87,6 +87,11 @@ int scion_path_raw_init(struct scion_path_raw *raw_path, struct scion_path_meta_
  */
 void scion_path_raw_free(struct scion_path_raw *raw_path);
 
+// Creates a path from its raw header, for example the path that a packet was received on. The raw header is copied.
+// Returns NULL if the allocation fails.
+struct scion_path *scion_path_from_raw(
+	scion_ia src, scion_ia dst, enum scion_path_type path_type, const uint8_t *raw, uint16_t raw_len);
+
 /*
  * Reverses a scion_path_raw. Used to respond to a packet received from a source where no
  * previous path is available. This is done to use the same path as specified by the sender

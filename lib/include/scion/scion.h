@@ -38,6 +38,11 @@ extern "C" {
 #define SCION_IA_STRLEN 21
 
 /**
+ * The maximum number of buffers in a message that is sent with scion_sendmsg().
+ */
+#define SCION_IOV_MAX 64
+
+/**
  * Possible error codes returned by the csnet library.
  *
  * Errors codes smaller than -200 are internal error codes.
@@ -524,6 +529,7 @@ ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t si
  * @note No control messages are implemented for sending. A message with control messages is rejected with
  * SCION_ERR_CONTROL_MSG_NOT_IMPLEMENTED.
  * @note The paths to a destination that the socket is not connected to are fetched on the first send and cached.
+ * @note A message with more than SCION_IOV_MAX buffers is rejected with SCION_ERR_MSG_TOO_LARGE.
  */
 ssize_t scion_sendmsg(
 	struct scion_socket *scion_sock, const struct msghdr *msg, int flags, scion_ia dst_ia, struct scion_path *path);

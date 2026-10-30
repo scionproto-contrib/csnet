@@ -419,7 +419,7 @@ static ssize_t scion_sendmsg_path(
 		return SCION_ERR_PATH_EXPIRED;
 	}
 
-	// Create SCION Packet
+	// Create SCION Packet. It has the header only, the payload is sent from the buffers of the caller.
 	struct scion_packet packet = { 0 };
 	packet.version = 0;
 	packet.traffic_class = 0;
@@ -427,8 +427,11 @@ static ssize_t scion_sendmsg_path(
 	packet.next_hdr = (uint8_t)scion_sock->protocol;
 	packet.dst_ia = path->dst;
 	packet.src_ia = path->src;
-	packet.path = path;
 	packet.path_type = (uint8_t)path->path_type;
+	if (path->raw_path != NULL) {
+		packet.raw_path = path->raw_path->raw;
+		packet.raw_path_length = path->raw_path->length;
+	}
 
 	// Destination
 	struct sockaddr *dst_addr = msg->msg_name;
@@ -436,20 +439,17 @@ static ssize_t scion_sendmsg_path(
 		// IPv4
 		packet.dst_addr_type = SCION_ADDR_TYPE_T4IP;
 		packet.raw_dst_addr_length = 4;
-		packet.raw_dst_addr = (uint8_t *)malloc(packet.raw_dst_addr_length);
 		struct sockaddr_in *dst_sockaddr = (struct sockaddr_in *)dst_addr;
 		(void)memcpy(packet.raw_dst_addr, &(dst_sockaddr->sin_addr.s_addr), packet.raw_dst_addr_length);
 	} else if (dst_addr->sa_family == AF_INET6 && msg->msg_namelen == sizeof(struct sockaddr_in6)) {
 		// IPv6
 		packet.dst_addr_type = SCION_ADDR_TYPE_T16IP;
 		packet.raw_dst_addr_length = 16;
-		packet.raw_dst_addr = (uint8_t *)malloc(packet.raw_dst_addr_length);
 		struct sockaddr_in6 *dst_sockaddr = (struct sockaddr_in6 *)dst_addr;
 		(void)memcpy(packet.raw_dst_addr, dst_sockaddr->sin6_addr.s6_addr, packet.raw_dst_addr_length);
 	} else {
 		// Unsupported destination address type
-		ret = SCION_ERR_ADDR_FAMILY_UNKNOWN;
-		goto cleanup_packet;
+		return SCION_ERR_ADDR_FAMILY_UNKNOWN;
 	}
 
 	// Source
@@ -458,27 +458,24 @@ static ssize_t scion_sendmsg_path(
 
 	ret = get_source_address(scion_sock, (struct sockaddr *)&src_addr, &src_addr_len);
 	if (ret != 0) {
-		goto cleanup_packet;
+		return ret;
 	}
 
 	if (scion_sock->src_addr.ss_family == AF_INET) {
 		// IPv4
 		packet.src_addr_type = SCION_ADDR_TYPE_T4IP;
 		packet.raw_src_addr_length = 4;
-		packet.raw_src_addr = (uint8_t *)malloc(packet.raw_src_addr_length);
 		struct sockaddr_in *src_sockaddr = (struct sockaddr_in *)&scion_sock->src_addr;
 		(void)memcpy(packet.raw_src_addr, &(src_sockaddr->sin_addr.s_addr), packet.raw_src_addr_length);
 	} else if (scion_sock->src_addr.ss_family == AF_INET6) {
 		// IPv6
 		packet.src_addr_type = SCION_ADDR_TYPE_T16IP;
 		packet.raw_src_addr_length = 16;
-		packet.raw_src_addr = (uint8_t *)malloc(packet.raw_src_addr_length);
 		struct sockaddr_in6 *src_sockaddr = (struct sockaddr_in6 *)&scion_sock->src_addr;
 		(void)memcpy(packet.raw_src_addr, src_sockaddr->sin6_addr.s6_addr, packet.raw_src_addr_length);
 	} else {
 		// Unsupported source address type
-		ret = SCION_ERR_ADDR_FAMILY_UNKNOWN;
-		goto cleanup_packet;
+		return SCION_ERR_ADDR_FAMILY_UNKNOWN;
 	}
 
 	// Create payload, depending on the protocol.
@@ -487,26 +484,24 @@ static ssize_t scion_sendmsg_path(
 		data_len += msg->msg_iov[i].iov_len;
 	}
 
+	if (data_len > UINT16_MAX) {
+		return SCION_ERR_MSG_TOO_LARGE;
+	}
+
+	if ((size_t)msg->msg_iovlen > SCION_IOV_MAX) {
+		return SCION_ERR_MSG_TOO_LARGE;
+	}
+
+	// The header of the packet is followed by the header of the UDP packet, if there is one, and by the data. They are
+	// sent together as the vectors of one message, so nothing is copied or allocated.
+	uint8_t packet_hdr[SCION_MAX_HDR_LEN];
+	uint8_t udp_hdr[SCION_UDP_HDR_LEN];
+	struct iovec iov[SCION_IOV_MAX + 2];
+	size_t iov_len = 1;
+
 	if (scion_sock->protocol == SCION_PROTO_UDP) {
-		// Create UDP packet
 		struct scion_udp udp_packet = { 0 };
-		if (data_len > UINT16_MAX) {
-			ret = SCION_ERR_MSG_TOO_LARGE;
-			goto cleanup_packet;
-		}
 		udp_packet.data_length = (uint16_t)data_len;
-
-		if (data_len > 0) {
-			udp_packet.data = (uint8_t *)malloc(data_len);
-
-			size_t offset = 0;
-			for (size_t i = 0; i < (size_t)msg->msg_iovlen; i++) {
-				(void)memcpy(udp_packet.data + offset, msg->msg_iov[i].iov_base, msg->msg_iov[i].iov_len);
-				offset += msg->msg_iov[i].iov_len;
-			}
-		} else {
-			udp_packet.data = NULL;
-		}
 
 		// Set Ports
 		if (dst_addr->sa_family == AF_INET) {
@@ -524,47 +519,32 @@ static ssize_t scion_sendmsg_path(
 			udp_packet.src_port = ntohs(((struct sockaddr_in6 *)&scion_sock->src_addr)->sin6_port);
 		}
 
-		// Serialize UDP packet into payload buffer of SCION packet
-		packet.payload_len = scion_udp_len(&udp_packet);
-		packet.payload = (uint8_t *)malloc(packet.payload_len);
-		ret = scion_udp_serialize(&udp_packet, packet.payload, &packet.payload_len);
+		ret = scion_udp_header_serialize(&udp_packet, udp_hdr);
 		if (ret != 0) {
-			scion_udp_free_members(&udp_packet);
-			goto cleanup_packet;
+			return ret;
 		}
 
-		scion_udp_free_members(&udp_packet);
+		packet.payload_len = scion_udp_len(&udp_packet);
+		iov[iov_len].iov_base = udp_hdr;
+		iov[iov_len].iov_len = sizeof(udp_hdr);
+		iov_len++;
 	} else if (scion_sock->protocol == SCION_PROTO_SCMP) {
-		if (data_len > UINT16_MAX) {
-			ret = SCION_ERR_MSG_TOO_LARGE;
-			goto cleanup_packet;
-		}
 		packet.payload_len = (uint16_t)data_len;
-
-		if (data_len > 0) {
-			packet.payload = (uint8_t *)malloc(packet.payload_len);
-
-			size_t offset = 0;
-			for (size_t i = 0; i < (size_t)msg->msg_iovlen; i++) {
-				(void)memcpy(packet.payload + offset, msg->msg_iov[i].iov_base, msg->msg_iov[i].iov_len);
-				offset += msg->msg_iov[i].iov_len;
-			}
-		} else {
-			packet.payload = NULL;
-		}
 	}
 
-	size_t packet_length = scion_packet_len(&packet);
-	uint8_t *packet_buf = malloc(packet_length);
-	if (packet_buf == NULL) {
-		ret = SCION_ERR_MEM_ALLOC_FAIL;
-		goto cleanup_packet;
+	for (size_t i = 0; i < (size_t)msg->msg_iovlen; i++) {
+		iov[iov_len++] = msg->msg_iov[i];
 	}
 
-	ret = scion_packet_serialize(&packet, packet_buf, &packet_length);
+	size_t hdr_len = sizeof(packet_hdr);
+	ret = scion_packet_header_serialize(&packet, packet_hdr, &hdr_len);
 	if (ret != 0) {
-		goto cleanup_packet_buf;
+		return ret;
 	}
+
+	iov[0].iov_base = packet_hdr;
+	iov[0].iov_len = hdr_len;
+	size_t packet_length = hdr_len + packet.payload_len;
 
 	const struct sockaddr *next_hop_addr;
 	socklen_t next_hop_addr_length;
@@ -575,28 +555,22 @@ static ssize_t scion_sendmsg_path(
 		next_hop_addr = dst_addr;
 		next_hop_addr_length = msg->msg_namelen;
 	} else {
-		ret = SCION_ERR_PATH_TYPE_INVALID;
-		goto cleanup_packet_buf;
+		return SCION_ERR_PATH_TYPE_INVALID;
 	}
 
 	if (next_hop_addr->sa_family != scion_sock->local_addr_family) {
-		ret = SCION_ERR_ADDR_FAMILY_MISMATCH;
-		goto cleanup_packet_buf;
+		return SCION_ERR_ADDR_FAMILY_MISMATCH;
 	}
 
 	struct timespec transmit_time;
 	(void)clock_gettime(CLOCK_REALTIME, &transmit_time);
 
 	do {
-		struct iovec iov[1];
-		iov[0].iov_len = packet_length;
-		iov[0].iov_base = packet_buf;
-
 		struct msghdr underlying_msg = { 0 };
 		underlying_msg.msg_name = (void *)next_hop_addr;
 		underlying_msg.msg_namelen = next_hop_addr_length;
 
-		underlying_msg.msg_iovlen = 1;
+		underlying_msg.msg_iovlen = (size_t)iov_len;
 		underlying_msg.msg_iov = iov;
 
 		underlying_msg.msg_flags = msg->msg_flags;
@@ -623,7 +597,7 @@ static ssize_t scion_sendmsg_path(
 			ret = SCION_ERR_SEND_FAIL;
 		}
 
-		goto cleanup_packet_buf;
+		return ret;
 	}
 
 	if (ret > 0) {
@@ -641,13 +615,6 @@ static ssize_t scion_sendmsg_path(
 			ret = (ssize_t)data_len;
 		}
 	}
-
-cleanup_packet_buf:
-	free(packet_buf);
-
-cleanup_packet:
-	packet.path = NULL; // To avoid free'ing socket->path
-	scion_packet_free_members(&packet);
 
 	return ret;
 }
@@ -990,16 +957,12 @@ ssize_t scion_recvmsg(
 		}
 
 		struct scion_packet packet = { 0 };
-		ret = scion_packet_deserialize((uint8_t *)&packet_buf, (size_t)ret, &packet);
+		ret = scion_packet_deserialize(packet_buf, (size_t)ret, &packet);
 		if (ret != 0) {
 			// Ignore packet
 			ret = 0;
 			goto cleanup_packet;
 		}
-
-		packet.path->underlay_next_hop.addr_family = scion_sock->local_addr_family;
-		packet.path->underlay_next_hop.addrlen = raw_msg.msg_namelen;
-		(void)memcpy(&packet.path->underlay_next_hop.addr, raw_msg.msg_name, raw_msg.msg_namelen);
 
 		uint16_t src_port;
 
@@ -1031,7 +994,6 @@ ssize_t scion_recvmsg(
 				offset += curr_recv_len;
 			}
 
-			scion_udp_free_members(&udp);
 		} else if (packet.next_hdr == 202) {
 			// SCMP message
 			src_port = 0; // No port on SCMP
@@ -1157,12 +1119,18 @@ ssize_t scion_recvmsg(
 		}
 
 		if (path != NULL) {
-			*path = packet.path;
-			packet.path = NULL; // prevent path from being freed by scion_packet_free_members
+			*path = scion_path_from_raw(packet.src_ia, packet.dst_ia, (enum scion_path_type)packet.path_type,
+				packet.raw_path, packet.raw_path_length);
+			if (*path == NULL) {
+				return SCION_ERR_MEM_ALLOC_FAIL;
+			}
+
+			(*path)->underlay_next_hop.addr_family = scion_sock->local_addr_family;
+			(*path)->underlay_next_hop.addrlen = raw_msg.msg_namelen;
+			(void)memcpy(&(*path)->underlay_next_hop.addr, raw_msg.msg_name, raw_msg.msg_namelen);
 		}
 
 cleanup_packet:
-		scion_packet_free_members(&packet);
 
 		// Return on error
 		if (ret < 0) {

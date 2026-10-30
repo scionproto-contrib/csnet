@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include <assert.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "data_plane/udp.h"
@@ -24,23 +23,30 @@ uint16_t scion_udp_len(struct scion_udp *udp)
 	return SCION_UDP_HDR_LEN + udp->data_length;
 }
 
-void scion_udp_free_members(struct scion_udp *udp)
-{
-	if (udp == NULL) {
-		return;
-	}
-
-	if (udp->data != NULL) {
-		free(udp->data);
-		udp->data = NULL;
-	}
-}
-
 /*
  * ##################################################################
  * ###################### Serialize Payloads ########################
  * ##################################################################
  */
+
+int scion_udp_header_serialize(struct scion_udp *udp, uint8_t *buf)
+{
+	assert(udp);
+	assert(buf);
+
+	if (SCION_UDP_HDR_LEN + (uint32_t)udp->data_length > UINT16_MAX) {
+		return SCION_ERR_MSG_TOO_LARGE;
+	}
+
+	scion_store_be16(buf, udp->src_port);
+	scion_store_be16(buf + 2, udp->dst_port);
+	scion_store_be16(buf + 4, scion_udp_len(udp));
+
+	// TODO calculate checksum
+	scion_store_be16(buf + 6, 0);
+
+	return 0;
+}
 
 int scion_udp_serialize(struct scion_udp *udp, uint8_t *buf, uint16_t *len)
 {
@@ -54,19 +60,17 @@ int scion_udp_serialize(struct scion_udp *udp, uint8_t *buf, uint16_t *len)
 		return SCION_ERR_MSG_TOO_LARGE;
 	}
 
-	uint16_t udp_len = scion_udp_len(udp);
-
-	if (*len < udp_len) {
+	if (*len < scion_udp_len(udp)) {
 		return SCION_ERR_BUF_TOO_SMALL;
 	}
 
-	scion_store_be16(buf, udp->src_port);
-	scion_store_be16(buf + 2, udp->dst_port);
-	scion_store_be16(buf + 4, udp_len);
+	int ret = scion_udp_header_serialize(udp, buf);
+	if (ret != 0) {
+		return ret;
+	}
 
-	// TODO calculate checksum
 	if (udp->data_length > 0) {
-		(void)memcpy(buf + 8, udp->data, udp->data_length);
+		(void)memcpy(buf + SCION_UDP_HDR_LEN, udp->data, udp->data_length);
 	}
 
 	return 0;
@@ -98,12 +102,7 @@ int scion_udp_deserialize(const uint8_t *buf, uint16_t len, struct scion_udp *ud
 
 	udp->data_length = udp_len - SCION_UDP_HDR_LEN;
 
-	if (udp->data_length > 0) {
-		udp->data = (uint8_t *)malloc(udp->data_length);
-		(void)memcpy(udp->data, buf + 8, udp->data_length);
-	} else {
-		udp->data = NULL;
-	}
+	udp->data = udp->data_length > 0 ? buf + SCION_UDP_HDR_LEN : NULL;
 
 	return 0;
 }

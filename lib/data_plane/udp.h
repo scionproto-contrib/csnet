@@ -24,27 +24,25 @@ struct scion_udp {
 	uint16_t src_port;
 	uint16_t dst_port;
 	uint16_t data_length;
-	uint8_t *data;
+	// The data is not owned by the struct. It is read by scion_udp_serialize, and scion_udp_deserialize points it to the
+	// buffer that is deserialized.
+	const uint8_t *data;
 };
 
-/*
- * Frees, if applicable, and set all internal members to 0 or NULL of a scion_udp struct, without freeing the struct
- * itself.
- *
- * Arguments:
- *      - struct scion_udp *udp: Pointer to the udp packet.
- */
-void scion_udp_free_members(struct scion_udp *udp);
-
-/*
- * Frees a scion_udp struct.
- *
- * Arguments:
- *      - struct scion_udp *udp: Pointer to the udp packet.
- */
-void scion_udp_free(struct scion_udp *udp);
-
 uint16_t scion_udp_len(struct scion_udp *udp);
+
+/*
+ * Serializes the header of a UDP packet, without the data. The data can be sent from where it is, for example with the
+ * vectors of sendmsg, so it does not need to be copied.
+ *
+ * Arguments:
+ *      - struct scion_udp *udp: Pointer to the scion_udp struct. Its data_length is the length of the data.
+ *      - uint8_t *buf: Pointer to the buffer in which the header will be saved, SCION_UDP_HDR_LEN bytes.
+ *
+ * Returns:
+ *      - 0 on success, an error code as defined in error.h.
+ */
+int scion_udp_header_serialize(struct scion_udp *udp, uint8_t *buf);
 
 /*
  * Serializes a scion_udp struct (which represents the internal UDP packet that is sent via SCION).
@@ -62,7 +60,8 @@ int scion_udp_serialize(struct scion_udp *udp, uint8_t *buf, uint16_t *len);
 
 /*
  * Takes a buffer which contains a serialized UDP packet and deserializes it into a scion_udp struct.
- * IMPORTANT: the scion_udp struct need to be allocated before calling this function.
+ * IMPORTANT: the scion_udp struct need to be allocated before calling this function. It does not allocate memory, the
+ * data of the struct points into the buffer, so it is valid for as long as the buffer is.
  *
  * Arguments:
  *      - const uint8_t *buf: Pointer to the buffer.

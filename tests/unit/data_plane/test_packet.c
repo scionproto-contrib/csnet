@@ -34,14 +34,12 @@ static void test_serialize_scion_packet(void **)
 
 	packet.dst_addr_type = SCION_ADDR_TYPE_T4IP;
 	packet.raw_dst_addr_length = 4;
-	packet.raw_dst_addr = (uint8_t *)malloc(4);
 	struct sockaddr_in dst_sockaddr;
 	dst_sockaddr.sin_addr.s_addr = inet_addr("127.0.0.102");
 	memcpy(packet.raw_dst_addr, &(dst_sockaddr.sin_addr.s_addr), 4);
 
 	packet.src_addr_type = SCION_ADDR_TYPE_T4IP;
 	packet.raw_src_addr_length = 4;
-	packet.raw_src_addr = (uint8_t *)malloc(4);
 	struct sockaddr_in src_sockaddr;
 	src_sockaddr.sin_addr.s_addr = inet_addr("127.0.0.189");
 	memcpy(packet.raw_src_addr, &(src_sockaddr.sin_addr.s_addr), 4);
@@ -64,29 +62,21 @@ static void test_serialize_scion_packet(void **)
 	};
 	// clang-format on
 
-	struct scion_path_raw raw_path = { 0 };
-	raw_path.length = sizeof(raw_path_buf);
-	raw_path.raw = (uint8_t *)&raw_path_buf;
-
-	struct scion_path path = { 0 };
-	path.dst = packet.dst_ia;
-	path.src = packet.src_ia;
-	path.path_type = SCION_PATH_TYPE_SCION;
-	path.raw_path = &raw_path;
-
-	packet.path = &path;
+	packet.raw_path = raw_path_buf;
+	packet.raw_path_length = sizeof(raw_path_buf);
 
 	const uint8_t data[] = { 0x61, 0x62, 0x63 };
 	struct scion_udp udp_packet = { 0 };
 	udp_packet.data_length = sizeof(data);
-	udp_packet.data = (uint8_t *)&data;
+	udp_packet.data = data;
 	udp_packet.dst_port = 31000;
 	udp_packet.src_port = 31000;
 
+	uint8_t payload[11];
 	packet.payload_len = scion_udp_len(&udp_packet);
-	packet.payload = (uint8_t *)malloc(packet.payload_len);
+	packet.payload = payload;
 
-	int ret = (int)scion_udp_serialize(&udp_packet, packet.payload, &packet.payload_len);
+	int ret = (int)scion_udp_serialize(&udp_packet, payload, &packet.payload_len);
 	assert_int_equal(ret, 0);
 
 	size_t packet_length = scion_packet_len(&packet);
@@ -122,9 +112,13 @@ static void test_serialize_scion_packet(void **)
 
 	assert_memory_equal(packet_buf, test_buf, packet_length);
 
-	free(packet.raw_dst_addr);
-	free(packet.raw_src_addr);
-	free(packet.payload);
+	// The header alone is the start of the packet
+	uint8_t header_buf[SCION_MAX_HDR_LEN];
+	size_t header_length = sizeof(header_buf);
+	assert_int_equal(scion_packet_header_serialize(&packet, header_buf, &header_length), 0);
+	assert_int_equal(header_length, packet_length - packet.payload_len);
+	assert_memory_equal(header_buf, test_buf, header_length);
+
 	free(packet_buf);
 }
 
@@ -197,16 +191,13 @@ static void test_deserialize_scion_packet(void **)
 	assert_memory_equal(dst_host, packet.raw_dst_addr, packet.raw_dst_addr_length);
 	assert_uint_equal(packet.raw_src_addr_length, 4);
 	assert_memory_equal(src_host, packet.raw_src_addr, packet.raw_src_addr_length);
-	assert_uint_equal(packet.path->raw_path->length, sizeof(path_buf));
-	assert_memory_equal(path_buf, packet.path->raw_path->raw, sizeof(path_buf));
+	assert_uint_equal(packet.raw_path_length, sizeof(path_buf));
+	assert_memory_equal(path_buf, packet.raw_path, sizeof(path_buf));
 	assert_memory_equal(udp_buf, packet.payload, sizeof(udp_buf));
 
-	free(packet.raw_dst_addr);
-	free(packet.raw_src_addr);
-	free(packet.path->raw_path->raw);
-	free(packet.path->raw_path);
-	free(packet.path);
-	free(packet.payload);
+	// The packet points into the buffer, it copies nothing
+	assert_ptr_equal(packet.raw_path, buf + SCION_CMN_HDR_LEN + scion_packet_addr_hdr_len(&packet));
+	assert_ptr_equal(packet.payload, buf + sizeof(buf) - packet.payload_len);
 }
 
 // A SCION packet with an empty path, IPv4 addresses and a 3 byte payload "abc".
@@ -234,17 +225,14 @@ static void init_empty_path_packet(struct scion_packet *packet)
 
 	packet->dst_addr_type = SCION_ADDR_TYPE_T4IP;
 	packet->raw_dst_addr_length = 4;
-	packet->raw_dst_addr = malloc(4);
 	memcpy(packet->raw_dst_addr, &empty_path_packet[28], 4);
 
 	packet->src_addr_type = SCION_ADDR_TYPE_T4IP;
 	packet->raw_src_addr_length = 4;
-	packet->raw_src_addr = malloc(4);
 	memcpy(packet->raw_src_addr, &empty_path_packet[32], 4);
 
 	packet->payload_len = 3;
-	packet->payload = malloc(3);
-	memcpy(packet->payload, "abc", 3);
+	packet->payload = (const uint8_t *)"abc";
 }
 
 static void test_packet_addr_type_len(void **)
@@ -263,7 +251,6 @@ static void test_serialize_scion_packet_empty_path(void **)
 	uint8_t buf[sizeof(empty_path_packet)];
 	size_t buf_len = sizeof(buf);
 	int ret = scion_packet_serialize(&packet, buf, &buf_len);
-	scion_packet_free_members(&packet);
 
 	assert_int_equal(ret, 0);
 	assert_uint_equal(buf_len, sizeof(empty_path_packet));
@@ -278,7 +265,6 @@ static void test_serialize_scion_packet_buffer_too_small(void **)
 	uint8_t buf[sizeof(empty_path_packet) - 1];
 	size_t buf_len = sizeof(buf);
 	int ret = scion_packet_serialize(&packet, buf, &buf_len);
-	scion_packet_free_members(&packet);
 
 	assert_int_equal(ret, SCION_ERR_BUF_TOO_SMALL);
 }
@@ -289,17 +275,13 @@ static void test_serialize_scion_packet_header_too_large(void **)
 	init_empty_path_packet(&packet);
 
 	// 12 + 24 + 1000 bytes exceeds the largest header the hdr_len field can express.
-	struct scion_path_raw raw_path = { .length = 1000, .raw = NULL };
-	struct scion_path path = { .path_type = SCION_PATH_TYPE_SCION, .raw_path = &raw_path };
 	packet.path_type = SCION_PATH_TYPE_SCION;
-	packet.path = &path;
+	packet.raw_path = NULL;
+	packet.raw_path_length = 1000;
 
 	uint8_t buf[sizeof(empty_path_packet)];
 	size_t buf_len = sizeof(buf);
 	int ret = scion_packet_serialize(&packet, buf, &buf_len);
-
-	packet.path = NULL;
-	scion_packet_free_members(&packet);
 
 	assert_int_equal(ret, SCION_ERR_MAX_HDR_LEN_EXCEEDED);
 }
@@ -315,12 +297,12 @@ static void test_deserialize_scion_packet_empty_path(void **)
 		assert_uint_equal(packet.path_type, SCION_PATH_TYPE_EMPTY);
 		assert_uint_equal(packet.dst_ia, 0x1ff0000000121);
 		assert_uint_equal(packet.src_ia, 0x2ff0000000221);
-		assert_null(packet.path->raw_path);
+		assert_null(packet.raw_path);
+		assert_uint_equal(packet.raw_path_length, 0);
 		assert_uint_equal(packet.payload_len, 3);
 		assert_memory_equal(packet.payload, "abc", 3);
 	}
 
-	scion_packet_free_members(&packet);
 	assert_int_equal(ret, 0);
 }
 
@@ -328,7 +310,6 @@ static void assert_deserialize_fails(const uint8_t *buf, size_t buf_len, int exp
 {
 	struct scion_packet packet = { 0 };
 	int ret = scion_packet_deserialize(buf, buf_len, &packet);
-	scion_packet_free_members(&packet);
 
 	assert_int_equal(ret, expected_error);
 }

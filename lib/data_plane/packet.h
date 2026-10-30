@@ -30,6 +30,8 @@
 // There are four possible sub-types per address length.
 // Documentation copied from:
 // https://github.com/scionproto/scion/blob/a1ed6246ecd6beae9c82544032de4f9fecab1058/pkg/slayers/scion.go#L51
+#define SCION_MAX_RAW_ADDR_LEN 16
+
 #define SCION_ADDR_TYPE_T4IP 0 // T = 0, L = 0
 #define SCION_ADDR_TYPE_T16IP 3 // T = 0, L = 3
 
@@ -80,17 +82,21 @@ struct scion_packet {
 	scion_ia src_ia;
 
 	// raw_dst_addr is the destination address.
-	uint8_t *raw_dst_addr;
+	uint8_t raw_dst_addr[SCION_MAX_RAW_ADDR_LEN];
 	uint8_t raw_dst_addr_length;
 
 	// raw_src_addr is the source address.
-	uint8_t *raw_src_addr;
+	uint8_t raw_src_addr[SCION_MAX_RAW_ADDR_LEN];
 	uint8_t raw_src_addr_length;
 
-	// path is the path contained in the SCION header. It depends on the path_type field.
-	struct scion_path *path;
+	// raw_path is the path header of the SCION header. It is empty if the path_type is empty. The packet does not own
+	// it, it points to the path that the packet is sent over or to the buffer that the packet was deserialized from.
+	const uint8_t *raw_path;
+	uint16_t raw_path_length;
 
-	uint8_t *payload;
+	// payload is not owned by the packet, it points to the buffer that the packet was deserialized from. It is not
+	// used when serializing the header only.
+	const uint8_t *payload;
 };
 
 /*
@@ -119,24 +125,21 @@ uint16_t scion_packet_addr_hdr_len(struct scion_packet *packet);
 size_t scion_packet_len(struct scion_packet *packet);
 
 /*
- * Frees, if applicable, and set all internal members to 0 or NULL of a scion_packet struct, without freeing the struct
- * itself.
+ * Serializes the SCION header of a scion packet into the provided buffer, without the payload. The payload can be sent
+ * from where it is, for example with the vectors of sendmsg, so it does not need to be copied.
  *
  * Arguments:
- *      - struct scion_packet *packet: Pointer to the SCION packet.
- */
-void scion_packet_free_members(struct scion_packet *packet);
-
-/*
- * Frees a scion_packet struct.
+ *      - struct scion_packet *packet: Pointer to the SCION packet. Its payload_len is the length of the payload.
+ *      - uint8_t *buf: Pointer to the buffer in which the header will be saved, SCION_MAX_HDR_LEN bytes are enough.
+ *      - size_t *buf_len: Length of the provided buffer. It is the length of the header on success.
  *
- * Arguments:
- *      - struct scion_packet *packet: Pointer to the SCION packet.
+ * Returns:
+ *      - 0 on success, an error code as defined in error.h.
  */
-void scion_packet_free(struct scion_packet *packet);
+int scion_packet_header_serialize(struct scion_packet *packet, uint8_t *buf, size_t *buf_len);
 
 /*
- * Serializes a scion packet into the provided buffer.
+ * Serializes a scion packet, header and payload, into the provided buffer.
  *
  * Arguments:
  *      - struct scion_packet *packet: Pointer to the SCION packet which we want to serialize.
@@ -152,7 +155,8 @@ int scion_packet_serialize(struct scion_packet *packet, uint8_t *buf, size_t *bu
 
 /*
  * Takes a buffer which contains a serialized SCION packet and deserializes it into a scion_packet struct.
- * IMPORTANT: the scion_packet struct need to be allocated before calling this function.
+ * IMPORTANT: the scion_packet struct need to be allocated before calling this function. It does not allocate memory,
+ * the path and the payload of the packet point into the buffer, so they are valid for as long as the buffer is.
  *
  * Arguments:
  *      - const uint8_t *buf: Pointer to the buffer.

@@ -61,6 +61,40 @@ int scion_path_raw_init(struct scion_path_raw *raw_path, struct scion_path_meta_
 	return 0;
 }
 
+struct scion_path *scion_path_from_raw(
+	scion_ia src, scion_ia dst, enum scion_path_type path_type, const uint8_t *raw, uint16_t raw_len)
+{
+	struct scion_path *path = calloc(1, sizeof(*path));
+	if (path == NULL) {
+		return NULL;
+	}
+
+	path->src = src;
+	path->dst = dst;
+	path->path_type = path_type;
+
+	if (path_type != SCION_PATH_TYPE_EMPTY) {
+		path->raw_path = malloc(sizeof(*path->raw_path));
+		if (path->raw_path == NULL) {
+			free(path);
+			return NULL;
+		}
+
+		path->raw_path->length = raw_len;
+		path->raw_path->raw = malloc(raw_len > 0 ? raw_len : 1);
+		if (path->raw_path->raw == NULL) {
+			free(path->raw_path);
+			free(path);
+			return NULL;
+		}
+		if (raw_len > 0) {
+			(void)memcpy(path->raw_path->raw, raw, raw_len);
+		}
+	}
+
+	return path;
+}
+
 void scion_path_raw_free(struct scion_path_raw *raw_path)
 {
 	if (raw_path == NULL) {
