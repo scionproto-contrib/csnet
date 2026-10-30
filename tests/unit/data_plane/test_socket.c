@@ -245,7 +245,8 @@ static void test_socket_sendto_applies_the_policy(void **state)
 	struct sockaddr_in receiver_addr = bound_address(receiver);
 
 	int calls = 0;
-	assert_int_equal(scion_setsockpolicy(sender, (struct scion_policy){ .fn = count_policy_calls, .ctx = &calls }), 0);
+	struct scion_policy policy = { .fn = count_policy_calls, .ctx = &calls };
+	assert_int_equal(scion_setsockpolicy(sender, &policy), 0);
 
 	assert_int_equal(scion_sendto(sender, "hello", 5, 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr),
 						 local_ia_of(fixture), NULL),
@@ -261,7 +262,8 @@ static void test_socket_sendto_policy_removes_all_paths(void **state)
 	bind_loopback(receiver);
 	struct sockaddr_in receiver_addr = bound_address(receiver);
 
-	assert_int_equal(scion_setsockpolicy(sender, (struct scion_policy){ .fn = remove_all_paths, .ctx = NULL }), 0);
+	struct scion_policy policy = { .fn = remove_all_paths, .ctx = NULL };
+	assert_int_equal(scion_setsockpolicy(sender, &policy), 0);
 
 	assert_int_equal(scion_sendto(sender, "hello", 5, 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr),
 						 local_ia_of(fixture), NULL),
@@ -963,7 +965,7 @@ static void test_socket_receive_skips_malformed_packets(void **state)
 	assert_memory_equal(buf, "ok", 2);
 }
 
-struct recording_selector {
+struct recording_ctx {
 	int calls;
 	const struct scion_path *last_current;
 	struct scion_path *last_chosen;
@@ -973,16 +975,11 @@ struct recording_selector {
 static struct scion_path *recording_select(
 	struct scion_path_collection *paths, const struct scion_path *current, void *ctx)
 {
-	struct recording_selector *selector = ctx;
-	selector->calls++;
-	selector->last_current = current;
-	selector->last_chosen = selector->no_path ? NULL : scion_path_collection_first(paths);
-	return selector->last_chosen;
-}
-
-static struct scion_selector as_selector(struct recording_selector *selector)
-{
-	return (struct scion_selector){ .fn = recording_select, .ctx = selector };
+	struct recording_ctx *state = ctx;
+	state->calls++;
+	state->last_current = current;
+	state->last_chosen = state->no_path ? NULL : scion_path_collection_first(paths);
+	return state->last_chosen;
 }
 
 // A client that is connected to a server in the local AS.
@@ -1014,22 +1011,23 @@ static void test_socket_selector_is_asked_for_every_packet(void **state)
 	struct sockaddr_in server_addr;
 	struct scion_socket *client = connect_to_server(fixture, &server, &server_addr);
 
-	struct recording_selector selector = { 0 };
-	assert_int_equal(scion_setsockselector(client, as_selector(&selector)), 0);
-	assert_int_equal(selector.calls, 0);
+	struct recording_ctx ctx = { 0 };
+	struct scion_selector selector = { .fn = recording_select, .ctx = &ctx };
+	assert_int_equal(scion_setsockselector(client, &selector), 0);
+	assert_int_equal(ctx.calls, 0);
 
 	assert_int_equal(scion_send(client, "one", 3, 0), 3);
 	assert_received(server, "one");
-	assert_int_equal(selector.calls, 1);
-	assert_null(selector.last_current);
-	struct scion_path *first = selector.last_chosen;
+	assert_int_equal(ctx.calls, 1);
+	assert_null(ctx.last_current);
+	struct scion_path *first = ctx.last_chosen;
 	assert_non_null(first);
 
 	// The selector gets the path of the previous packet
 	assert_int_equal(scion_send(client, "two", 3, 0), 3);
 	assert_received(server, "two");
-	assert_int_equal(selector.calls, 2);
-	assert_ptr_equal(selector.last_current, first);
+	assert_int_equal(ctx.calls, 2);
+	assert_ptr_equal(ctx.last_current, first);
 }
 
 static void test_socket_selector_without_a_path(void **state)
@@ -1039,8 +1037,9 @@ static void test_socket_selector_without_a_path(void **state)
 	struct sockaddr_in server_addr;
 	struct scion_socket *client = connect_to_server(fixture, &server, &server_addr);
 
-	struct recording_selector selector = { .no_path = true };
-	assert_int_equal(scion_setsockselector(client, as_selector(&selector)), 0);
+	struct recording_ctx ctx = { .no_path = true };
+	struct scion_selector selector = { .fn = recording_select, .ctx = &ctx };
+	assert_int_equal(scion_setsockselector(client, &selector), 0);
 
 	assert_int_equal(scion_send(client, "one", 3, 0), SCION_ERR_NO_PATHS);
 }
@@ -1054,14 +1053,15 @@ static void test_socket_selector_before_the_connection(void **state)
 	struct sockaddr_in server_addr = bound_address(server);
 	set_receive_timeout(server, 1000);
 
-	struct recording_selector selector = { 0 };
-	assert_int_equal(scion_setsockselector(client, as_selector(&selector)), 0);
+	struct recording_ctx ctx = { 0 };
+	struct scion_selector selector = { .fn = recording_select, .ctx = &ctx };
+	assert_int_equal(scion_setsockselector(client, &selector), 0);
 	assert_int_equal(
 		scion_connect(client, (struct sockaddr *)&server_addr, sizeof(server_addr), local_ia_of(fixture)), 0);
 
 	assert_int_equal(scion_send(client, "one", 3, 0), 3);
 	assert_received(server, "one");
-	assert_int_equal(selector.calls, 1);
+	assert_int_equal(ctx.calls, 1);
 }
 
 static void test_socket_scmp_error_marks_the_paths_as_down(void **state)
@@ -1130,16 +1130,18 @@ static void test_socket_selector_replaces_the_selector(void **state)
 	assert_int_equal(scion_send(client, "one", 3, 0), 3);
 	assert_received(server, "one");
 
-	struct recording_selector first = { 0 };
-	assert_int_equal(scion_setsockselector(client, as_selector(&first)), 0);
+	struct recording_ctx first = { 0 };
+	struct scion_selector selector = { .fn = recording_select, .ctx = &first };
+	assert_int_equal(scion_setsockselector(client, &selector), 0);
 	assert_int_equal(scion_send(client, "two", 3, 0), 3);
 	assert_received(server, "two");
 	assert_int_equal(first.calls, 1);
 	assert_non_null(first.last_current);
 
 	// The replaced selector is not called anymore
-	struct recording_selector second = { 0 };
-	assert_int_equal(scion_setsockselector(client, as_selector(&second)), 0);
+	struct recording_ctx second = { 0 };
+	selector.ctx = &second;
+	assert_int_equal(scion_setsockselector(client, &selector), 0);
 	assert_int_equal(scion_send(client, "three", 5, 0), 5);
 	assert_received(server, "three");
 	assert_int_equal(first.calls, 1);
@@ -1154,19 +1156,20 @@ static void test_socket_selector_survives_a_refresh(void **state)
 	struct sockaddr_in server_addr;
 	struct scion_socket *client = connect_to_server(fixture, &server, &server_addr);
 
-	struct recording_selector selector = { 0 };
-	assert_int_equal(scion_setsockselector(client, as_selector(&selector)), 0);
+	struct recording_ctx ctx = { 0 };
+	struct scion_selector selector = { .fn = recording_select, .ctx = &ctx };
+	assert_int_equal(scion_setsockselector(client, &selector), 0);
 	assert_int_equal(scion_send(client, "one", 3, 0), 3);
 	assert_received(server, "one");
 
 	// Setting the policy of a connected socket fetches the paths again
-	assert_int_equal(scion_setsockpolicy(client, scion_policy_least_hops), 0);
+	assert_int_equal(scion_setsockpolicy(client, &scion_policy_least_hops), 0);
 	assert_int_equal(scion_send(client, "two", 3, 0), 3);
 	assert_received(server, "two");
 
 	// The current path is the same path in the new paths
-	assert_int_equal(selector.calls, 2);
-	assert_ptr_equal(selector.last_current, scion_path_collection_first(client->paths));
+	assert_int_equal(ctx.calls, 2);
+	assert_ptr_equal(ctx.last_current, scion_path_collection_first(client->paths));
 }
 
 static void test_socket_selector_recovers_from_no_path(void **state)
@@ -1176,14 +1179,15 @@ static void test_socket_selector_recovers_from_no_path(void **state)
 	struct sockaddr_in server_addr;
 	struct scion_socket *client = connect_to_server(fixture, &server, &server_addr);
 
-	struct recording_selector selector = { .no_path = true };
-	assert_int_equal(scion_setsockselector(client, as_selector(&selector)), 0);
+	struct recording_ctx ctx = { .no_path = true };
+	struct scion_selector selector = { .fn = recording_select, .ctx = &ctx };
+	assert_int_equal(scion_setsockselector(client, &selector), 0);
 	assert_int_equal(scion_send(client, "one", 3, 0), SCION_ERR_NO_PATHS);
 
-	selector.no_path = false;
+	ctx.no_path = false;
 	assert_int_equal(scion_send(client, "two", 3, 0), 3);
 	assert_received(server, "two");
-	assert_int_equal(selector.calls, 2);
+	assert_int_equal(ctx.calls, 2);
 }
 
 static void test_socket_selector_not_used_unconnected(void **state)
@@ -1195,14 +1199,15 @@ static void test_socket_selector_not_used_unconnected(void **state)
 	struct sockaddr_in server_addr = bound_address(server);
 	set_receive_timeout(server, 1000);
 
-	struct recording_selector selector = { 0 };
-	assert_int_equal(scion_setsockselector(client, as_selector(&selector)), 0);
+	struct recording_ctx ctx = { 0 };
+	struct scion_selector selector = { .fn = recording_select, .ctx = &ctx };
+	assert_int_equal(scion_setsockselector(client, &selector), 0);
 
 	assert_int_equal(scion_sendto(client, "one", 3, 0, (struct sockaddr *)&server_addr, sizeof(server_addr),
 						 local_ia_of(fixture), NULL),
 		3);
 	assert_received(server, "one");
-	assert_int_equal(selector.calls, 0);
+	assert_int_equal(ctx.calls, 0);
 }
 
 static void test_socket_selector_not_used_with_path(void **state)
@@ -1212,8 +1217,9 @@ static void test_socket_selector_not_used_with_path(void **state)
 	struct sockaddr_in server_addr;
 	struct scion_socket *client = connect_to_server(fixture, &server, &server_addr);
 
-	struct recording_selector selector = { 0 };
-	assert_int_equal(scion_setsockselector(client, as_selector(&selector)), 0);
+	struct recording_ctx ctx = { 0 };
+	struct scion_selector selector = { .fn = recording_select, .ctx = &ctx };
+	assert_int_equal(scion_setsockselector(client, &selector), 0);
 
 	// A packet with a path of its own does not need the selector
 	struct scion_path *path = scion_path_collection_first(client->paths);
@@ -1221,7 +1227,7 @@ static void test_socket_selector_not_used_with_path(void **state)
 						 local_ia_of(fixture), path),
 		3);
 	assert_received(server, "one");
-	assert_int_equal(selector.calls, 0);
+	assert_int_equal(ctx.calls, 0);
 }
 
 int run_socket_tests(void)

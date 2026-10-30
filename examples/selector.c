@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
 
 	size_t next_path = 0;
 	struct scion_selector selector = { .fn = round_robin_select, .ctx = &next_path };
-	ret = scion_setsockselector(scion_sock, selector);
+	ret = scion_setsockselector(scion_sock, &selector);
 	if (ret != 0) {
 		printf("ERROR: Setting socket selector failed with error code: %d\n", ret);
 		ret = EXIT_FAILURE;

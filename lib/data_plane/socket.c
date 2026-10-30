@@ -1327,12 +1327,13 @@ int scion_setsockerrhandler(struct scion_socket *scion_sock, const struct scion_
 	return 0;
 }
 
-int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy policy)
+int scion_setsockpolicy(struct scion_socket *scion_sock, const struct scion_policy *policy)
 {
 	assert(scion_sock);
+	assert(policy);
 	int ret = 0;
 
-	scion_sock->policy = policy;
+	scion_sock->policy = *policy;
 
 	if (scion_sock->is_connected) {
 		ret = refresh_connected_paths(scion_sock);
@@ -1341,12 +1342,13 @@ int scion_setsockpolicy(struct scion_socket *scion_sock, struct scion_policy pol
 	return ret;
 };
 
-int scion_setsockselector(struct scion_socket *scion_sock, struct scion_selector selector)
+int scion_setsockselector(struct scion_socket *scion_sock, const struct scion_selector *selector)
 {
 	assert(scion_sock);
-	assert(selector.fn);
+	assert(selector);
+	assert(selector->fn);
 
-	scion_sock->selector = selector;
+	scion_sock->selector = *selector;
 
 	return 0;
 }
