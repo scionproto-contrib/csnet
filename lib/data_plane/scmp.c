@@ -436,25 +436,10 @@ int scion_scmp_error_deserialize(const uint8_t *buf, size_t buf_len, struct scio
 		break;
 	}
 
-	if (packet_length > 0) {
-		scmp_error->packet = malloc(packet_length);
-		if (scmp_error->packet == NULL) {
-			return SCION_ERR_MEM_ALLOC_FAIL;
-		}
-		(void)memcpy(scmp_error->packet, info + info_len, packet_length);
-		scmp_error->packet_length = (uint16_t)packet_length;
-	}
+	scmp_error->packet = packet_length > 0 ? info + info_len : NULL;
+	scmp_error->packet_length = (uint16_t)packet_length;
 
 	return 0;
-}
-
-void scion_scmp_error_free_members(struct scion_scmp_error *scmp_error)
-{
-	assert(scmp_error);
-
-	free(scmp_error->packet);
-	scmp_error->packet = NULL;
-	scmp_error->packet_length = 0;
 }
 
 // Appends a formatted string to buf. used is the length the string would have if buf was large enough.
