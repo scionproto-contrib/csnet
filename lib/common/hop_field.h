@@ -21,6 +21,10 @@
 #define SCION_MAC_LEN 6
 #define SCION_HOP_LEN 12
 
+// The flags in the first byte of a hop field
+#define SCION_HOP_FLAG_EGRESS_ROUTER_ALERT 0x1
+#define SCION_HOP_FLAG_INGRESS_ROUTER_ALERT 0x2
+
 // Documentation mostly taken from:
 // https://github.com/scionproto/scion/blob/master/pkg/slayers/path/hopfield.go
 

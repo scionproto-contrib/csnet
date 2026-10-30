@@ -35,10 +35,10 @@ int scion_info_field_serialize(uint8_t *buf, struct scion_info_field *info_field
 
 	buf[0] = 0;
 	if (info_field->cons_dir) {
-		buf[0] |= 0x1;
+		buf[0] |= SCION_INFO_FLAG_CONS_DIR;
 	}
 	if (info_field->peer) {
-		buf[0] |= 0x2;
+		buf[0] |= SCION_INFO_FLAG_PEER;
 	}
 	buf[1] = 0; // reserved
 	scion_store_be16(buf + 2, info_field->seg_id);
@@ -51,8 +51,8 @@ int scion_info_field_deserialize(const uint8_t *buf, struct scion_info_field *in
 	assert(buf);
 	assert(info_field);
 
-	info_field->cons_dir = ((buf[0] & 0x1) == 0x1);
-	info_field->peer = ((buf[0] & 0x2) == 0x2);
+	info_field->cons_dir = ((buf[0] & SCION_INFO_FLAG_CONS_DIR) != 0);
+	info_field->peer = ((buf[0] & SCION_INFO_FLAG_PEER) != 0);
 	info_field->seg_id = scion_load_be16(buf + 2);
 	info_field->timestamp = scion_load_be32(buf + 4);
 	return 0;

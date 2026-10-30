@@ -40,10 +40,10 @@ int scion_hop_field_serialize(uint8_t *buf, struct scion_hop_field *hop_field)
 
 	buf[0] = 0;
 	if (hop_field->egress_router_alert) {
-		buf[0] |= 0x1;
+		buf[0] |= SCION_HOP_FLAG_EGRESS_ROUTER_ALERT;
 	}
 	if (hop_field->ingress_router_alert) {
-		buf[0] |= 0x2;
+		buf[0] |= SCION_HOP_FLAG_INGRESS_ROUTER_ALERT;
 	}
 	buf[1] = hop_field->exp_time;
 	scion_store_be16(buf + 2, hop_field->cons_ingress);
@@ -57,8 +57,8 @@ int scion_hop_field_deserialize(uint8_t *buf, struct scion_hop_field *hop_field)
 	assert(buf);
 	assert(hop_field);
 
-	hop_field->egress_router_alert = ((buf[0] & 0x1) == 0x1);
-	hop_field->ingress_router_alert = ((buf[0] & 0x2) == 0x2);
+	hop_field->egress_router_alert = ((buf[0] & SCION_HOP_FLAG_EGRESS_ROUTER_ALERT) != 0);
+	hop_field->ingress_router_alert = ((buf[0] & SCION_HOP_FLAG_INGRESS_ROUTER_ALERT) != 0);
 	hop_field->exp_time = buf[1];
 	hop_field->cons_ingress = scion_load_be16(buf + 2);
 	hop_field->cons_egress = scion_load_be16(buf + 4);
