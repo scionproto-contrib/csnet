@@ -21,8 +21,8 @@
 #include "scion/scion_scmp.h"
 
 /*
- * Returns the type of an SCMP message, 0 if the buffer is too short. A type that is not defined by the SCMP
- * specification is returned as it is.
+ * Returns the type of an SCMP message, 0 if the buffer is too short.
+ * A type that is not defined by the SCMP specification is returned as it is.
  */
 enum scion_scmp_type scion_scmp_get_type(const uint8_t *buf, uint16_t buf_len);
 
@@ -58,13 +58,8 @@ size_t scion_scmp_error_len(const struct scion_scmp_error *scmp_error);
 int scion_scmp_error_serialize(const struct scion_scmp_error *scmp_error, uint8_t *buf, size_t buf_len);
 
 /*
- * Deserializes an SCMP error message. The quoted packet is copied into memory that is freed with
- * scion_scmp_error_free_members. Returns SCION_ERR_PACKET_FIELD_INVALID if the type is not a known SCMP error type.
+ * Deserializes an SCMP error message. The quoted packet is not copied, it points into the buffer.
+ * Returns SCION_ERR_PACKET_FIELD_INVALID if the type is not a known SCMP error type.
  * The code and the checksum are not validated.
  */
 int scion_scmp_error_deserialize(const uint8_t *buf, size_t buf_len, struct scion_scmp_error *scmp_error);
-
-/*
- * Frees the quoted packet of an SCMP error message that was deserialized with scion_scmp_error_deserialize.
- */
-void scion_scmp_error_free_members(struct scion_scmp_error *scmp_error);
