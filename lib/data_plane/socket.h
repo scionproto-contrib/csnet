@@ -31,7 +31,7 @@ struct scion_socket {
 	enum scion_addr_family local_addr_family;
 	int type;
 	enum scion_proto protocol;
-	struct scion_network *network;
+	const struct scion_network *network;
 	struct sockaddr_storage src_addr;
 	socklen_t src_addr_len;
 	bool is_src_addr_set;

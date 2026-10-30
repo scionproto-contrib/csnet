@@ -377,7 +377,7 @@ void scion_path_collection_filter(struct scion_path_collection *paths, struct sc
  * @param[in] paths The path collection.
  * @return The number of paths in the path collection.
  */
-size_t scion_path_collection_size(struct scion_path_collection *paths);
+size_t scion_path_collection_size(const struct scion_path_collection *paths);
 
 /**
  * Creates an array representation of a path collection.
@@ -401,7 +401,7 @@ struct scion_path **scion_path_collection_as_array(struct scion_path_collection 
  * @endcode
  * @param[in] paths The path list to print.
  */
-void scion_path_collection_print(struct scion_path_collection *paths);
+void scion_path_collection_print(const struct scion_path_collection *paths);
 
 /**
  * Fetches the paths from the local SCION network to the destination IA.
@@ -412,7 +412,7 @@ void scion_path_collection_print(struct scion_path_collection *paths);
  * @return 0 on success, a negative error code on failure.
  */
 int scion_path_collection_fetch(
-	struct scion_network *network, scion_ia dst, unsigned int opt, struct scion_path_collection **paths);
+	const struct scion_network *network, scion_ia dst, unsigned int opt, struct scion_path_collection **paths);
 
 #ifdef __cplusplus
 }

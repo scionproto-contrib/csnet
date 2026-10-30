@@ -1268,7 +1268,7 @@ static uint16_t scion_calculate_beta(struct solution_edge *sol_edge)
  * 		- An integer status code, 0 for success or an error code as defined in error.h.
  */
 static int scion_path_solution_to_path(
-	struct path_solution *solution, struct scion_path *path, struct scion_topology *topology)
+	struct path_solution *solution, struct scion_path *path, const struct scion_topology *topology)
 {
 	assert(solution);
 	assert(solution->edges);
@@ -1510,7 +1510,7 @@ static bool scion_check_duplicate_path(struct scion_list *ifids_list, scion_ifid
 }
 
 static int scion_path_solution_list_to_path_list(struct scion_list *path_solutions, struct scion_list *paths,
-	scion_ia src, scion_ia dst, struct scion_topology *topology, unsigned int opt)
+	scion_ia src, scion_ia dst, const struct scion_topology *topology, unsigned int opt)
 {
 	// TODO: remove me
 	(void)opt;
@@ -1576,9 +1576,9 @@ static int scion_path_solution_list_to_path_list(struct scion_list *path_solutio
  * ##################################################################
  */
 
-int scion_build_paths(scion_ia src, scion_ia dst, struct scion_topology *topology, struct scion_path_segment **ups,
-	size_t ups_length, struct scion_path_segment **cores, size_t cores_length, struct scion_path_segment **downs,
-	size_t downs_length, struct scion_list *paths, unsigned int opt)
+int scion_build_paths(scion_ia src, scion_ia dst, const struct scion_topology *topology,
+	struct scion_path_segment **ups, size_t ups_length, struct scion_path_segment **cores, size_t cores_length,
+	struct scion_path_segment **downs, size_t downs_length, struct scion_list *paths, unsigned int opt)
 {
 	assert(paths);
 

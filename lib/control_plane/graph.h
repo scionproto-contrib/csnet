@@ -36,6 +36,6 @@
  * @param[in] opt The path fetching options. Must be 0 if no flags should be used.
  * @return 0 on success, a negative error code on failure.
  */
-int scion_build_paths(scion_ia src, scion_ia dst, struct scion_topology *topology, struct scion_path_segment **ups,
-	size_t ups_length, struct scion_path_segment **cores, size_t cores_length, struct scion_path_segment **downs,
-	size_t downs_length, struct scion_list *paths, unsigned int opt);
+int scion_build_paths(scion_ia src, scion_ia dst, const struct scion_topology *topology,
+	struct scion_path_segment **ups, size_t ups_length, struct scion_path_segment **cores, size_t cores_length,
+	struct scion_path_segment **downs, size_t downs_length, struct scion_list *paths, unsigned int opt);

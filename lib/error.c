@@ -14,7 +14,7 @@
 
 #include "scion/scion.h"
 
-char *scion_strerror(int err)
+const char *scion_strerror(int err)
 {
 	switch (err) {
 	case SCION_ERR_GENERIC:

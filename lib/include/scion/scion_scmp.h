@@ -290,7 +290,7 @@ struct scion_scmp_echo {
  * @param[in] scmp_echo The SCMP echo message.
  * @return the size of the serialized SCMP echo message in bytes.
  */
-uint16_t scion_scmp_echo_len(struct scion_scmp_echo *scmp_echo);
+uint16_t scion_scmp_echo_len(const struct scion_scmp_echo *scmp_echo);
 
 /**
  * Serializes an SCMP echo message.

@@ -49,7 +49,7 @@ struct scion_border_router {
  * @return 0 on success, a negative error code on failure.
  */
 int scion_topology_next_underlay_hop(
-	struct scion_topology *topology, scion_ifid ifid, struct scion_underlay *underlay);
+	const struct scion_topology *topology, scion_ifid ifid, struct scion_underlay *underlay);
 
 /*
  * Uses the topology file to check if the local AS is a CORE AS or not.
@@ -61,4 +61,4 @@ int scion_topology_next_underlay_hop(
  * Returns:
  *      - A Boolean: true if the local AS is a CORE AS, false if it's not a CORE AS.
  */
-bool scion_topology_is_local_as_core(struct scion_topology *t);
+bool scion_topology_is_local_as_core(const struct scion_topology *t);
