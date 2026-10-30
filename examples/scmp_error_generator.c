@@ -68,12 +68,19 @@ int main(int argc, char *argv[])
 		char rx_buf[200];
 
 		struct scion_path *path;
+		ret = scion_path_create(&path);
+		if (ret != 0) {
+			printf("ERROR: Path creation failed with error code: %d\n", ret);
+			ret = EXIT_FAILURE;
+			goto cleanup_socket;
+		}
+
 		int n = scion_recvfrom(scion_sock, &rx_buf, sizeof rx_buf - 1, /* flags: */ 0, (struct sockaddr *)&sender_addr,
-			&sender_addr_len, &sender_ia, &path);
+			&sender_addr_len, &sender_ia, path);
 		if (n < 0) {
 			printf("ERROR: Receive failed with error code: %d\n", n);
 			ret = EXIT_FAILURE;
-			goto cleanup_socket;
+			goto cleanup_path;
 		}
 		rx_buf[n] = '\0';
 

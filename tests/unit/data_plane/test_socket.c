@@ -335,16 +335,16 @@ static void test_socket_udp_round_trip(void **state)
 	struct sockaddr_in from;
 	socklen_t from_len = sizeof(from);
 	scion_ia from_ia = 0;
-	struct scion_path *path = NULL;
+	struct scion_path *path;
+	assert_int_equal(scion_path_create(&path), 0);
 	assert_int_equal(
-		scion_recvfrom(receiver, buf, sizeof(buf), 0, (struct sockaddr *)&from, &from_len, &from_ia, &path), 5);
+		scion_recvfrom(receiver, buf, sizeof(buf), 0, (struct sockaddr *)&from, &from_len, &from_ia, path), 5);
 
 	assert_memory_equal(buf, "hello", 5);
 	assert_int_equal(from.sin_family, AF_INET);
 	assert_uint_equal(ntohl(from.sin_addr.s_addr), INADDR_LOOPBACK);
 	assert_int_equal(from.sin_port, sender_addr.sin_port);
 	assert_true(from_ia == local_ia_of(fixture));
-	assert_non_null(path);
 	assert_int_equal(path->path_type, SCION_PATH_TYPE_EMPTY);
 
 	scion_path_free(path);
@@ -673,6 +673,8 @@ static void test_socket_traceroute_with_router_alert(void **state)
 	struct scion_path_raw raw_path;
 	struct scion_path path;
 	init_two_hop_path(&path, &raw_path, raw, router_addr, ia);
+	struct scion_path *received_path;
+	assert_int_equal(scion_path_create(&received_path), 0);
 
 	for (size_t interface_index = 0; interface_index < 2; interface_index++) {
 		// Request, the router alert is set for one interface
@@ -687,11 +689,10 @@ static void test_socket_traceroute_with_router_alert(void **state)
 			(ssize_t)sizeof(buf));
 
 		// The router sees the request and the path with the flag
-		struct scion_path *received_path;
 		struct sockaddr_in from;
 		socklen_t from_len = sizeof(from);
-		assert_int_equal(scion_recvfrom(router, buf, sizeof(buf), 0, (struct sockaddr *)&from, &from_len, NULL,
-							 &received_path),
+		assert_int_equal(
+			scion_recvfrom(router, buf, sizeof(buf), 0, (struct sockaddr *)&from, &from_len, NULL, received_path),
 			(ssize_t)sizeof(buf));
 
 		struct scion_scmp_traceroute received;
@@ -716,7 +717,6 @@ static void test_socket_traceroute_with_router_alert(void **state)
 		assert_false(second->egress_router_alert);
 		scion_list_free(info_fields);
 		scion_list_free(hop_fields);
-		scion_path_free(received_path);
 
 		// The router answers, the socket accepts the reply although it does not come from the destination
 		struct scion_scmp_traceroute reply = { .type = SCION_SCMP_TYPE_TRACEROUTE_REPLY,
@@ -740,6 +740,8 @@ static void test_socket_traceroute_with_router_alert(void **state)
 		assert_uint_equal(received.interface, interface_index == 0 ? 11 : 12);
 		assert_uint_equal(ntohl(from.sin_addr.s_addr), INADDR_LOOPBACK);
 	}
+
+	scion_path_free(received_path);
 }
 
 // The buffers of a message are sent from where they are, in one packet.

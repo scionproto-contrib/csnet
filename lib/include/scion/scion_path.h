@@ -39,6 +39,15 @@ extern "C" {
 struct scion_path;
 
 /**
+ * Creates an empty path, in which a socket can store the path that a packet was received on.
+ * @param[out] path The new path. It must be freed with scion_path_free().
+ * @return 0 on success, a negative error code on failure.
+ *
+ * @note The path can be reused for every packet that is received, so receiving does not allocate memory.
+ */
+int scion_path_create(struct scion_path **path);
+
+/**
  * Reverses a path.
  * @param[in,out] path The path to reverse.
  * @return 0 on success, a negative error code on failure.

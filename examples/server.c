@@ -43,16 +43,24 @@ int main()
 		goto cleanup_socket;
 	}
 
+	// The path of every packet is stored in the same path, so receiving does not allocate memory
+	struct scion_path *path;
+	ret = scion_path_create(&path);
+	if (ret != 0) {
+		printf("ERROR: Path creation failed with error code: %d\n", ret);
+		ret = EXIT_FAILURE;
+		goto cleanup_socket;
+	}
+
 	while (1) {
 		struct sockaddr_storage sender_addr;
 		socklen_t sender_addr_len = sizeof(sender_addr);
 		scion_ia sender_ia;
 
-		struct scion_path *path;
 		char rx_buf[200];
 
 		int n = scion_recvfrom(scion_sock, &rx_buf, sizeof rx_buf - 1, /* flags: */ 0, (struct sockaddr *)&sender_addr,
-			&sender_addr_len, &sender_ia, &path);
+			&sender_addr_len, &sender_ia, path);
 		if (n < 0) {
 			printf("ERROR: Receive failed with error code: %d\n", n);
 			continue;
@@ -63,20 +71,19 @@ int main()
 		ret = scion_path_reverse(path);
 		if (ret != 0) {
 			printf("ERROR: reverse failed with error code: %d\n", n);
-			goto cleanup_path;
+			continue;
 		}
 
 		ret = scion_sendto(
 			scion_sock, rx_buf, n, /* flags: */ 0, (struct sockaddr *)&sender_addr, sender_addr_len, sender_ia, path);
 		if (ret < 0) {
 			printf("ERROR: Send failed with error code: %d\n", ret);
-			goto cleanup_path;
+			continue;
 		}
 		printf("[Sent %d bytes]: \"%s\"\n", ret, rx_buf);
-
-cleanup_path:
-		scion_path_free(path);
 	}
+
+	scion_path_free(path);
 
 cleanup_socket:
 	scion_close(scion_sock);

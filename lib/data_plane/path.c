@@ -28,6 +28,8 @@
 #include "util/endian.h"
 #include "util/list.h"
 
+#define SCION_MAX_PATH_LEN (SCION_META_LEN + SCION_MAX_INFS * SCION_INFO_LEN + SCION_MAX_HOPS * SCION_HOP_LEN)
+
 int scion_path_meta_hdr_init(struct scion_path_meta_hdr *hdr)
 {
 	assert(hdr);
@@ -51,6 +53,7 @@ int scion_path_raw_init(struct scion_path_raw *raw_path, struct scion_path_meta_
 
 	raw_path->length = (uint16_t)(SCION_META_LEN + info_fields->size * SCION_INFO_LEN
 								  + hop_fields->size * SCION_HOP_LEN);
+	raw_path->capacity = raw_path->length;
 	raw_path->raw = malloc(raw_path->length);
 	ret = scion_path_serialize(hdr, info_fields, hop_fields, raw_path->raw);
 	if (ret != 0) {
@@ -61,38 +64,72 @@ int scion_path_raw_init(struct scion_path_raw *raw_path, struct scion_path_meta_
 	return 0;
 }
 
-struct scion_path *scion_path_from_raw(
-	scion_ia src, scion_ia dst, enum scion_path_type path_type, const uint8_t *raw, uint16_t raw_len)
+int scion_path_create(struct scion_path **path)
 {
-	struct scion_path *path = calloc(1, sizeof(*path));
-	if (path == NULL) {
-		return NULL;
+	assert(path);
+
+	*path = calloc(1, sizeof(**path));
+	if (*path == NULL) {
+		return SCION_ERR_MEM_ALLOC_FAIL;
+	}
+
+	return 0;
+}
+
+// Makes the buffer of the raw path of a path large enough for a raw path of the length.
+static int reserve_raw_path(struct scion_path *path, uint16_t length)
+{
+	if (path->raw_path == NULL) {
+		path->raw_path = calloc(1, sizeof(*path->raw_path));
+		if (path->raw_path == NULL) {
+			return SCION_ERR_MEM_ALLOC_FAIL;
+		}
+	}
+
+	if (path->raw_path->capacity >= length) {
+		return 0;
+	}
+
+	// The buffer fits the longest SCION path, so a path that packets are received on is not grown again
+	uint16_t capacity = length > SCION_MAX_PATH_LEN ? length : SCION_MAX_PATH_LEN;
+	uint8_t *raw = realloc(path->raw_path->raw, capacity);
+	if (raw == NULL) {
+		return SCION_ERR_MEM_ALLOC_FAIL;
+	}
+
+	path->raw_path->raw = raw;
+	path->raw_path->capacity = capacity;
+	return 0;
+}
+
+int scion_path_set_raw(struct scion_path *path, scion_ia src, scion_ia dst, enum scion_path_type path_type,
+	const uint8_t *raw, uint16_t raw_len)
+{
+	assert(path);
+	assert(raw || raw_len == 0);
+
+	if (raw_len > 0) {
+		int ret = reserve_raw_path(path, raw_len);
+		if (ret != 0) {
+			return ret;
+		}
+
+		(void)memcpy(path->raw_path->raw, raw, raw_len);
+	}
+
+	if (path->raw_path != NULL) {
+		path->raw_path->length = raw_len;
 	}
 
 	path->src = src;
 	path->dst = dst;
 	path->path_type = path_type;
+	scion_path_metadata_free(path->metadata);
+	path->metadata = NULL;
+	path->weight = 0;
+	path->down_since = 0;
 
-	if (path_type != SCION_PATH_TYPE_EMPTY) {
-		path->raw_path = malloc(sizeof(*path->raw_path));
-		if (path->raw_path == NULL) {
-			free(path);
-			return NULL;
-		}
-
-		path->raw_path->length = raw_len;
-		path->raw_path->raw = malloc(raw_len > 0 ? raw_len : 1);
-		if (path->raw_path->raw == NULL) {
-			free(path->raw_path);
-			free(path);
-			return NULL;
-		}
-		if (raw_len > 0) {
-			(void)memcpy(path->raw_path->raw, raw, raw_len);
-		}
-	}
-
-	return path;
+	return 0;
 }
 
 void scion_path_raw_free(struct scion_path_raw *raw_path)

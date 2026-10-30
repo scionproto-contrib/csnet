@@ -34,6 +34,8 @@ enum scion_path_type { SCION_PATH_TYPE_EMPTY = 0, SCION_PATH_TYPE_SCION = 1 };
 
 struct scion_path_raw {
 	uint16_t length;
+	// The size of the raw buffer, which can be larger than the length when the buffer is reused
+	uint16_t capacity;
 	uint8_t *raw;
 };
 
@@ -87,10 +89,10 @@ int scion_path_raw_init(struct scion_path_raw *raw_path, struct scion_path_meta_
  */
 void scion_path_raw_free(struct scion_path_raw *raw_path);
 
-// Creates a path from its raw header, for example the path that a packet was received on. The raw header is copied.
-// Returns NULL if the allocation fails.
-struct scion_path *scion_path_from_raw(
-	scion_ia src, scion_ia dst, enum scion_path_type path_type, const uint8_t *raw, uint16_t raw_len);
+// Replaces the content of a path with a raw header, for example the one of the path that a packet was received on. The
+// raw header is copied into the buffer of the path, which is reused, so memory is only allocated the first time.
+int scion_path_set_raw(struct scion_path *path, scion_ia src, scion_ia dst, enum scion_path_type path_type,
+	const uint8_t *raw, uint16_t raw_len);
 
 /*
  * Reverses a scion_path_raw. Used to respond to a packet received from a source where no

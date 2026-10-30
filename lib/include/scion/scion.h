@@ -559,13 +559,14 @@ ssize_t scion_recv(struct scion_socket *scion_sock, void *buf, size_t size, int 
  * @param[in,out] addrlen Must contain the size of the provided address buffer when calling. Contains the size of the
  * sender address on return.
  * @param[out] src_ia The sender IA. If NULL, the IA is not returned.
- * @param[out] path The path the packet took. If NULL, the path is not returned.
+ * @param[out] path The path the packet took is stored in it, see scion_path_create(). If NULL, the path is not
+ * returned.
  * @return The amount of data received on success, a negative error code on failure.
  *
  * @note The currently supported receive flags are MSG_DONTWAIT and MSG_PEEK.
  */
 ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, int flags, struct sockaddr *src_addr,
-	socklen_t *addrlen, scion_ia *src_ia, struct scion_path **path);
+	socklen_t *addrlen, scion_ia *src_ia, struct scion_path *path);
 
 /**
  * Receives a message on the SCION socket.
@@ -573,7 +574,8 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
  * @param[in,out] msg The received message.
  * @param[in] flags The receive flags to use. Must be 0 if no flags should be used.
  * @param[out] src_ia The sender IA. If NULL, the IA is not returned.
- * @param[out] path The path the packet took. If NULL, the path is not returned.
+ * @param[out] path The path the packet took is stored in it, see scion_path_create(). If NULL, the path is not
+ * returned.
  * @return The amount of data received on success, a negative error code on failure.
  *
  * @note The currently supported receive flags are MSG_DONTWAIT and MSG_PEEK. On Linux, MSG_ERRQUEUE is supported, too.
@@ -584,7 +586,7 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
  * The message is returned as the kernel provides it, without the sender IA and the path.
  */
 ssize_t scion_recvmsg(
-	struct scion_socket *scion_sock, struct msghdr *msg, int flags, scion_ia *src_ia, struct scion_path **path);
+	struct scion_socket *scion_sock, struct msghdr *msg, int flags, scion_ia *src_ia, struct scion_path *path);
 
 /**
  * Closes a SCION socket.

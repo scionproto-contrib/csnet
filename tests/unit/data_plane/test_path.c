@@ -828,6 +828,54 @@ static void test_router_alert_empty_path(void **)
 	assert_int_equal(scion_path_set_router_alert(&path, 0), SCION_ERR_PATH_TYPE_INVALID);
 }
 
+// A path that packets are received on keeps its buffer, also when an empty path is received in between.
+static void test_set_raw_reuses_the_buffer(void **)
+{
+	struct scion_path *path;
+	assert_int_equal(scion_path_create(&path), 0);
+
+	const uint8_t longer[] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+	assert_int_equal(scion_path_set_raw(path, 1, 2, SCION_PATH_TYPE_SCION, longer, sizeof(longer)), 0);
+	const uint8_t *buffer = path->raw_path->raw;
+
+	assert_int_equal(scion_path_set_raw(path, 2, 1, SCION_PATH_TYPE_EMPTY, NULL, 0), 0);
+	assert_int_equal(path->path_type, SCION_PATH_TYPE_EMPTY);
+	assert_int_equal(path->raw_path->length, 0);
+
+	const uint8_t shorter[] = { 9, 10, 11, 12 };
+	assert_int_equal(scion_path_set_raw(path, 3, 4, SCION_PATH_TYPE_SCION, shorter, sizeof(shorter)), 0);
+	assert_ptr_equal(path->raw_path->raw, buffer);
+	assert_int_equal(path->raw_path->length, sizeof(shorter));
+	assert_memory_equal(path->raw_path->raw, shorter, sizeof(shorter));
+	assert_true(path->src == 3);
+	assert_true(path->dst == 4);
+	assert_int_equal(path->path_type, SCION_PATH_TYPE_SCION);
+
+	scion_path_free(path);
+}
+
+// Nothing of the previous path is kept, and the buffer grows for a path longer than any SCION path.
+static void test_set_raw_replaces_the_content(void **)
+{
+	struct scion_path *path;
+	assert_int_equal(scion_path_create(&path), 0);
+	path->metadata = calloc(1, sizeof(*path->metadata));
+	path->weight = 7;
+	path->down_since = 8;
+
+	uint8_t raw[1000];
+	(void)memset(raw, 0xab, sizeof(raw));
+	assert_int_equal(scion_path_set_raw(path, 1, 2, SCION_PATH_TYPE_SCION, raw, sizeof(raw)), 0);
+
+	assert_null(path->metadata);
+	assert_int_equal(path->weight, 0);
+	assert_int_equal(path->down_since, 0);
+	assert_int_equal(path->raw_path->length, sizeof(raw));
+	assert_memory_equal(path->raw_path->raw, raw, sizeof(raw));
+
+	scion_path_free(path);
+}
+
 int run_path_tests(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -852,6 +900,8 @@ int run_path_tests(void)
 		cmocka_unit_test(test_router_alert_shortcut),
 		cmocka_unit_test(test_router_alert_peering),
 		cmocka_unit_test(test_router_alert_empty_path),
+		cmocka_unit_test(test_set_raw_reuses_the_buffer),
+		cmocka_unit_test(test_set_raw_replaces_the_content),
 	};
 	return cmocka_run_group_tests(tests, NULL, NULL);
 }

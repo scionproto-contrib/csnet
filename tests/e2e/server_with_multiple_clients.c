@@ -66,6 +66,10 @@ void *server_fn(void *arg)
 	pthread_cleanup_push((void (*)(void *))scion_close, scion_sock);
 	assert(scion_bind(scion_sock, host->server_addr, host->server_addr_len) == 0);
 
+	struct scion_path *path;
+	assert(scion_path_create(&path) == 0);
+	pthread_cleanup_push((void (*)(void *))scion_path_free, path);
+
 	printf("Started server\n");
 	atomic_store(&server_started, true);
 
@@ -73,12 +77,11 @@ void *server_fn(void *arg)
 		struct sockaddr_storage client_addr;
 		socklen_t client_addr_len = sizeof(client_addr);
 		scion_ia client_ia;
-		struct scion_path *path;
 
 		char buffer[200] = { 0 };
 
 		assert(scion_recvfrom(scion_sock, buffer, sizeof(buffer) - 1, 0, (struct sockaddr *)&client_addr,
-				   &client_addr_len, &client_ia, &path)
+				   &client_addr_len, &client_ia, path)
 			   > 0);
 
 		printf("Received message: %s\n", buffer);
@@ -90,10 +93,9 @@ void *server_fn(void *arg)
 		assert(scion_sendto(scion_sock, response, strlen(response), 0, (struct sockaddr *)&client_addr, client_addr_len,
 				   client_ia, path)
 			   > 0);
-
-		scion_path_free(path);
 	}
 
+	pthread_cleanup_pop(1);
 	pthread_cleanup_pop(1);
 	pthread_cleanup_pop(1);
 	pthread_cleanup_pop(1);
