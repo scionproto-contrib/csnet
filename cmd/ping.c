@@ -106,14 +106,19 @@ static int scion_recv_echo_reply(struct scion_socket *scion_socket, uint16_t seq
 			return (int)rcv_ret;
 		}
 
-		if (scion_scmp_get_type(buf, echo_length) != SCION_SCMP_TYPE_ECHO_REPLY) {
-			// Not an ECHO reply
+		ret = scion_scmp_echo_deserialize(buf, echo_length, &echo_reply);
+		if (ret == SCION_ERR_PACKET_FIELD_INVALID) {
+			// Not an ECHO message
 			continue;
 		}
-
-		ret = scion_scmp_echo_deserialize(buf, echo_length, &echo_reply);
 		if (ret != 0) {
 			return ret;
+		}
+
+		if (echo_reply.type != SCION_SCMP_TYPE_ECHO_REPLY) {
+			// Not an ECHO reply
+			scion_scmp_echo_free_members(&echo_reply);
+			continue;
 		}
 
 		if (echo_reply.seqno != seqno) {

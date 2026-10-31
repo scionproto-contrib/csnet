@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "data_plane/scmp.h"
 #include "scion/scion_scmp.h"
 #include "util/endian.h"
 
