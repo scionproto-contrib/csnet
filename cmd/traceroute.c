@@ -91,11 +91,8 @@ static int recv_traceroute_reply(struct scion_socket *scion_sock, uint16_t id, u
 			return (int)received;
 		}
 
-		if (scion_scmp_get_type(buf, (uint16_t)received) != SCION_SCMP_TYPE_TRACEROUTE_REPLY) {
-			continue;
-		}
-
-		if (scion_scmp_traceroute_deserialize(buf, (size_t)received, reply) != 0) {
+		if (scion_scmp_traceroute_deserialize(buf, (size_t)received, reply) != 0
+			|| reply->type != SCION_SCMP_TYPE_TRACEROUTE_REPLY) {
 			continue;
 		}
 

@@ -29,6 +29,7 @@
 #include "control_plane/network.h"
 #include "control_plane/topology.h"
 #include "data_plane/path.h"
+#include "data_plane/scmp.h"
 #include "data_plane/socket.h"
 #include "scion/scion.h"
 #include "scion/scion_path.h"

@@ -24,7 +24,6 @@
 extern "C" {
 #endif
 
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -73,51 +72,6 @@ enum scion_scmp_type {
 	 */
 	SCION_SCMP_TYPE_TRACEROUTE_REPLY = 131
 };
-
-/**
- * Gets the type of a SCMP message.
- * @param[in] buf The serialized SCMP message.
- * @param[in] buf_len The length of the SCMP message.
- * @return The type of the SCMP message. A type that is not defined by the SCMP specification is returned as it is,
- * and 0 if the buffer is too short.
- *
- * @see https://docs.scion.org/en/latest/protocols/scmp.html#types
- */
-enum scion_scmp_type scion_scmp_get_type(const uint8_t *buf, uint16_t buf_len);
-
-/**
- * Gets the code of a SCMP message.
- * @param[in] buf The serialized SCMP messsage.
- * @param[in] buf_len The length of the SCMP message.
- * @return The code of the SCMP message.
- */
-uint8_t scion_scmp_get_code(const uint8_t *buf, uint16_t buf_len);
-
-/**
- * Determines whether the SCMP message is an error message.
- * @param[in] buf The serialized SCMP message.
- * @param[in] buf_len The length of the serialized SCMP message.
- * @return true if the SCMP message is an error message, false otherwise.
- *
- * @see https://docs.scion.org/en/latest/protocols/scmp.html#types
- */
-bool scion_scmp_is_error(const uint8_t *buf, uint16_t buf_len);
-
-/**
- * Gets a human-readable name for a SCMP message type.
- * @param[in] type The SCMP message type.
- * @return The name of the type, or "unknown" if the type is not defined by the SCMP specification.
- */
-const char *scion_scmp_type_str(enum scion_scmp_type type);
-
-/**
- * Gets a human-readable description of a SCMP message code.
- * @param[in] type The SCMP message type.
- * @param[in] code The SCMP message code.
- * @return The description of the code, "none" for code 0 of a type without codes, or "unknown" if the code is not
- * defined by the SCMP specification for the type.
- */
-const char *scion_scmp_code_str(enum scion_scmp_type type, uint8_t code);
 
 /**
  * The codes of a destination unreachable message.
@@ -207,46 +161,6 @@ struct scion_scmp_error {
 	/** the length of the offending packet in bytes */
 	uint16_t packet_length;
 };
-
-/**
- * Determines how large the serialized SCMP error message will be.
- * @param[in] scmp_error The SCMP error message.
- * @return the size of the serialized SCMP error message in bytes, or 0 if the type is not a known SCMP error type.
- */
-size_t scion_scmp_error_len(const struct scion_scmp_error *scmp_error);
-
-/**
- * Serializes an SCMP error message.
- * @param[in] scmp_error The SCMP error message to serialize.
- * @param[out] buf The serialized SCMP error message.
- * @param[in] buf_len The length of the buffer.
- * @return 0 on success, a negative error code on failure.
- *
- * @note Use @link scion_scmp_error_len @endlink to determine how large the buffer needs to be.
- * @note The checksum is not set.
- */
-int scion_scmp_error_serialize(const struct scion_scmp_error *scmp_error, uint8_t *buf, size_t buf_len);
-
-/**
- * Deserializes an SCMP error message, for example inside an SCMP error handler.
- * @param[in] buf The serialized SCMP error message.
- * @param[in] buf_len The length of the serialized SCMP error message.
- * @param[out] scmp_error The SCMP error message.
- * @return 0 on success, SCION_ERR_PACKET_FIELD_INVALID if the type is not a known SCMP error type, another negative
- * error code on failure.
- *
- * @note The code and the checksum are not validated.
- * @note Free the members of the SCMP error message with @link scion_scmp_error_free_members @endlink.
- *
- * @see scion_setsockerrhandler
- */
-int scion_scmp_error_deserialize(const uint8_t *buf, size_t buf_len, struct scion_scmp_error *scmp_error);
-
-/**
- * Frees the internal members of an SCMP error message.
- * @param[in] scmp_error The SCMP error message.
- */
-void scion_scmp_error_free_members(struct scion_scmp_error *scmp_error);
 
 /** The size of a buffer that is large enough for the string of any SCMP error message. */
 #define SCION_SCMP_ERROR_STRLEN 128

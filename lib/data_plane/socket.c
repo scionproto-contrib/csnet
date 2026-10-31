@@ -30,6 +30,7 @@
 #include "control_plane/topology.h"
 #include "data_plane/packet.h"
 #include "data_plane/path.h"
+#include "data_plane/scmp.h"
 #include "data_plane/selector.h"
 #include "data_plane/socket.h"
 #include "data_plane/timestamp.h"
