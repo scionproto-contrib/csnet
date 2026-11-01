@@ -107,6 +107,14 @@ const char *scion_strerror(int err)
 		return "invalid response of the control service";
 	case SCION_ERR_CONTROL_SERVICE_ERROR:
 		return "control service error";
+	case SCION_ERR_TLS_SETUP_FAIL:
+		return "TLS setup failed";
+	case SCION_ERR_QUIC_HANDSHAKE_FAIL:
+		return "QUIC handshake failed";
+	case SCION_ERR_QUIC_CLOSED:
+		return "QUIC connection closed";
+	case SCION_ERR_TIMEOUT:
+		return "operation timed out";
 	default:
 		return "unknown error";
 	}

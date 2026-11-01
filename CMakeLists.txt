@@ -12,6 +12,7 @@ option(BUILD_LIB "build lib" ON)
 option(BUILD_CMD "build command line tools" ON)
 option(BUILD_TESTS "build tests" OFF)
 option(BUILD_EXAMPLES "build examples" OFF)
+option(BUILD_QUIC "build the QUIC library scion_quic (see SCION_QUIC_TLS)" OFF)
 option(BUILD_DOCS "build docs" OFF)
 
 # Copy topology file
@@ -32,6 +33,10 @@ set(DEPENDENCY_LAUNCHER_ARGS -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUN
 
 if (BUILD_LIB OR BUILD_CMD OR BUILD_TESTS OR BUILD_EXAMPLES)
     add_subdirectory(lib)
+endif ()
+
+if (BUILD_QUIC)
+    add_subdirectory(lib/quic)
 endif ()
 
 if (BUILD_CMD OR BUILD_TESTING)
@@ -68,8 +73,10 @@ if (BUILD_DOCS)
             lib/include/scion/scion_scmp.h
             lib/include/scion/scion_selector.h
             lib/include/scion/scion_timestamp.h
+            lib/include/scion/scion_quic.h
             README.md
             docs/getting-started.md
+            docs/quic.md
             examples/README.md
             esp32/README.md
             docs/design/source_address_determination.md
