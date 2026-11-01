@@ -232,6 +232,22 @@ enum scion_error {
 	 * The control service answered the request with an error.
 	 */
 	SCION_ERR_CONTROL_SERVICE_ERROR = -43,
+	/**
+	 * The TLS setup failed, e.g. an invalid CA certificate (QUIC).
+	 */
+	SCION_ERR_TLS_SETUP_FAIL = -44,
+	/**
+	 * The QUIC handshake failed, e.g. the server certificate could not be verified or the ALPN did not match.
+	 */
+	SCION_ERR_QUIC_HANDSHAKE_FAIL = -45,
+	/**
+	 * The QUIC connection was closed or failed.
+	 */
+	SCION_ERR_QUIC_CLOSED = -46,
+	/**
+	 * The operation timed out.
+	 */
+	SCION_ERR_TIMEOUT = -47,
 	// Internal errors
 	SCION_ERR_NOT_ENOUGH_DATA = -201,
 	SCION_ERR_PACKET_FIELD_INVALID = -202,
