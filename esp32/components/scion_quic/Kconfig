@@ -1,0 +1,13 @@
+menu "SCION QUIC"
+    config CSNET_QUIC
+        bool "Build the QUIC library (scion_quic) and run the QUIC client example"
+        default n
+        help
+            Builds lib/quic with ngtcp2 and picotls on ESP-IDF's mbedTLS, and makes main.c run
+            examples/simple_quic_client.c instead of the UDP example.
+
+    config CSNET_QUIC_DEBUG
+        bool "QUIC packet log"
+        depends on CSNET_QUIC
+        default n
+endmenu

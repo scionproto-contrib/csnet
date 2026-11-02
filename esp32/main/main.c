@@ -35,6 +35,10 @@
 #include "scion/scion.h"
 #include "scion/scion_path.h"
 
+#ifdef CONFIG_CSNET_QUIC
+#include "simple_quic_client.h"
+#endif
+
 // HEAP DEBUGGING
 // #include "esp_heap_trace.h"
 // #define NUM_RECORDS 2000
@@ -66,6 +70,34 @@ static bool select_path(struct scion_path *path, void *ctx)
 	const struct scion_path_metadata *metadata = scion_path_get_metadata(path);
 	return scion_path_get_numhops(path) == 8 && metadata->mtu == 1400;
 }
+
+#ifdef CONFIG_CSNET_QUIC
+// QUIC client example (examples/simple_quic_client.c) against scripts/run-quic-server.sh.
+static void quic_example_task(void *args)
+{
+	esp_netif_t *netif = get_example_netif_from_desc(EXAMPLE_NETIF_DESC_STA);
+	ESP_ERROR_CHECK(netif == NULL ? ESP_FAIL : ESP_OK);
+	esp_netif_ip_info_t ip_info;
+	ESP_ERROR_CHECK(esp_netif_get_ip_info(netif, &ip_info));
+
+	struct sockaddr_in local_addr = { .sin_family = AF_INET, .sin_port = htons(0) };
+	local_addr.sin_addr.s_addr = ip_info.ip.addr;
+
+	struct scion_quic_config config = {
+		.local_addr = (struct sockaddr *)&local_addr,
+		.local_addrlen = sizeof(local_addr),
+#ifdef CONFIG_CSNET_QUIC_DEBUG
+		.debug = true,
+#endif
+	};
+	int ret = simple_quic_client("/spiffs/topology.json", &config);
+	printf("QUIC example %s, minimum free heap: %u bytes\n", ret == 0 ? "succeeded" : "failed",
+		(unsigned)esp_get_minimum_free_heap_size());
+	led_strip_set_pixel(led_strip, 0, ret == 0 ? 0 : 1, ret == 0 ? 1 : 0, 0);
+	led_strip_refresh(led_strip);
+	vTaskDelete(NULL);
+}
+#endif
 
 static void example_task(void *args)
 {
@@ -267,6 +299,23 @@ void app_main(void)
 	// clang-format on
 
 	ESP_ERROR_CHECK(esp_vfs_spiffs_register(&spiffs_conf));
+
+#ifdef CONFIG_CSNET_QUIC
+#if ESP_IDF_VERSION > ESP_IDF_VERSION_VAL(5, 1, 0)
+	// The validity of certificates and SCION paths depends on the time
+	esp_sntp_config_t sntp_config = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
+	esp_netif_sntp_init(&sntp_config);
+	if (esp_netif_sntp_sync_wait(pdMS_TO_TICKS(15000)) != ESP_OK) {
+		printf("WARNING: time not synchronized\n");
+	}
+#endif
+	(void)xTaskCreate(&quic_example_task, "quic_example_task",
+		/* stackDepth: */ 1024 * 32,
+		/* parameters: */ NULL,
+		/* priority: */ 5,
+		/* createdTask: */ NULL);
+	return;
+#endif
 
 	(void)xTaskCreate(&example_task, "example_task",
 		/* stackDepth: */ 1024 * 32,
