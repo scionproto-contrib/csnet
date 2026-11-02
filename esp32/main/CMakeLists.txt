@@ -39,6 +39,12 @@ set(REQ
         protobuf-c
 )
 
+# QUIC client example, see components/scion_quic
+if (CONFIG_CSNET_QUIC)
+    list(APPEND SOURCES "../../examples/simple_quic_client.c")
+    list(APPEND INCLUDES "../../examples")
+endif ()
+
 idf_component_register(SRCS ${SOURCES}
         INCLUDE_DIRS ${INCLUDES})
 
