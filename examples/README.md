@@ -16,8 +16,9 @@ The following examples are available:
 - `server.c`: Shows how to implement a simple server that receives incoming packets. Run `scripts/run-testclient.sh` to
   receive a packet.
 
-- `simple_quic_client.c`: Shows how to implement a simple QUIC client that uses UDP over SCION with the
-  help of ngtcp2. Requires a running `scripts/run-quic-server.sh`.
+- `simple_quic_client.c`: Shows how to use the QUIC library (`scion/scion_quic.h`, see
+  [docs/quic.md](../docs/quic.md)): sends a message on a QUIC stream and prints the answer. Requires `-DBUILD_QUIC=ON`
+  and a running `scripts/run-quic-server.sh`. Also runs on the ESP32 (see [esp32/README.md](../esp32/README.md)).
 
 - `scmp_error.c`: Shows how to catch and decode SCMP errors when sending packets. Requires a running `scmp_error_generator.c`.
 

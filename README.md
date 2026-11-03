@@ -16,6 +16,7 @@ and
 
 - Linux, MacOS and ESP32 support
 - UDP over SCION
+- QUIC over SCION (optional library, also on the ESP32), see [docs/quic.md](./docs/quic.md)
 - SCMP (ICMP for SCION)
 - Explicit SCION path selection
 - Path selection policies
@@ -56,6 +57,8 @@ The following options exist:
 - `BUILD_LIB`: build the library in `./lib`
 - `BUILD_CMD`: build the command line tools in `./cmd`
 - `BUILD_EXAMPLES`: build the examples in `./examples`.
+- `BUILD_QUIC`: build the QUIC library in `./lib/quic` (`SCION_QUIC_TLS=picotls|quictls`), see
+  [docs/quic.md](./docs/quic.md). Needed by the QUIC client example.
 - `BUILD_TESTS`: build the tests in `./tests`. May also build the command line tools in `./cmd` that are required by the
   tests even if `DBUILD_CMD` is `OFF`.
 - `BUILD_DOCS`: build the docs which are output to `./docs/api`.
