@@ -67,3 +67,17 @@ To run the example program located in `./main/main.c`:
    idf.py -p <PORT> -b 115200 monitor
    ```
    To exit, hit `Ctrl + T` and then `Ctrl + X`.
+
+## Running the QUIC Example
+
+`examples/simple_quic_client.c` runs on the ESP32 with the QUIC library (`components/scion_quic`, picotls with the
+mbedTLS of ESP-IDF, see [docs/quic.md](../docs/quic.md)):
+
+1. Start the QUIC server of scion-apps in AS 2-ff00:0:222 instead of the UDP test server:
+   ```bash
+   ./scripts/run-quic-server.sh
+   ```
+2. Enable it in `idf.py menuconfig`: `SCION QUIC` → `Build the QUIC library (scion_quic) and run the QUIC client
+   example` (`CONFIG_CSNET_QUIC`). ngtcp2 and picotls are downloaded during the build.
+3. Build, flash and monitor as above. The ESP32 sends `Hello QUIC from the ESP32` and prints the answer
+   `gotcha: Hello QUIC from the ESP32`, and the LED turns green.
