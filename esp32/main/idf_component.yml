@@ -8,7 +8,6 @@ dependencies:
         version: ^2.5.5
       - if: "idf_version >=6.0"
         version: ^3.1.0
-  espressif/nghttp: ^1.58.0
   ## Required IDF version
   idf:
     version: '>=4.1.0'
@@ -23,4 +22,3 @@ dependencies:
   #   # `public` flag doesn't have an effect dependencies of the `main` component.
   #   # All dependencies of `main` are public by default.
   #   public: true
-  espressif/zlib: ^1.3.1

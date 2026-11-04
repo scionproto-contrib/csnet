@@ -19,7 +19,7 @@ get_filename_component(CSNET_DIR ${CSNET_DIR} ABSOLUTE)
 
 # The early expansion of ESP-IDF only collects the requirements, fetching happens in the real configuration.
 if (CMAKE_BUILD_EARLY_EXPANSION OR NOT CONFIG_CSNET_QUIC)
-    idf_component_register(REQUIRES mbedtls lwip)
+    idf_component_register(REQUIRES scion mbedtls lwip)
     return()
 endif ()
 
@@ -44,9 +44,8 @@ set(PICOTLS_SOURCES ${picotls_src_SOURCE_DIR}/lib/picotls.c ${picotls_src_SOURCE
 
 idf_component_register(
         SRCS ${CSNET_DIR}/lib/quic/quic.c ${CSNET_DIR}/lib/quic/tls_picotls.c ${NGTCP2_SOURCES} ${PICOTLS_SOURCES}
-        INCLUDE_DIRS ${CSNET_DIR}/lib/include
         PRIV_INCLUDE_DIRS ${NGTCP2_INCLUDE_DIRS} ${picotls_src_SOURCE_DIR}/include
-        REQUIRES mbedtls lwip)
+        REQUIRES scion mbedtls lwip)
 
 target_compile_definitions(${COMPONENT_LIB} PRIVATE ${NGTCP2_DEFINITIONS})
 # Shims searched first (see lib/quic/CMakeLists.txt); compat/mbedtls4 only for mbedTLS >= 4 (ESP-IDF >= 6)
@@ -59,8 +58,3 @@ endif ()
 target_include_directories(${COMPONENT_LIB} BEFORE PRIVATE ${COMPAT})
 set_source_files_properties(${NGTCP2_SOURCES} ${PICOTLS_SOURCES} PROPERTIES COMPILE_OPTIONS -w)
 
-# The SCION library (lib/) is compiled into the main component of this project, which in turn uses scion_quic:
-# link both ways (circular dependency, see the ESP-IDF build system documentation).
-idf_component_get_property(main_lib main COMPONENT_LIB)
-target_link_libraries(${COMPONENT_LIB} INTERFACE ${main_lib})
-set_property(TARGET ${COMPONENT_LIB} APPEND PROPERTY LINK_INTERFACE_MULTIPLICITY 3)
