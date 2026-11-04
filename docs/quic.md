@@ -33,6 +33,15 @@ On the ESP32, enable `SCION QUIC` → `Build the QUIC library` in `idf.py menuco
 [esp32/README.md](../esp32/README.md). The component `esp32/components/scion_quic` uses the same sources with picotls
 and ESP-IDF's mbedTLS, which uses the hardware AES, SHA and bignum accelerators of the ESP32.
 
+Other ESP-IDF projects use the library through the components `scion` (csnet) and `scion_quic`:
+
+```cmake
+set(EXTRA_COMPONENT_DIRS <csnet>/esp32/components)  # in the project's CMakeLists.txt, before project()
+```
+
+and `CONFIG_CSNET_QUIC=y` in their `sdkconfig.defaults`, together with `CONFIG_MBEDTLS_CHACHA20_C=y` and
+`CONFIG_MBEDTLS_CHACHAPOLY_C=y`.
+
 ## Usage
 
 ```c
