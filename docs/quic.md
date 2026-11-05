@@ -98,5 +98,17 @@ Three small adaptations make picotls work with mbedTLS 4 and ngtcp2, all in `lib
 - `patches/picotls-mbedtls-aead-output-size.patch`: picotls passes `SIZE_MAX` as AEAD output size, which fails with
   mbedTLS >= 3.6 (`PSA_ERROR_INSUFFICIENT_MEMORY`, PSA copies the caller's buffers). To be sent upstream.
 
-Testing: `scripts/run-quic-server.sh` (helloquic of scion-apps), then `./simple_quic_client -t <topology.json>` in
+Unit tests (`tests/unit/quic`, no SCION network needed): an in-process QUIC server on a SCION socket in the local
+AS, with the same TLS library, and the test certificates in `tests/unit/quic/testdata` (valid until 2126):
+
+```bash
+cmake -DBUILD_QUIC=ON -DBUILD_TESTS=ON -B build-quic . && cmake --build build-quic --target unit_tests
+build-quic/tests/unit/unit_tests
+```
+
+They cover the round trip, empty streams, transfers larger than the flow control windows in both directions,
+server verification (trusted CA and name, wrong name, untrusted CA), a wrong ALPN, a connection closed by the server,
+a server that does not answer, and invalid arguments.
+
+End-to-end test on the testnet: `scripts/run-quic-server.sh` (helloquic of scion-apps), then `./simple_quic_client -t <topology.json>` in
 AS 1-ff00:0:133; `-c ca.pem -s name` to verify the server, `-d` for a packet log.

@@ -30,6 +30,9 @@
 #include "data_plane/test_timestamp.h"
 #include "data_plane/test_udp.h"
 #include "data_plane/test_underlay.h"
+#ifdef TEST_QUIC
+#include "quic/test_quic.h"
+#endif
 #include "util/test_addr.h"
 #include "util/test_list.h"
 #include "util/test_map.h"
@@ -57,6 +60,9 @@ int main(void)
 	failed += run_udp_tests();
 	failed += run_underlay_tests();
 	failed += run_map_tests();
+#ifdef TEST_QUIC
+	failed += run_quic_tests();
+#endif
 
 	return failed == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

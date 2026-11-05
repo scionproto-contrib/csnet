@@ -49,3 +49,23 @@ target_include_directories(unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/lib ${DEPEND
 
 add_test(NAME unit_tests COMMAND unit_tests)
 set_tests_properties(unit_tests PROPERTIES LABELS "unit")
+
+# The tests of the QUIC library (-DBUILD_QUIC=ON), compiled separately as they need the headers of ngtcp2 and of the
+# TLS library, and run by the same executable
+if (BUILD_QUIC)
+    add_library(quic_tests OBJECT
+            quic/test_quic.c
+            quic/quic_test_server.c
+            quic/quic_test_tls_${SCION_QUIC_TLS}.c
+            ${SCION_QUIC_TEST_SOURCES}
+    )
+    add_dependencies(quic_tests cmocka)
+    target_compile_definitions(quic_tests PRIVATE QUIC_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/quic/testdata")
+    target_include_directories(quic_tests PRIVATE ${PROJECT_SOURCE_DIR}/lib ${DEPENDENCY_INSTALL_DIR}/include
+            ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(quic_tests PRIVATE scion_quic scion_quic_internal)
+    set_source_files_properties(${SCION_QUIC_TEST_SOURCES} PROPERTIES COMPILE_OPTIONS -w)
+
+    target_compile_definitions(unit_tests PRIVATE TEST_QUIC)
+    target_link_libraries(unit_tests PRIVATE quic_tests scion_quic pthread)
+endif ()

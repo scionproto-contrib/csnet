@@ -41,8 +41,12 @@ include(Ngtcp2Sources)
 scion_ngtcp2_sources(${ngtcp2_src_SOURCE_DIR} ${SCION_QUIC_TLS} ${CMAKE_CURRENT_BINARY_DIR}/ngtcp2_gen)
 
 add_library(scion_quic STATIC quic.c tls_${SCION_QUIC_TLS}.c ${NGTCP2_SOURCES})
+# The private include directories of scion_quic (ngtcp2, the TLS library), for the tests in tests/unit/quic
+add_library(scion_quic_internal INTERFACE)
 target_include_directories(scion_quic PUBLIC ../include PRIVATE ${NGTCP2_INCLUDE_DIRS})
 target_compile_definitions(scion_quic PRIVATE ${NGTCP2_DEFINITIONS})
+target_include_directories(scion_quic_internal INTERFACE ${NGTCP2_INCLUDE_DIRS})
+target_compile_definitions(scion_quic_internal INTERFACE ${NGTCP2_DEFINITIONS})
 target_link_libraries(scion_quic PUBLIC scion)
 set_source_files_properties(${NGTCP2_SOURCES} PROPERTIES COMPILE_OPTIONS -w)
 
@@ -81,6 +85,9 @@ if (SCION_QUIC_TLS STREQUAL "picotls")
 
     add_dependencies(scion_quic mbedtls)
     target_include_directories(scion_quic PRIVATE ${picotls_src_SOURCE_DIR}/include ${QUIC_DEPS_DIR}/include)
+    target_include_directories(scion_quic_internal INTERFACE ${picotls_src_SOURCE_DIR}/include ${QUIC_DEPS_DIR}/include)
+    # ptls_load_certificates() for the test server
+    set(SCION_QUIC_TEST_SOURCES ${picotls_src_SOURCE_DIR}/lib/pembase64.c PARENT_SCOPE)
     target_link_libraries(scion_quic PUBLIC ${QUIC_DEPS_DIR}/lib/libmbedtls.a ${QUIC_DEPS_DIR}/lib/libmbedx509.a
             ${QUIC_DEPS_DIR}/lib/libtfpsacrypto.a)
 else ()
@@ -98,6 +105,7 @@ else ()
 
     add_dependencies(scion_quic quictls)
     target_include_directories(scion_quic PRIVATE ${QUIC_DEPS_DIR}/include)
+    target_include_directories(scion_quic_internal INTERFACE ${QUIC_DEPS_DIR}/include)
     target_link_libraries(scion_quic PUBLIC ${QUIC_DEPS_DIR}/lib/libssl.a ${QUIC_DEPS_DIR}/lib/libcrypto.a
             ${CMAKE_DL_LIBS} pthread)
 endif ()
