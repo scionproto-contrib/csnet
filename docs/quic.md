@@ -99,7 +99,7 @@ Three small adaptations make picotls work with mbedTLS 4 and ngtcp2, all in `lib
   mbedTLS >= 3.6 (`PSA_ERROR_INSUFFICIENT_MEMORY`, PSA copies the caller's buffers). To be sent upstream.
 
 Unit tests (`tests/unit/quic`, no SCION network needed): an in-process QUIC server on a SCION socket in the local
-AS, with the same TLS library, and the test certificates in `tests/unit/quic/testdata` (valid until 2126):
+AS, with the same TLS library, and the test certificates in `tests/unit/quic/testdata` (valid until 2126, regenerated with `generate.sh` there):
 
 ```bash
 cmake -DBUILD_QUIC=ON -DBUILD_TESTS=ON -B build-quic . && cmake --build build-quic --target unit_tests
