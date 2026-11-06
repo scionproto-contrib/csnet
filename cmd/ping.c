@@ -106,8 +106,8 @@ static int scion_recv_echo_reply(struct scion_socket *scion_socket, uint16_t seq
 			return (int)rcv_ret;
 		}
 
-		ret = scion_scmp_echo_deserialize(buf, echo_length, &echo_reply);
-		if (ret == SCION_ERR_PACKET_FIELD_INVALID) {
+		ret = scion_scmp_echo_deserialize(buf, (uint16_t)rcv_ret, &echo_reply);
+		if (ret == SCION_ERR_PACKET_FIELD_INVALID || ret == SCION_ERR_BUF_TOO_SMALL) {
 			// Not an ECHO message
 			continue;
 		}
