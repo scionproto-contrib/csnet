@@ -106,8 +106,9 @@ int main(int argc, char *argv[])
 		ret = scion_sendto(scion_sock, scmp_data, sizeof(scmp_data), /* flags: */ 0, (struct sockaddr *)&sender_addr,
 			sender_addr_len, sender_ia, path);
 		if (ret < 0) {
-			printf("ERROR: Send failed with error code: %d\n", n);
+			printf("ERROR: Send failed with error code: %d\n", ret);
 			ret = EXIT_FAILURE;
+			goto cleanup_path;
 		}
 
 		printf("Replied with SCMP error\n");
