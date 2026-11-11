@@ -1000,6 +1000,60 @@ static void test_socket_receive_skips_malformed_packets(void **state)
 	assert_memory_equal(buf, "ok", 2);
 }
 
+static void test_socket_peek_skips_ignored_packets(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *peer = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *stranger = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *generator = open_socket(fixture, SCION_SOCK_RAW, SCION_PROTO_SCMP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(peer);
+	bind_loopback(stranger);
+	bind_loopback(generator);
+	bind_loopback(receiver);
+	struct sockaddr_in peer_addr = bound_address(peer);
+	struct sockaddr_in receiver_addr = bound_address(receiver);
+	scion_ia local_ia = local_ia_of(fixture);
+	set_receive_timeout(receiver, 100);
+	assert_int_equal(scion_connect(receiver, (struct sockaddr *)&peer_addr, sizeof(peer_addr), local_ia), 0);
+	struct scmp_error_record record = { 0 };
+	struct scion_scmp_error_handler handler = { .fn = record_scmp_error, .ctx = &record };
+	assert_int_equal(scion_setsockerrhandler(receiver, &handler), 0);
+
+	// A malformed packet, a packet from another sender and an SCMP error are ignored.
+	inject_packet(&receiver_addr, well_formed_packet, 5);
+	assert_int_equal(
+		scion_sendto(stranger, "other", 5, 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr), local_ia, NULL),
+		5);
+
+	// A destination unreachable error with a 2 byte quoted packet.
+	const uint8_t error[] = { 0x01, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xaa, 0xbb };
+	assert_int_equal(scion_sendto(generator, error, sizeof(error), 0, (struct sockaddr *)&receiver_addr,
+						 sizeof(receiver_addr), local_ia, NULL),
+		(ssize_t)sizeof(error));
+	assert_int_equal(
+		scion_sendto(peer, "peer", 4, 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr), local_ia, NULL), 4);
+
+	// Peeking skips the ignored packets and leaves the packet of the peer queued.
+	char buf[16];
+	assert_int_equal(scion_recv(receiver, buf, sizeof(buf), MSG_PEEK | MSG_DONTWAIT), 4);
+	assert_memory_equal(buf, "peer", 4);
+	assert_int_equal(scion_recv(receiver, buf, sizeof(buf), MSG_PEEK), 4);
+	assert_memory_equal(buf, "peer", 4);
+	assert_int_equal(scion_recv(receiver, buf, sizeof(buf), 0), 4);
+	assert_memory_equal(buf, "peer", 4);
+	assert_int_equal(record.calls, 1);
+
+	// Peeking at only ignored packets consumes them.
+	inject_packet(&receiver_addr, well_formed_packet, 5);
+	assert_int_equal(scion_sendto(generator, error, sizeof(error), 0, (struct sockaddr *)&receiver_addr,
+						 sizeof(receiver_addr), local_ia, NULL),
+		(ssize_t)sizeof(error));
+	assert_int_equal(scion_recv(receiver, buf, sizeof(buf), MSG_PEEK), SCION_ERR_WOULD_BLOCK);
+	assert_int_equal(scion_recv(receiver, buf, sizeof(buf), MSG_DONTWAIT), SCION_ERR_WOULD_BLOCK);
+	assert_int_equal(record.calls, 2);
+}
+
 struct recording_ctx {
 	int calls;
 	const struct scion_path *last_current;
@@ -1305,6 +1359,7 @@ int run_socket_tests(void)
 		cmocka_unit_test_setup_teardown(
 			test_socket_creation_failure_does_not_leak_the_descriptor, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_receive_skips_malformed_packets, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_peek_skips_ignored_packets, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(
 			test_socket_selector_is_asked_for_every_packet, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_selector_without_a_path, setup_fixture, teardown_fixture),

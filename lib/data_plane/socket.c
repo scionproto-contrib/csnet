@@ -964,8 +964,8 @@ ssize_t scion_recvmsg(
 		ret = scion_packet_deserialize((uint8_t *)&packet_buf, (size_t)ret, &packet);
 		if (ret != 0) {
 			// Ignore packet
-			scion_packet_free_members(&packet);
-			continue;
+			ret = 0;
+			goto cleanup_packet;
 		}
 
 		packet.path->underlay_next_hop.addr_family = scion_sock->local_addr_family;
@@ -1138,6 +1138,17 @@ cleanup_packet:
 		// Return on error
 		if (ret < 0) {
 			return ret;
+		}
+
+		if (!received_anticipated_packet && (flags & MSG_PEEK) != 0) {
+			// A peek leaves the packet queued, so consume an ignored one to get to the next packet
+			uint8_t discarded;
+			do {
+				ret = recv(scion_sock->socket_fd, &discarded, sizeof(discarded), MSG_DONTWAIT);
+			} while (ret == -1 && errno == EINTR);
+			if (ret < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
+				return SCION_ERR_RECV_FAIL;
+			}
 		}
 	}
 
