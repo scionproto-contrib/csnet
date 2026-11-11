@@ -28,6 +28,7 @@
 #include "common/isd_as.h"
 #include "control_plane/network.h"
 #include "control_plane/topology.h"
+#include "data_plane/packet.h"
 #include "data_plane/path.h"
 #include "data_plane/scmp.h"
 #include "data_plane/socket.h"
@@ -38,6 +39,7 @@
 #include "scion/scion_selector.h"
 #include "socket_fixture.h"
 #include "test_socket.h"
+#include "util/endian.h"
 #include "util/list.h"
 
 #ifdef __linux__
@@ -921,6 +923,38 @@ static void inject_packet(const struct sockaddr_in *to, const uint8_t *packet, s
 	assert_int_equal(sent, (ssize_t)length);
 }
 
+static void test_socket_connected_ignores_other_ases(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *peer = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(peer);
+	bind_loopback(receiver);
+	struct sockaddr_in peer_addr = bound_address(peer);
+	struct sockaddr_in receiver_addr = bound_address(receiver);
+	scion_ia local_ia = local_ia_of(fixture);
+	set_receive_timeout(receiver, 100);
+	assert_int_equal(scion_connect(receiver, (struct sockaddr *)&peer_addr, sizeof(peer_addr), local_ia), 0);
+
+	// Capture a valid packet so that only the source IA differs in the rejected packet.
+	assert_int_equal(
+		scion_sendto(peer, "peer", 4, 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr), local_ia, NULL), 4);
+	uint8_t packet[128];
+	ssize_t length = recv(receiver->socket_fd, packet, sizeof(packet), 0);
+	assert_true(length >= WELL_FORMED_HDR_LEN);
+	scion_store_be64(packet + SCION_CMN_HDR_LEN + SCION_IA_BYTES, local_ia + 1);
+	inject_packet(&receiver_addr, packet, (size_t)length);
+
+	assert_int_equal(
+		scion_sendto(peer, "peer", 4, 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr), local_ia, NULL), 4);
+	char buf[16];
+	scion_ia src_ia = 0;
+	assert_int_equal(scion_recvfrom(receiver, buf, sizeof(buf), 0, NULL, NULL, &src_ia, NULL), 4);
+	assert_int_equal(src_ia, local_ia);
+	assert_memory_equal(buf, "peer", 4);
+	assert_int_equal(scion_recv(receiver, buf, sizeof(buf), MSG_DONTWAIT), SCION_ERR_WOULD_BLOCK);
+}
+
 static void test_socket_receive_skips_malformed_packets(void **state)
 {
 	struct socket_fixture *fixture = *state;
@@ -1252,6 +1286,7 @@ int run_socket_tests(void)
 		cmocka_unit_test_setup_teardown(test_socket_receive_without_data_would_block, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_connected_round_trip, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_connected_ignores_other_senders, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_connected_ignores_other_ases, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_scmp_echo_round_trip, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_scmp_error_calls_the_callback, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_scmp_error_with_small_buffer, setup_fixture, teardown_fixture),

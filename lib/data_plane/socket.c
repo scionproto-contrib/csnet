@@ -1080,8 +1080,9 @@ ssize_t scion_recvmsg(
 
 		// Socket is connected, but packet does not come from connected destination
 		if (scion_sock->is_connected
-			&& !sockaddr_eq(
-				scion_sock->protocol, (struct sockaddr *)&scion_sock->dst_addr, (struct sockaddr *)&sender_addr)) {
+			&& (packet.src_ia != scion_sock->dst_ia
+				|| !sockaddr_eq(
+					scion_sock->protocol, (struct sockaddr *)&scion_sock->dst_addr, (struct sockaddr *)&sender_addr))) {
 			// Ignore packet
 			goto cleanup_packet;
 		}
