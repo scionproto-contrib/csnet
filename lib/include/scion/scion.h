@@ -506,6 +506,7 @@ ssize_t scion_send(struct scion_socket *scion_sock, const void *buf, size_t size
  *
  * @note The currently supported send flags are MSG_CONFIRM, MSG_DONTWAIT and MSG_MORE.
  * @note If a networkless socket is used, the path must be provided explicitly.
+ * @note The paths to a destination that the socket is not connected to are fetched on the first send and cached.
  */
 ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t size, int flags,
 	const struct sockaddr *dst_addr, socklen_t addrlen, scion_ia dst_ia, struct scion_path *path);
@@ -522,6 +523,7 @@ ssize_t scion_sendto(struct scion_socket *scion_sock, const void *buf, size_t si
  * @note The currently supported send flags are MSG_CONFIRM, MSG_DONTWAIT and MSG_MORE.
  * @note No control messages are implemented for sending. A message with control messages is rejected with
  * SCION_ERR_CONTROL_MSG_NOT_IMPLEMENTED.
+ * @note The paths to a destination that the socket is not connected to are fetched on the first send and cached.
  */
 ssize_t scion_sendmsg(
 	struct scion_socket *scion_sock, const struct msghdr *msg, int flags, scion_ia dst_ia, struct scion_path *path);
@@ -640,6 +642,8 @@ int scion_getsockfd(const struct scion_socket *scion_sock, int *fd);
  * @param scion_sock The socket.
  * @param policy The path selection policy to use.
  * @return 0 on success, a negative error code on failure.
+ *
+ * @note The cached paths of the socket are dropped, so they are fetched again with the new policy.
  */
 int scion_setsockpolicy(struct scion_socket *scion_sock, const struct scion_policy *policy);
 

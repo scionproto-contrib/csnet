@@ -145,6 +145,7 @@ static void socket_free(struct scion_socket *scion_sock)
 	}
 	scion_sock->socket_fd = -1;
 	scion_path_collection_free(scion_sock->paths);
+	scion_path_cache_clear(&scion_sock->path_cache);
 	scion_timestamp_state_free(scion_sock->timestamps);
 	free(scion_sock);
 }
@@ -684,6 +685,55 @@ static ssize_t scion_sendmsg_connected_path(struct scion_socket *scion_sock, str
 	return ret;
 }
 
+// Gets the paths to a destination that the socket is not connected to. They are fetched if they are not in the cache
+// or if they need to be refreshed.
+static int cached_paths(
+	struct scion_socket *scion_sock, scion_ia dst_ia, bool refresh, struct scion_path_collection **paths)
+{
+	if (!refresh) {
+		*paths = scion_path_cache_get(&scion_sock->path_cache, dst_ia);
+		if (*paths != NULL) {
+			return 0;
+		}
+	}
+
+	int ret = fetch_paths(scion_sock, dst_ia, paths);
+	if (ret != 0) {
+		return ret;
+	}
+
+	if (scion_path_collection_size(*paths) == 0) {
+		scion_path_collection_free(*paths);
+		return SCION_ERR_NO_PATHS;
+	}
+
+	scion_path_cache_put(&scion_sock->path_cache, dst_ia, *paths);
+	return 0;
+}
+
+static ssize_t scion_sendmsg_cached_path(
+	struct scion_socket *scion_sock, struct msghdr *msg, int flags, scion_ia dst_ia)
+{
+	struct scion_path_collection *paths;
+	ssize_t ret = cached_paths(scion_sock, dst_ia, /* refresh: */ false, &paths);
+	if (ret != 0) {
+		return ret;
+	}
+
+	ret = scion_sendmsg_path(scion_sock, msg, flags, scion_path_collection_first(paths));
+
+	if (ret == SCION_ERR_PATH_EXPIRED) {
+		ret = cached_paths(scion_sock, dst_ia, /* refresh: */ true, &paths);
+		if (ret != 0) {
+			return ret;
+		}
+
+		ret = scion_sendmsg_path(scion_sock, msg, flags, scion_path_collection_first(paths));
+	}
+
+	return ret;
+}
+
 ssize_t scion_send(struct scion_socket *scion_sock, const void *buf, size_t size, int flags)
 {
 	if (scion_sock->network == NULL) {
@@ -758,39 +808,18 @@ ssize_t scion_sendmsg(
 	// 1. No path was provided but destination IA matches the connected IA
 	//    --> Use connected path
 	// 2. No path was provided and destination IA does not match the connected IA
-	//    --> Fetch a temporary path, need to take care of freeing.
+	//    --> Use the cached paths to the destination, which are fetched the first time
 	// 3. A path was provided as an argument
 	//    --> Use the provided path
-	bool cleanup_path = false;
 	if (path == NULL) {
 		if (scion_sock->is_connected && scion_sock->dst_ia == dst_ia) {
 			return scion_sendmsg_connected_path(scion_sock, &underlying_msg, flags);
 		}
 
-		struct scion_path_collection *paths;
-
-		ret = fetch_paths(scion_sock, dst_ia, &paths);
-		if (ret != 0) {
-			return ret;
-		}
-
-		path = scion_path_collection_pop(paths);
-		if (path == NULL) {
-			scion_path_collection_free(paths);
-			return SCION_ERR_NO_PATHS;
-		}
-
-		scion_path_collection_free(paths);
-		cleanup_path = true;
+		return scion_sendmsg_cached_path(scion_sock, &underlying_msg, flags, dst_ia);
 	}
 
-	ret = scion_sendmsg_path(scion_sock, &underlying_msg, flags, path);
-
-	if (cleanup_path) {
-		scion_path_free(path);
-	}
-
-	return ret;
+	return scion_sendmsg_path(scion_sock, &underlying_msg, flags, path);
 }
 
 ssize_t scion_recv(struct scion_socket *scion_sock, void *buf, size_t size, int flags)
@@ -1347,6 +1376,9 @@ int scion_setsockpolicy(struct scion_socket *scion_sock, const struct scion_poli
 	int ret = 0;
 
 	scion_sock->policy = *policy;
+
+	// The cached paths were chosen by the old policy
+	scion_path_cache_clear(&scion_sock->path_cache);
 
 	if (scion_sock->is_connected) {
 		ret = refresh_connected_paths(scion_sock);

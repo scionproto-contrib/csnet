@@ -19,6 +19,7 @@
 
 #include "common/isd_as.h"
 #include "data_plane/path.h"
+#include "data_plane/path_cache.h"
 #include "scion/scion.h"
 #include "scion/scion_policy.h"
 #include "scion/scion_scmp.h"
@@ -42,6 +43,8 @@ struct scion_socket {
 	struct scion_policy policy;
 	struct scion_selector selector;
 	struct scion_path *current_path;
+	// The paths to the destinations that the socket is not connected to
+	struct scion_path_cache path_cache;
 	struct scion_scmp_error_handler scmp_error_handler;
 	bool is_bound;
 	bool is_connected;
