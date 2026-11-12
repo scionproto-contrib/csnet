@@ -24,6 +24,7 @@
 #include "control_plane/test_topology.h"
 #include "data_plane/test_packet.h"
 #include "data_plane/test_path.h"
+#include "data_plane/test_path_cache.h"
 #include "data_plane/test_scmp.h"
 #include "data_plane/test_selector.h"
 #include "data_plane/test_socket.h"
@@ -53,6 +54,7 @@ int main(void)
 	failed += run_addr_tests();
 	failed += run_packet_tests();
 	failed += run_path_tests();
+	failed += run_path_cache_tests();
 	failed += run_scmp_tests();
 	failed += run_selector_tests();
 	failed += run_socket_tests();

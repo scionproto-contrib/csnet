@@ -34,6 +34,7 @@ set(SOURCES
         ${LIB}/common/path_collection.c
         ${LIB}/data_plane/scmp.c
         ${LIB}/data_plane/path.c
+        ${LIB}/data_plane/path_cache.c
         ${LIB}/data_plane/packet.c
         ${LIB}/data_plane/underlay.c
         ${LIB}/data_plane/selector.c

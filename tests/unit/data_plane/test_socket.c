@@ -273,6 +273,49 @@ static void test_socket_sendto_policy_removes_all_paths(void **state)
 		SCION_ERR_NO_PATHS);
 }
 
+// The policy is applied when the paths are fetched, so it counts the fetches.
+static void test_socket_sendto_fetches_the_paths_once(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(receiver);
+	struct sockaddr_in receiver_addr = bound_address(receiver);
+
+	int calls = 0;
+	struct scion_policy policy = { .fn = count_policy_calls, .ctx = &calls };
+	assert_int_equal(scion_setsockpolicy(sender, &policy), 0);
+
+	for (int i = 0; i < 3; i++) {
+		assert_int_equal(scion_sendto(sender, "hello", 5, 0, (struct sockaddr *)&receiver_addr,
+							 sizeof(receiver_addr), local_ia_of(fixture), NULL),
+			5);
+	}
+	assert_int_equal(calls, 1);
+}
+
+static void test_socket_policy_drops_the_cached_paths(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	struct scion_socket *sender = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	struct scion_socket *receiver = open_socket(fixture, SCION_SOCK_DGRAM, SCION_PROTO_UDP);
+	bind_loopback(receiver);
+	struct sockaddr_in receiver_addr = bound_address(receiver);
+
+	int calls = 0;
+	struct scion_policy policy = { .fn = count_policy_calls, .ctx = &calls };
+	assert_int_equal(scion_setsockpolicy(sender, &policy), 0);
+	assert_int_equal(scion_sendto(sender, "hello", 5, 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr),
+						 local_ia_of(fixture), NULL),
+		5);
+
+	assert_int_equal(scion_setsockpolicy(sender, &policy), 0);
+	assert_int_equal(scion_sendto(sender, "hello", 5, 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr),
+						 local_ia_of(fixture), NULL),
+		5);
+	assert_int_equal(calls, 2);
+}
+
 static void test_socket_udp_round_trip(void **state)
 {
 	struct socket_fixture *fixture = *state;
@@ -1334,6 +1377,8 @@ int run_socket_tests(void)
 		cmocka_unit_test_setup_teardown(test_socket_udp_round_trip, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_sendto_applies_the_policy, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_sendto_policy_removes_all_paths, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_sendto_fetches_the_paths_once, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_socket_policy_drops_the_cached_paths, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_socket_empty_payload, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(
 			test_socket_receive_is_truncated_to_the_buffer, setup_fixture, teardown_fixture),

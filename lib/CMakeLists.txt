@@ -76,6 +76,7 @@ add_library(scion STATIC
         control_plane/bootstrapper.c
         data_plane/packet.c
         data_plane/path.c
+        data_plane/path_cache.c
         data_plane/selector.c
         data_plane/socket.c
         data_plane/timestamp.c
