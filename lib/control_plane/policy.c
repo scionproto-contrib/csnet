@@ -16,6 +16,7 @@
 #include <time.h>
 
 #include "common/path_collection.h"
+#include "control_plane/path_metadata.h"
 #include "scion/scion_path.h"
 #include "scion/scion_policy.h"
 #include "util/map.h"

@@ -24,7 +24,6 @@
 extern "C" {
 #endif
 
-#include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -81,27 +80,6 @@ int scion_path_set_router_alert(struct scion_path *path, size_t interface_index)
  * @param[in] path The path to free.
  */
 void scion_path_free(struct scion_path *path);
-
-/**
- * Returns true if the latency is unknown.
- * @param latency The latency.
- */
-#define SCION_PATH_METADATA_LATENCY_IS_UNSET(latency) (latency.tv_sec == 0 && latency.tv_usec == -1)
-/**
- * Returns true if the bandwidth is unknown.
- * @param bandwidth The bandwidth.
- */
-#define SCION_PATH_METADATA_BANDWIDTH_IS_UNSET(bandwidth) (bandwidth == 0)
-/**
- * Returns true if the geographical location is unknown.
- * @param geo The geographical location.
- */
-#define SCION_PATH_METADATA_GEO_IS_UNSET(geo) (isnan(geo.latitude) && isnan(geo.longitude) && geo.address == NULL)
-/**
- * Returns true if the number of internal hops is unknown.
- * @param internal_hops The number of internal hops.
- */
-#define SCION_PATH_METADATA_INTERNAL_HOPS_IS_UNSET(internal_hops) (internal_hops == 0)
 
 /**
  * @struct scion_path_interface
@@ -192,7 +170,7 @@ struct scion_path_metadata {
 	 * List of latencies between any two consecutive interfaces.
 	 * Entry i describes the latency between interface i and i+1.
 	 * Consequently, there are N-1 entries for N interfaces.
-	 * SCION_PATH_METADATA_LATENCY_IS_UNSET can be used to check whether an entry is set or not.
+	 * An entry of 0 s and -1 us indicates that the AS did not announce a latency for this hop.
 	 */
 	struct timeval *latencies;
 
@@ -200,15 +178,14 @@ struct scion_path_metadata {
 	 * List of bandwidths between any two consecutive interfaces, in Kbit/s.
 	 * Entry i describes the bandwidth between interfaces i and i+1.
 	 * A 0-value indicates that the AS did not announce a bandwidth for this hop.
-	 * SCION_PATH_METADATA_BANDWIDTH_IS_UNSET can be used to check whether an entry is set or not.
 	 */
 	uint64_t *bandwidths;
 
 	/**
 	 * Geographical positions of the border routers along the path.
 	 * Entry i describes the position of the router for interface i.
-	 * A 0-value indicates that the AS did not announce a position for this router.
-	 * SCION_PATH_METADATA_GEO_IS_UNSET can be used to check whether an entry is set or not.
+	 * An entry with NaN coordinates and a NULL address indicates that the AS did not announce a position for this
+	 * router.
 	 */
 	struct scion_geo_coordinates *geo;
 
@@ -224,7 +201,7 @@ struct scion_path_metadata {
 	 * Entry i describes the hop between interfaces 2*i+1 and 2*i+2 in the same AS.
 	 * Consequently, there are no entries for the first and last ASes, as these
 	 * are not traversed completely by the path.
-	 * SCION_PATH_METADATA_INTERNAL_HOPS_IS_UNSET can be used to check whether an entry is set or not.
+	 * A 0-value indicates that the AS did not announce the number of internal hops.
 	 */
 	uint32_t *internal_hops;
 

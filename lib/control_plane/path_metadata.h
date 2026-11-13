@@ -23,6 +23,27 @@
 #include "util/list.h"
 
 /**
+ * Returns true if the latency is unknown.
+ * @param latency The latency.
+ */
+#define SCION_PATH_METADATA_LATENCY_IS_UNSET(latency) (latency.tv_sec == 0 && latency.tv_usec == -1)
+/**
+ * Returns true if the bandwidth is unknown.
+ * @param bandwidth The bandwidth.
+ */
+#define SCION_PATH_METADATA_BANDWIDTH_IS_UNSET(bandwidth) (bandwidth == 0)
+/**
+ * Returns true if the geographical location is unknown.
+ * @param geo The geographical location.
+ */
+#define SCION_PATH_METADATA_GEO_IS_UNSET(geo) (isnan(geo.latitude) && isnan(geo.longitude) && geo.address == NULL)
+/**
+ * Returns true if the number of internal hops is unknown.
+ * @param internal_hops The number of internal hops.
+ */
+#define SCION_PATH_METADATA_INTERNAL_HOPS_IS_UNSET(internal_hops) (internal_hops == 0)
+
+/**
  * Frees geographical coordinates and their address.
  * @param[in] geo The geographical coordinates, can be NULL.
  */
