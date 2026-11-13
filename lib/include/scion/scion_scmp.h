@@ -194,7 +194,7 @@ struct scion_scmp_echo {
 	/** the sequence number */
 	uint16_t seqno;
 	/** the data */
-	uint8_t *data;
+	const uint8_t *data;
 	/** the length of the data */
 	uint16_t data_length;
 };
@@ -223,14 +223,10 @@ int scion_scmp_echo_serialize(const struct scion_scmp_echo *scmp_echo, uint8_t *
  * @param[in] buf_len The length of the serialized message.
  * @param[out] scmp_echo The SCMP echo message.
  * @return 0 on success, a negative error code on failure.
+ *
+ * @note The data is not copied, it points into the buffer, so it is valid as long as the buffer is.
  */
 int scion_scmp_echo_deserialize(const uint8_t *buf, uint16_t buf_len, struct scion_scmp_echo *scmp_echo);
-
-/**
- * Frees the internal members of an SCMP echo message.
- * @param[in] scmp_echo The SCMP echo message.
- */
-void scion_scmp_echo_free_members(struct scion_scmp_echo *scmp_echo);
 
 /** The size of a serialized SCMP traceroute message in bytes. */
 #define SCION_SCMP_TRACEROUTE_LEN 24

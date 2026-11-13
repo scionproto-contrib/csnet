@@ -17,7 +17,6 @@
 #include <memory.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "data_plane/scmp.h"
@@ -195,24 +194,12 @@ int scion_scmp_echo_deserialize(const uint8_t *buf, uint16_t buf_len, struct sci
 	}
 
 	uint16_t data_len = buf_len - SCION_SCMP_ECHO_HDR_LEN;
-	scmp_echo->data_length = data_len;
-
-	if (scmp_echo->data_length > 0) {
-		scmp_echo->data = malloc(data_len);
-		if (scmp_echo->data == NULL) {
-			return SCION_ERR_MEM_ALLOC_FAIL;
-		}
-	} else {
-		scmp_echo->data = NULL;
-	}
 
 	scmp_echo->type = type;
 	scmp_echo->id = scion_load_be16(buf + 4);
 	scmp_echo->seqno = scion_load_be16(buf + 6);
-
-	if (data_len > 0) {
-		(void)memcpy(scmp_echo->data, buf + 8, data_len);
-	}
+	scmp_echo->data = data_len > 0 ? buf + SCION_SCMP_ECHO_HDR_LEN : NULL;
+	scmp_echo->data_length = data_len;
 
 	return 0;
 }
@@ -237,12 +224,6 @@ int scion_scmp_echo_serialize(const struct scion_scmp_echo *scmp_echo, uint8_t *
 	}
 
 	return 0;
-}
-
-void scion_scmp_echo_free_members(struct scion_scmp_echo *scmp_echo)
-{
-	free(scmp_echo->data);
-	scmp_echo->data = NULL;
 }
 
 // #######  Traceroute messages  #######

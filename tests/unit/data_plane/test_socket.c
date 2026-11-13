@@ -579,7 +579,6 @@ static void test_socket_scmp_echo_round_trip(void **state)
 	assert_uint_equal(received.seqno, 3);
 	assert_uint_equal(received.data_length, sizeof(data));
 	assert_memory_equal(received.data, data, sizeof(data));
-	scion_scmp_echo_free_members(&received);
 
 	// SCMP has no ports.
 	assert_uint_equal(ntohl(from.sin_addr.s_addr), INADDR_LOOPBACK);
