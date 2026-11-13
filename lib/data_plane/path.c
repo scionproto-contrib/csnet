@@ -524,52 +524,36 @@ int scion_path_meta_hdr_deserialize(const uint8_t *buf, struct scion_path_meta_h
 	return 0;
 }
 
-int scion_path_deserialize(
-	uint8_t *buf, size_t buf_len, struct scion_path_meta_hdr *hdr, struct scion_list *info_fields,
-	struct scion_list *hop_fields)
+int scion_path_deserialize(const uint8_t *buf, size_t buf_len, struct scion_path_fields *path)
 {
 	assert(buf);
-	assert(hdr);
-	assert(info_fields);
-	assert(hop_fields);
-	int ret;
+	assert(path);
 
-	uint8_t num_inf;
-	uint8_t num_hf;
-	ret = path_count_fields(buf, buf_len, hdr, &num_inf, &num_hf);
+	int ret = path_count_fields(buf, buf_len, &path->hdr, &path->num_inf, &path->num_hf);
 	if (ret != 0) {
 		return ret;
 	}
 
-	uint16_t offset = (uint16_t)SCION_META_LEN;
-
-	for (uint8_t i = 0; i < num_inf; i++) {
-		struct scion_info_field *info = malloc(sizeof(*info));
-		if (info == NULL) {
-			return SCION_ERR_MEM_ALLOC_FAIL;
-		}
-		ret = scion_info_field_deserialize(buf + offset, info);
-		if (ret != 0) {
-			free(info);
-			return ret;
-		}
-		scion_list_append(info_fields, info);
-		offset += (uint16_t)SCION_INFO_LEN;
+	if (path->num_hf > SCION_MAX_HOPS) {
+		return SCION_ERR_META_HDR_INVALID;
 	}
 
-	for (uint8_t i = 0; i < num_hf; i++) {
-		struct scion_hop_field *hop = malloc(sizeof(*hop));
-		if (hop == NULL) {
-			return SCION_ERR_MEM_ALLOC_FAIL;
-		}
-		ret = scion_hop_field_deserialize(buf + offset, hop);
+	const uint8_t *raw_info_fields = buf + SCION_META_LEN;
+	for (uint8_t i = 0; i < path->num_inf; i++) {
+		ret = scion_info_field_deserialize(raw_info_fields + i * SCION_INFO_LEN, &path->info_fields[i]);
 		if (ret != 0) {
-			free(hop);
 			return ret;
 		}
-		scion_list_append(hop_fields, hop);
-		offset += (uint16_t)SCION_HOP_LEN;
 	}
+
+	const uint8_t *raw_hop_fields = raw_info_fields + path->num_inf * SCION_INFO_LEN;
+	for (uint8_t i = 0; i < path->num_hf; i++) {
+		ret = scion_hop_field_deserialize(raw_hop_fields + i * SCION_HOP_LEN, &path->hop_fields[i]);
+		if (ret != 0) {
+			return ret;
+		}
+	}
+
 	return 0;
 }
 
