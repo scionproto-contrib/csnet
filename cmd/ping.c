@@ -117,23 +117,19 @@ static int scion_recv_echo_reply(struct scion_socket *scion_socket, uint16_t seq
 
 		if (echo_reply.type != SCION_SCMP_TYPE_ECHO_REPLY) {
 			// Not an ECHO reply
-			scion_scmp_echo_free_members(&echo_reply);
 			continue;
 		}
 
 		if (echo_reply.seqno != seqno) {
 			// Wrong sequence number
-			scion_scmp_echo_free_members(&echo_reply);
 			continue;
 		}
 
 		if (echo_reply.data_length != length || (length > 0 && memcmp(echo_reply.data, payload, length) != 0)) {
 			// Wrong payload
-			scion_scmp_echo_free_members(&echo_reply);
 			continue;
 		}
 
-		scion_scmp_echo_free_members(&echo_reply);
 		break;
 	}
 
