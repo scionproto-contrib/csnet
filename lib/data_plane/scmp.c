@@ -385,12 +385,10 @@ int scion_scmp_error_serialize(const struct scion_scmp_error *scmp_error, uint8_
 	return 0;
 }
 
-int scion_scmp_error_parse(
-	const uint8_t *buf, size_t buf_len, struct scion_scmp_error *scmp_error, const uint8_t **quoted_packet)
+int scion_scmp_error_deserialize(const uint8_t *buf, size_t buf_len, struct scion_scmp_error *scmp_error)
 {
 	assert(buf || buf_len == 0);
 	assert(scmp_error);
-	assert(quoted_packet);
 
 	if (buf_len < SCION_SCMP_HDR_LEN) {
 		return SCION_ERR_BUF_TOO_SMALL;
@@ -438,39 +436,10 @@ int scion_scmp_error_parse(
 		break;
 	}
 
+	scmp_error->packet = packet_length > 0 ? info + info_len : NULL;
 	scmp_error->packet_length = (uint16_t)packet_length;
-	*quoted_packet = packet_length > 0 ? info + info_len : NULL;
 
 	return 0;
-}
-
-int scion_scmp_error_deserialize(const uint8_t *buf, size_t buf_len, struct scion_scmp_error *scmp_error)
-{
-	const uint8_t *quoted_packet;
-	int ret = scion_scmp_error_parse(buf, buf_len, scmp_error, &quoted_packet);
-	if (ret != 0) {
-		return ret;
-	}
-
-	if (quoted_packet != NULL) {
-		scmp_error->packet = malloc(scmp_error->packet_length);
-		if (scmp_error->packet == NULL) {
-			scmp_error->packet_length = 0;
-			return SCION_ERR_MEM_ALLOC_FAIL;
-		}
-		(void)memcpy(scmp_error->packet, quoted_packet, scmp_error->packet_length);
-	}
-
-	return 0;
-}
-
-void scion_scmp_error_free_members(struct scion_scmp_error *scmp_error)
-{
-	assert(scmp_error);
-
-	free(scmp_error->packet);
-	scmp_error->packet = NULL;
-	scmp_error->packet_length = 0;
 }
 
 // Appends a formatted string to buf. used is the length the string would have if buf was large enough.

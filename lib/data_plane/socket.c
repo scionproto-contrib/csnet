@@ -1114,12 +1114,10 @@ ssize_t scion_recvmsg(
 		if (packet.next_hdr == SCION_PROTO_SCMP && scion_scmp_is_error(packet.payload, (uint16_t)head_payload_len)) {
 			// Mark the affected paths as down and trigger the SCMP error handler
 			if (scion_sock->paths != NULL || scion_sock->scmp_error_handler.fn != NULL) {
+				// The quoted packet stays in the buffer of this function, the handler only reads it
 				struct scion_scmp_error scmp_error;
-				const uint8_t *quoted_packet;
-				ret = scion_scmp_error_parse(packet.payload, head_payload_len, &scmp_error, &quoted_packet);
+				ret = scion_scmp_error_deserialize(packet.payload, head_payload_len, &scmp_error);
 				if (ret == 0) {
-					// The handler only reads the quoted packet, which is in the buffer of this function
-					scmp_error.packet = (uint8_t *)quoted_packet;
 					if (scion_sock->paths != NULL) {
 						scion_path_collection_mark_down(scion_sock->paths, &scmp_error);
 					}

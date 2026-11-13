@@ -58,21 +58,8 @@ size_t scion_scmp_error_len(const struct scion_scmp_error *scmp_error);
 int scion_scmp_error_serialize(const struct scion_scmp_error *scmp_error, uint8_t *buf, size_t buf_len);
 
 /*
- * Deserializes an SCMP error message. The quoted packet is copied into memory that is freed with
- * scion_scmp_error_free_members. Returns SCION_ERR_PACKET_FIELD_INVALID if the type is not a known SCMP error type.
- * The code and the checksum are not validated.
+ * Deserializes an SCMP error message. The quoted packet is not copied, it points into the buffer. Returns
+ * SCION_ERR_PACKET_FIELD_INVALID if the type is not a known SCMP error type. The code and the checksum are not
+ * validated.
  */
 int scion_scmp_error_deserialize(const uint8_t *buf, size_t buf_len, struct scion_scmp_error *scmp_error);
-
-/*
- * Parses an SCMP error message like scion_scmp_error_deserialize, but without allocating memory. The packet of the
- * error is not copied, the packet_length is set and quoted_packet points to the quoted packet inside the buffer, or is
- * NULL if there is none. The packet member of the error is NULL.
- */
-int scion_scmp_error_parse(
-	const uint8_t *buf, size_t buf_len, struct scion_scmp_error *scmp_error, const uint8_t **quoted_packet);
-
-/*
- * Frees the quoted packet of an SCMP error message that was deserialized with scion_scmp_error_deserialize.
- */
-void scion_scmp_error_free_members(struct scion_scmp_error *scmp_error);

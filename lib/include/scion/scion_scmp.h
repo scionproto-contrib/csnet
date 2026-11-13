@@ -157,7 +157,7 @@ struct scion_scmp_error {
 		} internal_connectivity_down;
 	} info;
 	/** as much of the offending packet as fit into the message, or NULL */
-	uint8_t *packet;
+	const uint8_t *packet;
 	/** the length of the offending packet in bytes */
 	uint16_t packet_length;
 };

@@ -234,28 +234,11 @@ static void test_deserialize_scmp_error(void **)
 		struct scion_scmp_error error;
 		assert_int_equal(scion_scmp_error_deserialize(error_cases[i].bytes, error_cases[i].length, &error), 0);
 		assert_scmp_error_equal(&error, &error_cases[i].error);
-		scion_scmp_error_free_members(&error);
-	}
-}
-
-static void test_parse_scmp_error(void **)
-{
-	for (size_t i = 0; i < sizeof(error_cases) / sizeof(error_cases[0]); i++) {
-		struct scion_scmp_error error;
-		const uint8_t *quoted_packet;
-		assert_int_equal(
-			scion_scmp_error_parse(error_cases[i].bytes, error_cases[i].length, &error, &quoted_packet), 0);
 
 		// The quoted packet is at the end of the message, it is not copied
-		assert_null(error.packet);
 		if (error.packet_length > 0) {
-			assert_ptr_equal(quoted_packet, error_cases[i].bytes + error_cases[i].length - error.packet_length);
-		} else {
-			assert_null(quoted_packet);
+			assert_ptr_equal(error.packet, error_cases[i].bytes + error_cases[i].length - error.packet_length);
 		}
-
-		error.packet = (uint8_t *)quoted_packet;
-		assert_scmp_error_equal(&error, &error_cases[i].error);
 	}
 }
 
@@ -311,17 +294,6 @@ static void test_deserialize_scmp_error_does_not_validate_code(void **)
 	struct scion_scmp_error error;
 	assert_int_equal(scion_scmp_error_deserialize(msg, sizeof(msg), &error), 0);
 	assert_uint_equal(error.code, 99);
-	assert_null(error.packet);
-	assert_uint_equal(error.packet_length, 0);
-}
-
-static void test_scmp_error_free_members(void **)
-{
-	struct scion_scmp_error error;
-	assert_int_equal(scion_scmp_error_deserialize(error_cases[0].bytes, error_cases[0].length, &error), 0);
-	assert_non_null(error.packet);
-
-	scion_scmp_error_free_members(&error);
 	assert_null(error.packet);
 	assert_uint_equal(error.packet_length, 0);
 }
@@ -527,12 +499,10 @@ int run_scmp_tests(void)
 		cmocka_unit_test(test_scmp_type_and_code_of_short_buffer),
 		cmocka_unit_test(test_serialize_scmp_error),
 		cmocka_unit_test(test_deserialize_scmp_error),
-		cmocka_unit_test(test_parse_scmp_error),
 		cmocka_unit_test(test_serialize_scmp_error_buffer_too_small),
 		cmocka_unit_test(test_scmp_error_unknown_type),
 		cmocka_unit_test(test_deserialize_scmp_error_too_short),
 		cmocka_unit_test(test_deserialize_scmp_error_does_not_validate_code),
-		cmocka_unit_test(test_scmp_error_free_members),
 		cmocka_unit_test(test_scmp_error_str),
 		cmocka_unit_test(test_scmp_error_str_buffer_too_small),
 		cmocka_unit_test(test_scmp_type_str),
