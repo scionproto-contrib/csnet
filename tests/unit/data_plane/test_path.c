@@ -454,10 +454,10 @@ static void test_deserialize_path(void **)
 	// clang-format on
 
 	struct scion_path_meta_hdr hdr;
-	struct scion_list *info_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
-	struct scion_list *hop_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
+	struct scion_info_field info_fields[SCION_MAX_INFS];
+	struct scion_hop_field hop_fields[SCION_MAX_HOPS];
 
-	assert_int_equal(scion_path_deserialize((uint8_t *)&buf, sizeof(buf), &hdr, info_fields, hop_fields), 0);
+	assert_int_equal(scion_path_deserialize(buf, sizeof(buf), &hdr, info_fields, hop_fields), 0);
 
 	assert_uint_equal(hdr.curr_inf, 2);
 	assert_uint_equal(hdr.curr_hf, 5);
@@ -465,39 +465,28 @@ static void test_deserialize_path(void **)
 	assert_uint_equal(hdr.seg_len[1], 2);
 	assert_uint_equal(hdr.seg_len[2], 2);
 
-	assert_uint_equal(info_fields->size, 3);
-	assert_uint_equal(hop_fields->size, 6);
-
 	// Info Fields
-	struct scion_list_node *curr = info_fields->first;
-	struct scion_info_field *curr_if = (struct scion_info_field *)curr->value;
-	assert_non_null(curr_if);
+	struct scion_info_field *curr_if = &info_fields[0];
 	assert_false(curr_if->peer);
 	assert_false(curr_if->cons_dir);
 	assert_uint_equal(curr_if->seg_id, 0x9890);
 	assert_uint_equal(curr_if->timestamp, 0x67375efc);
 
-	curr = curr->next;
-	curr_if = (struct scion_info_field *)curr->value;
-	assert_non_null(curr_if);
+	curr_if++;
 	assert_false(curr_if->peer);
 	assert_false(curr_if->cons_dir);
 	assert_uint_equal(curr_if->seg_id, 0x8c1d);
 	assert_uint_equal(curr_if->timestamp, 0x67375eb3);
 
-	curr = curr->next;
-	curr_if = (struct scion_info_field *)curr->value;
-	assert_non_null(curr_if);
+	curr_if++;
 	assert_false(curr_if->peer);
 	assert_true(curr_if->cons_dir);
 	assert_uint_equal(curr_if->seg_id, 0xdc39);
 	assert_uint_equal(curr_if->timestamp, 0x67375eae);
 
 	// Hop Fields
-	curr = hop_fields->first;
-	struct scion_hop_field *curr_hf = (struct scion_hop_field *)curr->value;
+	struct scion_hop_field *curr_hf = &hop_fields[0];
 	uint8_t mac_0[6] = { 0x87, 0x2d, 0x92, 0x63, 0xd1, 0x97 };
-	assert_non_null(curr_hf);
 	assert_false(curr_hf->ingress_router_alert);
 	assert_false(curr_hf->egress_router_alert);
 	assert_uint_equal(curr_hf->exp_time, 63);
@@ -505,10 +494,8 @@ static void test_deserialize_path(void **)
 	assert_uint_equal(curr_hf->cons_egress, 0);
 	assert_memory_equal(curr_hf->mac, mac_0, sizeof(mac_0));
 
-	curr = curr->next;
-	curr_hf = (struct scion_hop_field *)curr->value;
+	curr_hf++;
 	uint8_t mac_1[6] = { 0xae, 0xe2, 0x32, 0xfe, 0xe4, 0xdf };
-	assert_non_null(curr_hf);
 	assert_false(curr_hf->ingress_router_alert);
 	assert_false(curr_hf->egress_router_alert);
 	assert_uint_equal(curr_hf->exp_time, 63);
@@ -516,10 +503,8 @@ static void test_deserialize_path(void **)
 	assert_uint_equal(curr_hf->cons_egress, 500);
 	assert_memory_equal(curr_hf->mac, mac_1, sizeof(mac_1));
 
-	curr = curr->next;
-	curr_hf = (struct scion_hop_field *)curr->value;
+	curr_hf++;
 	uint8_t mac_2[6] = { 0x31, 0x76, 0xc2, 0x99, 0x18, 0xf2 };
-	assert_non_null(curr_hf);
 	assert_false(curr_hf->ingress_router_alert);
 	assert_false(curr_hf->egress_router_alert);
 	assert_uint_equal(curr_hf->exp_time, 63);
@@ -527,10 +512,8 @@ static void test_deserialize_path(void **)
 	assert_uint_equal(curr_hf->cons_egress, 0);
 	assert_memory_equal(curr_hf->mac, mac_2, sizeof(mac_2));
 
-	curr = curr->next;
-	curr_hf = (struct scion_hop_field *)curr->value;
+	curr_hf++;
 	uint8_t mac_3[6] = { 0xe1, 0x00, 0x16, 0xdf, 0xd5, 0x4b };
-	assert_non_null(curr_hf);
 	assert_false(curr_hf->ingress_router_alert);
 	assert_false(curr_hf->egress_router_alert);
 	assert_uint_equal(curr_hf->exp_time, 63);
@@ -538,10 +521,8 @@ static void test_deserialize_path(void **)
 	assert_uint_equal(curr_hf->cons_egress, 3);
 	assert_memory_equal(curr_hf->mac, mac_3, sizeof(mac_3));
 
-	curr = curr->next;
-	curr_hf = (struct scion_hop_field *)curr->value;
+	curr_hf++;
 	uint8_t mac_4[6] = { 0x25, 0x66, 0x37, 0x02, 0x8d, 0xda };
-	assert_non_null(curr_hf);
 	assert_false(curr_hf->ingress_router_alert);
 	assert_false(curr_hf->egress_router_alert);
 	assert_uint_equal(curr_hf->exp_time, 63);
@@ -549,19 +530,14 @@ static void test_deserialize_path(void **)
 	assert_uint_equal(curr_hf->cons_egress, 4);
 	assert_memory_equal(curr_hf->mac, mac_4, sizeof(mac_4));
 
-	curr = curr->next;
-	curr_hf = (struct scion_hop_field *)curr->value;
+	curr_hf++;
 	uint8_t mac_5[6] = { 0x2c, 0xad, 0xf3, 0x51, 0xb8, 0xbd };
-	assert_non_null(curr_hf);
 	assert_false(curr_hf->ingress_router_alert);
 	assert_false(curr_hf->egress_router_alert);
 	assert_uint_equal(curr_hf->exp_time, 63);
 	assert_uint_equal(curr_hf->cons_ingress, 3);
 	assert_uint_equal(curr_hf->cons_egress, 0);
 	assert_memory_equal(curr_hf->mac, mac_5, sizeof(mac_5));
-
-	scion_list_free(info_fields);
-	scion_list_free(hop_fields);
 }
 
 // scion_path_reverse() parses the raw path using the segment lengths announced in its meta header. A raw path that is
@@ -636,13 +612,24 @@ static void test_deserialize_path_inconsistent_segment_lengths(void **)
 	uint8_t buf[SCION_META_LEN];
 	assert_int_equal(scion_path_meta_hdr_serialize(&hdr, buf), 0);
 
-	struct scion_list *info_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
-	struct scion_list *hop_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
-	int ret = scion_path_deserialize(buf, sizeof(buf), &hdr, info_fields, hop_fields);
-	scion_list_free(info_fields);
-	scion_list_free(hop_fields);
+	struct scion_info_field info_fields[SCION_MAX_INFS];
+	struct scion_hop_field hop_fields[SCION_MAX_HOPS];
+	assert_int_equal(
+		scion_path_deserialize(buf, sizeof(buf), &hdr, info_fields, hop_fields), SCION_ERR_META_HDR_INVALID);
+}
 
-	assert_int_equal(ret, SCION_ERR_META_HDR_INVALID);
+// A path has at most SCION_MAX_HOPS hop fields, although the segment lengths could announce more.
+static void test_deserialize_path_too_many_hops(void **)
+{
+	struct scion_path_meta_hdr hdr = { .seg_len = { 63, 2, 0 } };
+
+	uint8_t buf[SCION_META_LEN + 2 * SCION_INFO_LEN + 65 * SCION_HOP_LEN] = { 0 };
+	assert_int_equal(scion_path_meta_hdr_serialize(&hdr, buf), 0);
+
+	struct scion_info_field info_fields[SCION_MAX_INFS];
+	struct scion_hop_field hop_fields[SCION_MAX_HOPS];
+	assert_int_equal(
+		scion_path_deserialize(buf, sizeof(buf), &hdr, info_fields, hop_fields), SCION_ERR_META_HDR_INVALID);
 }
 
 static void test_path_get_numhops(void **)
@@ -725,20 +712,16 @@ static void build_path(struct scion_path *path, struct scion_path_raw *raw_path,
 static void assert_router_alert(const struct scion_path *path, size_t hops_len, size_t alert_hop, bool alert_ingress)
 {
 	struct scion_path_meta_hdr hdr;
-	struct scion_list *info_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
-	struct scion_list *hop_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
+	struct scion_info_field info_fields[SCION_MAX_INFS];
+	struct scion_hop_field hop_fields[SCION_MAX_HOPS];
 	assert_int_equal(
 		scion_path_deserialize(path->raw_path->raw, path->raw_path->length, &hdr, info_fields, hop_fields), 0);
-	assert_uint_equal(hop_fields->size, hops_len);
+	assert_uint_equal(hdr.seg_len[0] + hdr.seg_len[1] + hdr.seg_len[2], hops_len);
 
 	for (size_t i = 0; i < hops_len; i++) {
-		struct scion_hop_field *hop = scion_list_get(hop_fields, i);
-		assert_int_equal(hop->ingress_router_alert, i == alert_hop && alert_ingress);
-		assert_int_equal(hop->egress_router_alert, i == alert_hop && !alert_ingress);
+		assert_int_equal(hop_fields[i].ingress_router_alert, i == alert_hop && alert_ingress);
+		assert_int_equal(hop_fields[i].egress_router_alert, i == alert_hop && !alert_ingress);
 	}
-
-	scion_list_free(info_fields);
-	scion_list_free(hop_fields);
 }
 
 // Sets the router alert for every interface of a path in turn and checks which hop field gets the flag.
@@ -887,6 +870,7 @@ int run_path_tests(void)
 		cmocka_unit_test(test_meta_hdr_init),
 		cmocka_unit_test(test_meta_hdr_round_trip_extremes),
 		cmocka_unit_test(test_deserialize_path_inconsistent_segment_lengths),
+		cmocka_unit_test(test_deserialize_path_too_many_hops),
 		cmocka_unit_test(test_path_get_numhops),
 		cmocka_unit_test(test_reverse_empty_path),
 		cmocka_unit_test(test_reverse_unknown_path_type),

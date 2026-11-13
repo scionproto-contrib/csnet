@@ -18,6 +18,8 @@
 #include <stdbool.h>
 #include <sys/socket.h>
 
+#include "common/hop_field.h"
+#include "common/info_field.h"
 #include "common/isd_as.h"
 #include "control_plane/path_metadata.h"
 #include "data_plane/underlay.h"
@@ -134,27 +136,12 @@ int scion_path_serialize(
 int scion_path_meta_hdr_serialize(struct scion_path_meta_hdr *hdr, uint8_t *buf);
 
 /*
- * Takes a buffer which contains a serialized SCION path and deserializes it into a scion_path_meta_hdr struct,
- * a scion_linked_list containing scion_info_field structs and a scion_linked_list containing scion_hop_field structs.
- * IMPORTANT: the scion_path_meta_hdr struct needs to be allocated and both ScionLinkedLists need to be created
- * before calling this function.
- *
- * Arguments:
- *      - uint8_t *buf: Pointer to the buffer.
- *      - size_t buf_len: Length of the buffer in bytes.
- * 		- struct scion_path_meta_hdr *hdr: Pointer to the scion_path_meta_hdr struct into which the Meta header will be
- * deserialized.
- * 		- struct scion_linked_list *info_fields: scion_linked_list into which the list of info fields will be
- * deserialized.
- * 		- struct scion_linked_list *hop_fields: scion_linked_list into which the list of hop fields will be
- * deserialized.
- *
- * Returns:
- *      - An integer status code, 0 for success or an error code as defined in error.h.
+ * Deserializes a SCION path into its meta header, info fields and hop fields. The number of info fields and of hop
+ * fields per segment is given by the segment lengths of the meta header. Returns SCION_ERR_META_HDR_INVALID if the
+ * segment lengths are inconsistent or the path has more than SCION_MAX_HOPS hop fields.
  */
-int scion_path_deserialize(
-	uint8_t *buf, size_t buf_len, struct scion_path_meta_hdr *hdr, struct scion_list *info_fields,
-	struct scion_list *hop_fields);
+int scion_path_deserialize(const uint8_t *buf, size_t buf_len, struct scion_path_meta_hdr *hdr,
+	struct scion_info_field info_fields[SCION_MAX_INFS], struct scion_hop_field hop_fields[SCION_MAX_HOPS]);
 
 int scion_path_meta_hdr_deserialize(const uint8_t *buf, struct scion_path_meta_hdr *hdr);
 

@@ -794,21 +794,17 @@ static void test_socket_traceroute_with_router_alert(void **state)
 		assert_uint_equal(received.seqno, interface_index);
 
 		struct scion_path_meta_hdr hdr;
-		struct scion_list *info_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
-		struct scion_list *hop_fields = scion_list_create(SCION_LIST_SIMPLE_FREE);
+		struct scion_info_field info_fields[SCION_MAX_INFS];
+		struct scion_hop_field hop_fields[SCION_MAX_HOPS];
 		assert_int_equal(scion_path_deserialize(received_path->raw_path->raw, received_path->raw_path->length, &hdr,
 							 info_fields, hop_fields),
 			0);
-		struct scion_hop_field *first = scion_list_get(hop_fields, 0);
-		struct scion_hop_field *second = scion_list_get(hop_fields, 1);
 		// Interface 11 is left through the egress interface of the first hop field, 12 is entered through the
 		// ingress interface of the second one.
-		assert_int_equal(first->egress_router_alert, interface_index == 0);
-		assert_false(first->ingress_router_alert);
-		assert_int_equal(second->ingress_router_alert, interface_index == 1);
-		assert_false(second->egress_router_alert);
-		scion_list_free(info_fields);
-		scion_list_free(hop_fields);
+		assert_int_equal(hop_fields[0].egress_router_alert, interface_index == 0);
+		assert_false(hop_fields[0].ingress_router_alert);
+		assert_int_equal(hop_fields[1].ingress_router_alert, interface_index == 1);
+		assert_false(hop_fields[1].egress_router_alert);
 
 		// The router answers, the socket accepts the reply although it does not come from the destination
 		struct scion_scmp_traceroute reply = { .type = SCION_SCMP_TYPE_TRACEROUTE_REPLY,

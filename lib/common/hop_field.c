@@ -52,7 +52,7 @@ int scion_hop_field_serialize(uint8_t *buf, struct scion_hop_field *hop_field)
 	return 0;
 }
 
-int scion_hop_field_deserialize(uint8_t *buf, struct scion_hop_field *hop_field)
+int scion_hop_field_deserialize(const uint8_t *buf, struct scion_hop_field *hop_field)
 {
 	assert(buf);
 	assert(hop_field);
