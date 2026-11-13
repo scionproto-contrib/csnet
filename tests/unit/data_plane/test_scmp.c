@@ -78,9 +78,8 @@ static void test_deserialize_scmp_echo(void **)
 	assert_uint_equal(echo.id, 65534);
 	assert_uint_equal(echo.seqno, 1);
 	assert_uint_equal(echo.data_length, 3);
-	assert_memory_equal(echo.data, &buf[8], 3);
-
-	scion_scmp_echo_free_members(&echo);
+	// The data is not copied
+	assert_ptr_equal(echo.data, &buf[8]);
 }
 
 static void test_deserialize_scmp_echo_reply_without_data(void **)
