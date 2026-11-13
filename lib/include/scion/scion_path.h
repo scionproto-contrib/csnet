@@ -118,7 +118,7 @@ struct scion_geo_coordinates {
 };
 
 /**
- * The linky type of a hop.
+ * The link type of a hop.
  */
 enum scion_link_type {
 	/**
@@ -195,7 +195,6 @@ struct scion_path_metadata {
 	 */
 	enum scion_link_type *link_types;
 
-	//
 	/**
 	 * Numbers of AS internal hops for the ASes on path.
 	 * Entry i describes the hop between interfaces 2*i+1 and 2*i+2 in the same AS.
