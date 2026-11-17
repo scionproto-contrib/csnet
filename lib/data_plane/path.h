@@ -93,11 +93,6 @@ int scion_path_raw_init(struct scion_path_raw *raw_path, struct scion_path_meta_
 void scion_path_raw_free(struct scion_path_raw *raw_path);
 
 /*
- * Creates an empty path, in which the path that a packet was received on can be stored with scion_path_set_raw.
- */
-int scion_path_create(struct scion_path **path);
-
-/*
  * Replaces the content of a path with a raw header, for example the one of the path that a packet was received on. The
  * raw header is copied into the buffer of the path, which is reused, so memory is only allocated the first time.
  */
