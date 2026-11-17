@@ -45,6 +45,9 @@ struct scion_path {
 	struct scion_underlay underlay_next_hop;
 	enum scion_path_type path_type;
 	struct scion_path_raw *raw_path;
+	// The size of the buffer of the raw path, if the path reuses the buffer for every packet that is received on it.
+	// Otherwise 0, the buffer then has the length of the raw path.
+	uint16_t raw_path_capacity;
 	struct scion_path_metadata *metadata;
 	uint32_t weight;
 	// The monotonic time in nanoseconds at which an SCMP error reported the path as down, 0 if it was not
@@ -88,6 +91,18 @@ int scion_path_raw_init(struct scion_path_raw *raw_path, struct scion_path_meta_
  *      - struct scion_path_raw *raw_path: Pointer to the raw path to be free'd.
  */
 void scion_path_raw_free(struct scion_path_raw *raw_path);
+
+/*
+ * Creates an empty path, in which the path that a packet was received on can be stored with scion_path_set_raw.
+ */
+int scion_path_create(struct scion_path **path);
+
+/*
+ * Replaces the content of a path with a raw header, for example the one of the path that a packet was received on. The
+ * raw header is copied into the buffer of the path, which is reused, so memory is only allocated the first time.
+ */
+int scion_path_set_raw(struct scion_path *path, scion_ia src, scion_ia dst, enum scion_path_type path_type,
+	const uint8_t *raw, uint16_t raw_len);
 
 /*
  * Reverses a scion_path_raw. Used to respond to a packet received from a source where no

@@ -28,6 +28,8 @@
 #include "util/endian.h"
 #include "util/list.h"
 
+#define SCION_MAX_PATH_LEN (SCION_META_LEN + SCION_MAX_INFS * SCION_INFO_LEN + SCION_MAX_HOPS * SCION_HOP_LEN)
+
 int scion_path_meta_hdr_init(struct scion_path_meta_hdr *hdr)
 {
 	assert(hdr);
@@ -58,6 +60,82 @@ int scion_path_raw_init(struct scion_path_raw *raw_path, struct scion_path_meta_
 		raw_path->raw = NULL;
 		return ret;
 	}
+	return 0;
+}
+
+// Makes the buffer of the raw path of a path large enough for a raw path of the length.
+static int reserve_raw_path(struct scion_path *path, uint16_t length)
+{
+	if (path->raw_path == NULL) {
+		path->raw_path = calloc(1, sizeof(*path->raw_path));
+		if (path->raw_path == NULL) {
+			return SCION_ERR_MEM_ALLOC_FAIL;
+		}
+	}
+
+	if (path->raw_path_capacity >= length) {
+		return 0;
+	}
+
+	// The buffer fits the longest SCION path, so a path that packets are received on is not grown again
+	uint16_t capacity = length > SCION_MAX_PATH_LEN ? length : SCION_MAX_PATH_LEN;
+	uint8_t *raw = realloc(path->raw_path->raw, capacity);
+	if (raw == NULL) {
+		return SCION_ERR_MEM_ALLOC_FAIL;
+	}
+
+	path->raw_path->raw = raw;
+	path->raw_path_capacity = capacity;
+	return 0;
+}
+
+int scion_path_create(struct scion_path **path)
+{
+	assert(path);
+
+	struct scion_path *new_path = calloc(1, sizeof(*new_path));
+	if (new_path == NULL) {
+		return SCION_ERR_MEM_ALLOC_FAIL;
+	}
+
+	// The buffer fits the longest SCION path, so receiving a packet on the path does not allocate memory
+	int ret = reserve_raw_path(new_path, SCION_MAX_PATH_LEN);
+	if (ret != 0) {
+		scion_path_free(new_path);
+		return ret;
+	}
+
+	*path = new_path;
+	return 0;
+}
+
+int scion_path_set_raw(struct scion_path *path, scion_ia src, scion_ia dst, enum scion_path_type path_type,
+	const uint8_t *raw, uint16_t raw_len)
+{
+	assert(path);
+	assert(raw || raw_len == 0);
+
+	if (raw_len > 0) {
+		int ret = reserve_raw_path(path, raw_len);
+		if (ret != 0) {
+			return ret;
+		}
+
+		(void)memcpy(path->raw_path->raw, raw, raw_len);
+	}
+
+	if (path->raw_path != NULL) {
+		path->raw_path->length = raw_len;
+	}
+
+	path->src = src;
+	path->dst = dst;
+	path->path_type = path_type;
+	scion_path_metadata_free(path->metadata);
+	path->metadata = NULL;
+	path->weight = 0;
+	path->down_since = 0;
+
 	return 0;
 }
 

@@ -64,6 +64,7 @@ int scion_path_collection_fetch(
 		empty_path->dst = dst;
 		empty_path->path_type = SCION_PATH_TYPE_EMPTY;
 		empty_path->raw_path = NULL;
+		empty_path->raw_path_capacity = 0;
 		empty_path->metadata = NULL;
 		empty_path->weight = 0;
 		empty_path->down_since = 0;

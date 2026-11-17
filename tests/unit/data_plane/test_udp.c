@@ -30,6 +30,7 @@ static void test_serialize_udp(void **)
 	uint16_t buf_len = 8;
 	uint8_t buf[buf_len];
 	assert_int_equal(scion_udp_serialize(&udp, buf, &buf_len), 0);
+	assert_uint_equal(buf_len, SCION_UDP_HDR_LEN);
 
 	const uint8_t test_buf[] = {
 		0x7a,
@@ -73,11 +74,13 @@ static void test_serialize_udp_with_data(void **)
 	uint8_t data[] = { 'h', 'e', 'l', 'l', 'o' };
 	struct scion_udp udp = { .src_port = 31337, .dst_port = 31000, .data_length = sizeof(data), .data = data };
 
-	uint16_t buf_len = 13;
-	uint8_t buf[13];
+	uint8_t buf[sizeof(data) + SCION_UDP_HDR_LEN] = { 0 };
+	uint16_t buf_len = sizeof(buf);
 	assert_int_equal(scion_udp_serialize(&udp, buf, &buf_len), 0);
 
-	const uint8_t expected[] = { 0x7a, 0x69, 0x79, 0x18, 0x00, 0x0d, 0x00, 0x00, 'h', 'e', 'l', 'l', 'o' };
+	// Only the header is serialized, its length includes the data
+	const uint8_t expected[] = { 0x7a, 0x69, 0x79, 0x18, 0x00, 0x0d, 0x00, 0x00, 0, 0, 0, 0, 0 };
+	assert_uint_equal(buf_len, SCION_UDP_HDR_LEN);
 	assert_memory_equal(buf, expected, sizeof(expected));
 }
 
@@ -86,8 +89,8 @@ static void test_serialize_udp_buffer_too_small(void **)
 	uint8_t data[] = { 'h', 'e', 'l', 'l', 'o' };
 	struct scion_udp udp = { .src_port = 1, .dst_port = 2, .data_length = sizeof(data), .data = data };
 
-	uint16_t buf_len = 12;
-	uint8_t buf[12];
+	uint16_t buf_len = SCION_UDP_HDR_LEN - 1;
+	uint8_t buf[SCION_UDP_HDR_LEN - 1];
 	assert_int_equal(scion_udp_serialize(&udp, buf, &buf_len), SCION_ERR_BUF_TOO_SMALL);
 }
 
@@ -112,8 +115,8 @@ static void test_deserialize_udp_with_data(void **)
 	assert_uint_equal(udp.dst_port, 31000);
 	assert_uint_equal(udp.data_length, 5);
 	assert_memory_equal(udp.data, "hello", 5);
-
-	scion_udp_free_members(&udp);
+	// The data is in the buffer, it is not copied
+	assert_ptr_equal(udp.data, buf + SCION_UDP_HDR_LEN);
 }
 
 static void test_deserialize_udp_ignores_trailing_bytes(void **)
@@ -126,8 +129,6 @@ static void test_deserialize_udp_ignores_trailing_bytes(void **)
 
 	assert_uint_equal(udp.data_length, 2);
 	assert_memory_equal(udp.data, "ab", 2);
-
-	scion_udp_free_members(&udp);
 }
 
 static void test_deserialize_udp_incomplete_header(void **)
