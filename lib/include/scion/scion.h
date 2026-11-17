@@ -38,7 +38,7 @@ extern "C" {
 #define SCION_IA_STRLEN 21
 
 /**
- * The maximum number of buffers in a message that is sent with scion_sendmsg().
+ * The maximum number of buffers in a message that is sent with scion_sendmsg() or received with scion_recvmsg().
  */
 #define SCION_IOV_MAX 64
 
@@ -564,6 +564,7 @@ ssize_t scion_recv(struct scion_socket *scion_sock, void *buf, size_t size, int 
  * @return The amount of data received on success, a negative error code on failure.
  *
  * @note The currently supported receive flags are MSG_DONTWAIT and MSG_PEEK.
+ * @note Data that is longer than the buffer is truncated, the rest of it is discarded.
  */
 ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, int flags, struct sockaddr *src_addr,
 	socklen_t *addrlen, scion_ia *src_ia, struct scion_path *path);
@@ -584,6 +585,9 @@ ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, 
  * SCION packet, so they are removed.
  * @note MSG_ERRQUEUE reads the error queue of the underlying socket, where the kernel puts the transmit timestamps.
  * The message is returned as the kernel provides it, without the sender IA and the path.
+ * @note Data that is longer than the buffers is truncated, the rest of it is discarded and MSG_TRUNC is set in the
+ * flags of the message.
+ * @note A message with more than SCION_IOV_MAX buffers is rejected with SCION_ERR_MSG_TOO_LARGE.
  */
 ssize_t scion_recvmsg(
 	struct scion_socket *scion_sock, struct msghdr *msg, int flags, scion_ia *src_ia, struct scion_path *path);

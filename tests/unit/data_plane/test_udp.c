@@ -147,13 +147,16 @@ static void test_deserialize_udp_length_shorter_than_header(void **)
 	assert_int_equal(scion_udp_deserialize(buf, sizeof(buf), &udp), SCION_ERR_PACKET_FIELD_INVALID);
 }
 
-static void test_deserialize_udp_truncated_payload(void **)
+// The data can continue in another buffer, so only the header needs to be in this one.
+static void test_deserialize_udp_without_data(void **)
 {
-	// Declares a 13 byte datagram but only 10 bytes are available.
-	const uint8_t buf[] = { 0x7a, 0x69, 0x79, 0x18, 0x00, 0x0d, 0x00, 0x00, 'h', 'e' };
+	const uint8_t buf[] = { 0x7a, 0x69, 0x79, 0x18, 0x00, 0x0d, 0x00, 0x00 };
 
 	struct scion_udp udp;
-	assert_int_equal(scion_udp_deserialize(buf, sizeof(buf), &udp), SCION_ERR_NOT_ENOUGH_DATA);
+	assert_int_equal(scion_udp_deserialize(buf, sizeof(buf), &udp), 0);
+
+	assert_uint_equal(udp.data_length, 5);
+	assert_ptr_equal(udp.data, buf + SCION_UDP_HDR_LEN);
 }
 
 int run_udp_tests(void)
@@ -168,7 +171,7 @@ int run_udp_tests(void)
 		cmocka_unit_test(test_deserialize_udp_ignores_trailing_bytes),
 		cmocka_unit_test(test_deserialize_udp_incomplete_header),
 		cmocka_unit_test(test_deserialize_udp_length_shorter_than_header),
-		cmocka_unit_test(test_deserialize_udp_truncated_payload),
+		cmocka_unit_test(test_deserialize_udp_without_data),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);

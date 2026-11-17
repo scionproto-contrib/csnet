@@ -46,7 +46,9 @@ uint16_t scion_udp_len(struct scion_udp *udp);
 int scion_udp_serialize(struct scion_udp *udp, uint8_t *buf, uint16_t *len);
 
 /*
- * Takes a buffer which contains a serialized UDP packet and deserializes it into a scion_udp struct.
+ * Deserializes the header of a UDP packet, without the data. The buffer does not need to contain the data, for example
+ * if the data continues in another buffer. The data points to where it starts in the buffer, and data_length is the
+ * length that the header announces.
  * IMPORTANT: the scion_udp struct need to be allocated before calling this function. It does not allocate memory, the
  * data of the struct points into the buffer, so it is valid for as long as the buffer is.
  *
