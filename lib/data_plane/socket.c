@@ -801,7 +801,7 @@ ssize_t scion_recv(struct scion_socket *scion_sock, void *buf, size_t size, int 
 }
 
 ssize_t scion_recvfrom(struct scion_socket *scion_sock, void *buf, size_t size, int flags, struct sockaddr *src_addr,
-	socklen_t *addrlen, scion_ia *src_ia, struct scion_path **path)
+	socklen_t *addrlen, scion_ia *src_ia, struct scion_path *path)
 {
 	assert(scion_sock);
 	assert(buf);
@@ -901,7 +901,7 @@ static void remove_unimplemented_control_messages(struct msghdr *msg)
 }
 
 ssize_t scion_recvmsg(
-	struct scion_socket *scion_sock, struct msghdr *msg, int flags, scion_ia *src_ia, struct scion_path **path)
+	struct scion_socket *scion_sock, struct msghdr *msg, int flags, scion_ia *src_ia, struct scion_path *path)
 {
 	assert(scion_sock);
 	assert(msg);
@@ -1125,22 +1125,15 @@ ssize_t scion_recvmsg(
 		}
 
 		if (path != NULL) {
-			ret = scion_path_create(path);
-			if (ret != 0) {
-				return ret;
-			}
-
-			ret = scion_path_set_raw(*path, packet.src_ia, packet.dst_ia, (enum scion_path_type)packet.path_type,
+			ret = scion_path_set_raw(path, packet.src_ia, packet.dst_ia, (enum scion_path_type)packet.path_type,
 				packet.path_hdr, packet.path_hdr_len);
 			if (ret != 0) {
-				scion_path_free(*path);
-				*path = NULL;
 				return ret;
 			}
 
-			(*path)->underlay_next_hop.addr_family = scion_sock->local_addr_family;
-			(*path)->underlay_next_hop.addrlen = raw_msg.msg_namelen;
-			(void)memcpy(&(*path)->underlay_next_hop.addr, raw_msg.msg_name, raw_msg.msg_namelen);
+			path->underlay_next_hop.addr_family = scion_sock->local_addr_family;
+			path->underlay_next_hop.addrlen = raw_msg.msg_namelen;
+			(void)memcpy(&path->underlay_next_hop.addr, raw_msg.msg_name, raw_msg.msg_namelen);
 		}
 
 cleanup_packet:
