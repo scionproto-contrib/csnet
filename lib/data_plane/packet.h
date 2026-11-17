@@ -122,6 +122,11 @@ uint8_t scion_packet_addr_type_len(uint8_t addr_type);
  */
 uint16_t scion_packet_addr_hdr_len(struct scion_packet *packet);
 
+/*
+ * The length of the SCION header of a packet, with its path.
+ */
+uint16_t scion_packet_hdr_len(struct scion_packet *packet);
+
 size_t scion_packet_len(struct scion_packet *packet);
 
 /*
@@ -139,7 +144,9 @@ size_t scion_packet_len(struct scion_packet *packet);
 int scion_packet_serialize(struct scion_packet *packet, uint8_t *buf, size_t *buf_len);
 
 /*
- * Takes a buffer which contains a serialized SCION packet and deserializes it into a scion_packet struct.
+ * Deserializes the SCION header of a packet, without the payload. The buffer does not need to contain the payload, for
+ * example if the payload continues in another buffer. The payload points to where it starts in the buffer, and
+ * payload_len is the length that the header announces.
  * IMPORTANT: the scion_packet struct need to be allocated before calling this function. It does not allocate memory,
  * the path and the payload of the packet point into the buffer, so they are valid for as long as the buffer is.
  *

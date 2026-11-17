@@ -192,8 +192,8 @@ int scion_packet_deserialize(const uint8_t *buf, size_t buf_len, struct scion_pa
 		return SCION_ERR_PACKET_FIELD_INVALID;
 	}
 
-	if ((size_t)(current_offset + path_hdr_len + packet->payload_len) > buf_len) {
-		// missing part of the payload
+	if ((size_t)(current_offset + path_hdr_len) > buf_len) {
+		// missing part of the path
 		return SCION_ERR_NOT_ENOUGH_DATA;
 	}
 
