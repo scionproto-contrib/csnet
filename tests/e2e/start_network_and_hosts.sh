@@ -44,23 +44,30 @@ wait_for() {
   done
 }
 
-# The paths between all hosts are available when every core AS has received the core segments of all other core ASes
-# and every other AS has registered its up and down segments.
+# Checks that the control service registered as many segments of the type in its last two beaconing rounds, and more
+# than none.
+segments_are_stable() {
+  local log=$1 seg_type=$2 counts
+  mapfile -t counts < <(grep "Registered beacons" "$log" | grep "\"seg_type\": \"$seg_type\"" | tail -n 2 |
+    grep -o '"count": [0-9]*' | cut -d' ' -f2)
+  [ "${#counts[@]}" -eq 2 ] && [ "${counts[0]}" -eq "${counts[1]}" ] && [ "${counts[0]}" -gt 0 ]
+}
+
+# The paths between all hosts are available when beaconing has converged. A beacon travels one hop per beaconing
+# round, so when no control service registered a new segment in a round, no beacon is on its way any more. The core
+# ASes register core segments, the other ASes up and down segments.
 network_is_ready() {
-  local core_ias non_core_ias ia log num_core
+  local core_ias non_core_ias ia log
   core_ias=$(awk '/^Core:/ {f=1; next} /^Non-core:/ {f=0} f && /^- / {print $2}' topos/default/as_list.yml)
   non_core_ias=$(awk '/^Non-core:/ {f=1; next} f && /^- / {print $2}' topos/default/as_list.yml)
-  num_core=$(echo "$core_ias" | wc -l)
 
   for ia in $core_ias; do
     log=$(ls logs/cs"${ia//:/_}"-*.log 2> /dev/null | head -n 1)
-    [ -n "$log" ] &&
-      grep -q "\"seg_type\": \"core\", \"count\": [1-9][0-9]*, \"start_isd_ases\": $((num_core - 1))" "$log" || return 1
+    [ -n "$log" ] && segments_are_stable "$log" core || return 1
   done
   for ia in $non_core_ias; do
     log=$(ls logs/cs"${ia//:/_}"-*.log 2> /dev/null | head -n 1)
-    [ -n "$log" ] && grep -q "\"seg_type\": \"up\", \"count\": [1-9]" "$log" &&
-      grep -q "\"seg_type\": \"down\", \"count\": [1-9]" "$log" || return 1
+    [ -n "$log" ] && segments_are_stable "$log" up && segments_are_stable "$log" down || return 1
   done
 }
 
