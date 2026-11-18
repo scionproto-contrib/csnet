@@ -42,6 +42,22 @@ ExternalProject_Add(
         BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libcurl.a
 )
 
+# Fetch mbedTLS 4.1 (the version of ESP-IDF 6.1) for the X.509 certificates and the signatures of the control plane.
+# The QUIC library uses the same build.
+ExternalProject_Add(
+        mbedtls
+        GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
+        GIT_TAG mbedtls-4.1.0
+        GIT_SHALLOW TRUE
+        GIT_SUBMODULES_RECURSE TRUE
+        UPDATE_DISCONNECTED TRUE
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DCMAKE_BUILD_TYPE=Release -DENABLE_PROGRAMS=OFF
+        -DENABLE_TESTING=OFF -DMBEDTLS_FATAL_WARNINGS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+        ${DEPENDENCY_LAUNCHER_ARGS}
+        BUILD_BYPRODUCTS ${DEPENDENCY_INSTALL_DIR}/lib/libmbedtls.a ${DEPENDENCY_INSTALL_DIR}/lib/libmbedx509.a
+        ${DEPENDENCY_INSTALL_DIR}/lib/libtfpsacrypto.a
+)
+
 # Generate the C code of the .proto files
 include(GenerateProto)
 scion_generate_proto(scion_proto
@@ -74,6 +90,7 @@ add_library(scion STATIC
         control_plane/path_collection.c
         control_plane/path_metadata.c
         control_plane/bootstrapper.c
+        control_plane/cppki.c
         data_plane/packet.c
         data_plane/path.c
         data_plane/path_cache.c
@@ -96,6 +113,7 @@ add_dependencies(scion zlib)
 add_dependencies(scion protobuf-c)
 add_dependencies(scion curl)
 add_dependencies(scion scion_proto)
+add_dependencies(scion mbedtls)
 
 # public headers
 target_include_directories(scion PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -114,6 +132,10 @@ target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libz.a)
 
 # Link protobuf-c
 target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libprotobuf-c.a)
+
+# Link mbedTLS
+target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libmbedx509.a
+        ${DEPENDENCY_INSTALL_DIR}/lib/libtfpsacrypto.a)
 
 # Link libresolv
 target_link_libraries(scion PRIVATE resolv)
@@ -191,5 +213,7 @@ install(FILES
         ${DEPENDENCY_INSTALL_DIR}/lib/libz.a
         ${DEPENDENCY_INSTALL_DIR}/lib/libprotobuf-c.a
         ${DEPENDENCY_INSTALL_DIR}/lib/libcurl.a
+        ${DEPENDENCY_INSTALL_DIR}/lib/libmbedx509.a
+        ${DEPENDENCY_INSTALL_DIR}/lib/libtfpsacrypto.a
         DESTINATION lib
 )

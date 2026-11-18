@@ -17,6 +17,7 @@ add_executable(unit_tests
         common/test_hop_field.c
         common/test_info_field.c
         common/test_isd_as.c
+        control_plane/test_cppki.c
         control_plane/test_graph.c
         control_plane/test_path_metadata.c
         control_plane/test_policy.c
@@ -40,13 +41,15 @@ add_dependencies(unit_tests cmocka)
 
 target_compile_definitions(unit_tests PRIVATE
         TEST_TOPOLOGY_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/control_plane/testdata"
+        TEST_CPPKI_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/control_plane/testdata/cppki"
 )
 
 # Link SCION library and cmocka to tests
 target_link_libraries(unit_tests PRIVATE scion ${DEPENDENCY_INSTALL_DIR}/lib/libcmocka.a)
 
-# Give tests access to internal headers and to cmocka's
-target_include_directories(unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/lib ${DEPENDENCY_INSTALL_DIR}/include)
+# Give tests access to internal headers and to the headers of cmocka and of mbedTLS
+target_include_directories(unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/lib ${DEPENDENCY_INSTALL_DIR}/include
+        ${CMAKE_BINARY_DIR}/lib/dependencies/include)
 
 add_test(NAME unit_tests COMMAND unit_tests)
 set_tests_properties(unit_tests PROPERTIES LABELS "unit")
