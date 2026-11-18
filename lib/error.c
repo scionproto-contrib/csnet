@@ -115,6 +115,14 @@ const char *scion_strerror(int err)
 		return "QUIC connection closed";
 	case SCION_ERR_TIMEOUT:
 		return "operation timed out";
+	case SCION_ERR_TRC_INVALID:
+		return "invalid TRC";
+	case SCION_ERR_CERT_INVALID:
+		return "invalid certificate";
+	case SCION_ERR_CERT_CHAIN_UNVERIFIED:
+		return "certificate chain could not be verified";
+	case SCION_ERR_SIGNATURE_INVALID:
+		return "invalid signature";
 	default:
 		return "unknown error";
 	}

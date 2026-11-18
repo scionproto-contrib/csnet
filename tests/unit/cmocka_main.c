@@ -17,11 +17,13 @@
 #include "common/test_hop_field.h"
 #include "common/test_info_field.h"
 #include "common/test_isd_as.h"
+#include "control_plane/test_cert_chain.h"
 #include "control_plane/test_graph.h"
 #include "control_plane/test_path_metadata.h"
 #include "control_plane/test_policy.h"
 #include "control_plane/test_segment.h"
 #include "control_plane/test_topology.h"
+#include "control_plane/test_trc.h"
 #include "data_plane/test_packet.h"
 #include "data_plane/test_path.h"
 #include "data_plane/test_path_cache.h"
@@ -45,11 +47,13 @@ int main(void)
 	failed += run_hop_field_tests();
 	failed += run_info_field_tests();
 	failed += run_isd_as_tests();
+	failed += run_cert_chain_tests();
 	failed += run_graph_tests();
 	failed += run_path_metadata_tests();
 	failed += run_policy_tests();
 	failed += run_segment_tests();
 	failed += run_topology_tests();
+	failed += run_trc_tests();
 	failed += run_list_tests();
 	failed += run_addr_tests();
 	failed += run_packet_tests();
