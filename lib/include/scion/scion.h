@@ -253,12 +253,19 @@ enum scion_error {
 	 * The operation timed out.
 	 */
 	SCION_ERR_TIMEOUT = -47,
+	/**
+	 * A TRC is malformed or breaks a rule of the control-plane PKI.
+	 */
+	SCION_ERR_TRC_INVALID = -48,
 	// Internal errors
 	SCION_ERR_NOT_ENOUGH_DATA = -201,
 	SCION_ERR_PACKET_FIELD_INVALID = -202,
 	SCION_ERR_META_HDR_INVALID = -204,
 	SCION_ERR_PATH_TYPE_INVALID = -205,
 	SCION_ERR_SCMP_CODE_INVALID = -206,
+	SCION_ERR_CERT_INVALID = -207,
+	SCION_ERR_CERT_CHAIN_UNVERIFIED = -208,
+	SCION_ERR_SIGNATURE_INVALID = -209,
 };
 
 /**

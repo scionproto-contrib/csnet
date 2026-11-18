@@ -51,18 +51,8 @@ target_link_libraries(scion_quic PUBLIC scion)
 set_source_files_properties(${NGTCP2_SOURCES} PROPERTIES COMPILE_OPTIONS -w)
 
 if (SCION_QUIC_TLS STREQUAL "picotls")
-    # mbedTLS 4.1 (the version of ESP-IDF 6.1), crypto through PSA
-    ExternalProject_Add(mbedtls
-            GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
-            GIT_TAG mbedtls-4.1.0
-            GIT_SHALLOW TRUE
-            GIT_SUBMODULES_RECURSE TRUE
-            UPDATE_DISCONNECTED TRUE
-            CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${QUIC_DEPS_DIR} -DCMAKE_BUILD_TYPE=Release -DENABLE_PROGRAMS=OFF
-            -DENABLE_TESTING=OFF -DMBEDTLS_FATAL_WARNINGS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-            ${DEPENDENCY_LAUNCHER_ARGS}
-            BUILD_BYPRODUCTS ${QUIC_DEPS_DIR}/lib/libmbedtls.a ${QUIC_DEPS_DIR}/lib/libmbedx509.a
-            ${QUIC_DEPS_DIR}/lib/libtfpsacrypto.a)
+    # mbedTLS 4.1 (the version of ESP-IDF 6.1), crypto through PSA. The library builds it, see lib/CMakeLists.txt.
+    set(MBEDTLS_DIR ${CMAKE_BINARY_DIR}/lib/dependencies)
 
     FetchContent_Declare(picotls_src
             GIT_REPOSITORY https://github.com/h2o/picotls.git
@@ -84,12 +74,12 @@ if (SCION_QUIC_TLS STREQUAL "picotls")
             COMPILE_DEFINITIONS MBEDTLS_DECLARE_PRIVATE_IDENTIFIERS)
 
     add_dependencies(scion_quic mbedtls)
-    target_include_directories(scion_quic PRIVATE ${picotls_src_SOURCE_DIR}/include ${QUIC_DEPS_DIR}/include)
-    target_include_directories(scion_quic_internal INTERFACE ${picotls_src_SOURCE_DIR}/include ${QUIC_DEPS_DIR}/include)
+    target_include_directories(scion_quic PRIVATE ${picotls_src_SOURCE_DIR}/include ${MBEDTLS_DIR}/include)
+    target_include_directories(scion_quic_internal INTERFACE ${picotls_src_SOURCE_DIR}/include ${MBEDTLS_DIR}/include)
     # ptls_load_certificates() for the test server
     set(SCION_QUIC_TEST_SOURCES ${picotls_src_SOURCE_DIR}/lib/pembase64.c PARENT_SCOPE)
-    target_link_libraries(scion_quic PUBLIC ${QUIC_DEPS_DIR}/lib/libmbedtls.a ${QUIC_DEPS_DIR}/lib/libmbedx509.a
-            ${QUIC_DEPS_DIR}/lib/libtfpsacrypto.a)
+    target_link_libraries(scion_quic PUBLIC ${MBEDTLS_DIR}/lib/libmbedtls.a ${MBEDTLS_DIR}/lib/libmbedx509.a
+            ${MBEDTLS_DIR}/lib/libtfpsacrypto.a)
 else ()
     ExternalProject_Add(quictls
             GIT_REPOSITORY https://github.com/quictls/openssl.git
