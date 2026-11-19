@@ -53,7 +53,9 @@ message TRCRequest {
     // ISD of the TRC.
     uint32 isd = 1;
     // BaseNumber of the TRC.
-    uint64 base = 2;
+    // csnet: renamed from base, as protobuf-c cannot generate a field with that name
+    // (https://github.com/protobuf-c/protobuf-c/issues/287). Only the field number is on the wire.
+    uint64 base_number = 2;
     // SerialNumber of the TRC.
     uint64 serial = 3;
 }

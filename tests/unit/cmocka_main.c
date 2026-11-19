@@ -23,6 +23,7 @@
 #include "control_plane/test_policy.h"
 #include "control_plane/test_segment.h"
 #include "control_plane/test_topology.h"
+#include "control_plane/test_trust.h"
 #include "data_plane/test_packet.h"
 #include "data_plane/test_path.h"
 #include "data_plane/test_path_cache.h"
@@ -52,6 +53,7 @@ int main(void)
 	failed += run_policy_tests();
 	failed += run_segment_tests();
 	failed += run_topology_tests();
+	failed += run_trust_tests();
 	failed += run_list_tests();
 	failed += run_addr_tests();
 	failed += run_packet_tests();

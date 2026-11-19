@@ -21,6 +21,7 @@
 #include <unistd.h>
 
 #include "control_plane/network.h"
+#include "control_plane/trust.h"
 
 int scion_network(struct scion_network **net, const struct scion_topology *topology)
 {
@@ -33,6 +34,7 @@ int scion_network(struct scion_network **net, const struct scion_topology *topol
 	}
 
 	new_net->topology = topology;
+	new_net->trcs = NULL;
 
 	*net = new_net;
 
@@ -41,6 +43,11 @@ int scion_network(struct scion_network **net, const struct scion_topology *topol
 
 void scion_network_free(struct scion_network *net)
 {
+	if (net == NULL) {
+		return;
+	}
+
+	scion_network_free_trcs(net);
 	free(net);
 }
 

@@ -68,6 +68,7 @@ scion_generate_proto(scion_proto
         PROTOS
         google/protobuf/timestamp.proto
         proto/crypto/v1/signed.proto
+        proto/control_plane/v1/cppki.proto
         proto/control_plane/experimental/v1/seg_detached_extensions.proto
         proto/control_plane/v1/seg_extensions.proto
         proto/control_plane/v1/seg.proto
@@ -91,6 +92,7 @@ add_library(scion STATIC
         control_plane/path_metadata.c
         control_plane/bootstrapper.c
         control_plane/cppki.c
+        control_plane/trust.c
         data_plane/packet.c
         data_plane/path.c
         data_plane/path_cache.c
@@ -142,6 +144,10 @@ target_link_libraries(scion PRIVATE resolv)
 
 # Link curl
 target_link_libraries(scion PRIVATE ${DEPENDENCY_INSTALL_DIR}/lib/libcurl.a)
+
+# Link pthreads, which guard the TRCs of a network
+find_package(Threads REQUIRED)
+target_link_libraries(scion PRIVATE Threads::Threads)
 
 if (APPLE)
     # Link macOS frameworks required by curl

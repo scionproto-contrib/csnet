@@ -21,6 +21,7 @@ set(LIB ${CSNET_DIR}/lib)
 set(SOURCES
         ${LIB}/control_plane/segment.c
         ${LIB}/control_plane/cppki.c
+        ${LIB}/control_plane/trust.c
         ${LIB}/control_plane/graph.c
         ${LIB}/control_plane/network.c
         ${LIB}/control_plane/policy.c
@@ -52,7 +53,7 @@ set(SOURCES
 idf_component_register(SRCS ${SOURCES}
         INCLUDE_DIRS ${LIB}/include
         PRIV_INCLUDE_DIRS ${LIB}
-        REQUIRES protobuf-c lwip mbedtls)
+        REQUIRES protobuf-c lwip mbedtls pthread)
 
 # Generate the C code of the .proto files with protoc and protoc-gen-c, built with the compilers of the host. This has
 # to follow idf_component_register(), as the early expansion of the build system cannot run it.
@@ -71,6 +72,7 @@ scion_generate_proto(scion_proto
         PROTOS
         google/protobuf/timestamp.proto
         proto/crypto/v1/signed.proto
+        proto/control_plane/v1/cppki.proto
         proto/control_plane/experimental/v1/seg_detached_extensions.proto
         proto/control_plane/v1/seg_extensions.proto
         proto/control_plane/v1/seg.proto
