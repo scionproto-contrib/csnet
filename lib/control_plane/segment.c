@@ -47,25 +47,6 @@ static int set_split_seg(struct scion_split_segments *split_seg, bool has_up, sc
 	return 0;
 }
 
-static char *hostname_from_addr(struct sockaddr *addr)
-{
-	char *hostname = NULL;
-
-	if (addr->sa_family == AF_INET) {
-		hostname = malloc(INET_ADDRSTRLEN + 1);
-		if (hostname) {
-			inet_ntop(AF_INET, &((struct sockaddr_in *)addr)->sin_addr, hostname, INET_ADDRSTRLEN + 1);
-		}
-	} else {
-		hostname = malloc(INET6_ADDRSTRLEN + 1);
-		if (hostname) {
-			inet_ntop(AF_INET6, &((struct sockaddr_in6 *)addr)->sin6_addr, hostname, INET6_ADDRSTRLEN + 1);
-		}
-	}
-
-	return hostname;
-}
-
 /*
  * Splits the segment request from a source AS to a Destionation AS into an UP segment request,
  * an CORE segment request and a DOWN segment request. Depending on the case, not all segments are needed.
@@ -377,17 +358,6 @@ static int protobuf_to_path_segments(
 }
 
 /*
- * Returns the error for a gRPC status code that is not 0. The status code is -1 if the control service did not send one.
- */
-static int grpc_status_to_error(int grpc_status_code)
-{
-	if (grpc_status_code == -1) {
-		return SCION_ERR_CONTROL_SERVICE_REQUEST_FAIL;
-	}
-	return SCION_ERR_CONTROL_SERVICE_ERROR;
-}
-
-/*
  *  Looks up the path segments required to build a path between a given source AS and destination AS
  *  by making the required gRPC calls to a SCION control server.
  *
@@ -427,11 +397,9 @@ int scion_path_segments_lookup(
 	msg_buf = malloc(len);
 	(void)proto__control_plane__v1__segments_request__pack(&seg_req, msg_buf);
 
-	char *hostname = hostname_from_addr((struct sockaddr *)&topology->cs_addr);
 	http2_rpc_handle hd;
 	ret = http2_rpc_handle_init(
-		&hd, hostname, (struct sockaddr *)&topology->cs_addr, topology->cs_addr_len, INITIAL_RPC_OUTPUT_BUFFER_SIZE);
-	free(hostname);
+		&hd, (struct sockaddr *)&topology->cs_addr, topology->cs_addr_len, INITIAL_RPC_OUTPUT_BUFFER_SIZE);
 	if (ret != 0) {
 		goto cleanup_msg_buf;
 	}
@@ -442,7 +410,7 @@ int scion_path_segments_lookup(
 	}
 
 	if (hd.grpc_status_code != 0) {
-		ret = grpc_status_to_error(hd.grpc_status_code);
+		ret = http2_rpc_grpc_status_to_error(hd.grpc_status_code);
 		goto cleanup_rpc_handle;
 	}
 
@@ -528,11 +496,9 @@ int scion_dst_core_check(const struct scion_topology *topology, scion_ia src, sc
 	msg_buf = malloc(len);
 	(void)proto__control_plane__v1__segments_request__pack(&seg_req, msg_buf);
 
-	char *hostname = hostname_from_addr((struct sockaddr *)&topology->cs_addr);
 	http2_rpc_handle hd;
 	ret = http2_rpc_handle_init(
-		&hd, hostname, (struct sockaddr *)&topology->cs_addr, topology->cs_addr_len, INITIAL_RPC_OUTPUT_BUFFER_SIZE);
-	free(hostname);
+		&hd, (struct sockaddr *)&topology->cs_addr, topology->cs_addr_len, INITIAL_RPC_OUTPUT_BUFFER_SIZE);
 	if (ret != 0) {
 		free(msg_buf);
 		return ret;
@@ -567,7 +533,7 @@ int scion_dst_core_check(const struct scion_topology *topology, scion_ia src, sc
 			}
 			proto__control_plane__v1__segments_response__free_unpacked(response, NULL);
 		} else {
-			ret = grpc_status_to_error(hd.grpc_status_code);
+			ret = http2_rpc_grpc_status_to_error(hd.grpc_status_code);
 		}
 	} else {
 		if (hd.grpc_status_code == 0) {
@@ -575,7 +541,7 @@ int scion_dst_core_check(const struct scion_topology *topology, scion_ia src, sc
 		} else if (hd.grpc_status_code == 2) {
 			ret = 0;
 		} else {
-			ret = grpc_status_to_error(hd.grpc_status_code);
+			ret = http2_rpc_grpc_status_to_error(hd.grpc_status_code);
 		}
 	}
 

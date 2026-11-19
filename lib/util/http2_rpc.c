@@ -415,12 +415,19 @@ static int on_header_callback(nghttp2_session *session, const nghttp2_frame *fra
  * ###################### initialize handle function ######################
  */
 
-int http2_rpc_handle_init(http2_rpc_handle *hd, const char *dst_hostname, struct sockaddr *dst_addr,
-	socklen_t dst_addr_len, size_t initial_output_buffer_size)
+int http2_rpc_handle_init(
+	http2_rpc_handle *hd, struct sockaddr *dst_addr, socklen_t dst_addr_len, size_t initial_output_buffer_size)
 {
 	(void)memset(hd, 0, sizeof(*hd));
 
 	hd->socket_fd = -1;
+
+	char dst_hostname[INET6_ADDRSTRLEN] = { 0 };
+	if (dst_addr->sa_family == AF_INET) {
+		(void)inet_ntop(AF_INET, &((struct sockaddr_in *)dst_addr)->sin_addr, dst_hostname, sizeof(dst_hostname));
+	} else {
+		(void)inet_ntop(AF_INET6, &((struct sockaddr_in6 *)dst_addr)->sin6_addr, dst_hostname, sizeof(dst_hostname));
+	}
 
 	size_t hostname_len = strlen(dst_hostname) + 1;
 	hd->dst_hostname = malloc(hostname_len);
@@ -639,4 +646,12 @@ int http2_rpc_request(http2_rpc_handle *hd, const char *path, const u_int8_t *da
 		}
 	}
 	return 0;
+}
+
+int http2_rpc_grpc_status_to_error(int grpc_status_code)
+{
+	if (grpc_status_code == -1) {
+		return SCION_ERR_CONTROL_SERVICE_REQUEST_FAIL;
+	}
+	return SCION_ERR_CONTROL_SERVICE_ERROR;
 }
