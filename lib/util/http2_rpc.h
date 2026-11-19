@@ -31,9 +31,17 @@ typedef struct http2_rpc_handle {
 	int grpc_status_code;
 } http2_rpc_handle;
 
-int http2_rpc_handle_init(http2_rpc_handle *hd, const char *dst_hostname, struct sockaddr *dst_addr,
-	socklen_t dst_addr_len, size_t initial_output_buffer_size);
+/*
+ * Initializes a handle for requests to a server. The host of the requests is the IP address of the server.
+ */
+int http2_rpc_handle_init(
+	http2_rpc_handle *hd, struct sockaddr *dst_addr, socklen_t dst_addr_len, size_t initial_output_buffer_size);
 
 int http2_rpc_request(http2_rpc_handle *hd, const char *path, const uint8_t *data, size_t data_length);
 
 void http2_rpc_handle_free(http2_rpc_handle *hd);
+
+/*
+ * Returns the error for a gRPC status code that is not 0. The status code is -1 if the server did not send one.
+ */
+int http2_rpc_grpc_status_to_error(int grpc_status_code);
