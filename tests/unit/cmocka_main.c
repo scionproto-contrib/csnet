@@ -19,6 +19,7 @@
 #include "common/test_isd_as.h"
 #include "control_plane/test_cert_chain.h"
 #include "control_plane/test_graph.h"
+#include "control_plane/test_network_trcs.h"
 #include "control_plane/test_path_metadata.h"
 #include "control_plane/test_policy.h"
 #include "control_plane/test_segment.h"
@@ -49,6 +50,7 @@ int main(void)
 	failed += run_isd_as_tests();
 	failed += run_cert_chain_tests();
 	failed += run_graph_tests();
+	failed += run_network_trcs_tests();
 	failed += run_path_metadata_tests();
 	failed += run_policy_tests();
 	failed += run_segment_tests();

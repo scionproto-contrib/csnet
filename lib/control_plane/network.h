@@ -14,9 +14,13 @@
 
 #pragma once
 
+#include <stddef.h>
+
+#include "control_plane/network_trcs.h"
 #include "control_plane/topology.h"
 #include "scion/scion.h"
 
 struct scion_network {
 	const struct scion_topology *topology;
+	struct scion_trc_store *trcs;
 };

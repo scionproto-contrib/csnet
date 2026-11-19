@@ -426,6 +426,20 @@ int scion_network(struct scion_network **net, const struct scion_topology *topol
 void scion_network_free(struct scion_network *net);
 
 /**
+ * Loads the TRCs of a directory into a network: its files with the extension .trc, in PEM or DER encoding, as the SCION
+ * daemon loads them from /etc/scion/certs. The TRCs are the roots of trust of the control plane, the certificate chains
+ * of the ASes are verified against them.
+ * @param[in] net The network.
+ * @param[in] dir The directory.
+ * @return 0 on success, SCION_ERR_FILE_NOT_FOUND if the directory or a file cannot be read, SCION_ERR_TRC_INVALID if a
+ * file is not a valid TRC, or another negative error code on failure.
+ *
+ * @note The signatures of the TRCs are not verified, so the directory must come from a trusted source. TRCs that are
+ * not valid yet are ignored.
+ */
+int scion_network_load_trcs(struct scion_network *net, const char *dir);
+
+/**
  * Gets the local address family of a network.
  * @param[in] net The network.
  * @return The local address family.
