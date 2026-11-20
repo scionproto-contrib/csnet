@@ -21,6 +21,8 @@ set(test_list
         custom_policy
 )
 
+set(TOPO_BASE_PATH ${CMAKE_SOURCE_DIR}/network/scion-testnet/topos/default)
+
 # Register all tests in the list
 foreach (test ${test_list})
     add_executable(test_e2e_${test} ${test}.c)
@@ -29,6 +31,6 @@ foreach (test ${test_list})
     set_tests_properties(${test} PROPERTIES
             FIXTURES_REQUIRED network_and_hosts_fixture
             LABELS "e2e"
-            ENVIRONMENT "TOPO_BASE_PATH=${CMAKE_SOURCE_DIR}/network/scion-testnet/topos/default"
+            ENVIRONMENT "TOPO_BASE_PATH=${TOPO_BASE_PATH};TRC_DIR=${TOPO_BASE_PATH}/certs"
     )
 endforeach ()

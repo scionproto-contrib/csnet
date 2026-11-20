@@ -283,6 +283,13 @@ static int verify_chain(const struct scion_trc_store *store, struct scion_cert_c
 	return scion_cert_chain_verify(chain, previous, now);
 }
 
+bool scion_network_has_trcs(const struct scion_network *net)
+{
+	assert(net);
+
+	return net->trcs != NULL;
+}
+
 int scion_network_verify_chain(const struct scion_network *net, struct scion_cert_chain *chain, time_t now)
 {
 	assert(net);

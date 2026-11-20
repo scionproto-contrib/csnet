@@ -12,15 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/uio.h>
+#include <time.h>
 
 #include "common/isd_as.h"
 #include "common/path_segment.h"
 #include "control_plane/graph.h"
+#include "control_plane/network_trcs.h"
 #include "control_plane/segment.h"
+#include "proto/control_plane/v1/cppki.pb-c.h"
 #include "proto/control_plane/v1/seg.pb-c.h"
 #include "util/http2_rpc.h"
 #include "util/map.h"
@@ -152,14 +157,154 @@ int scion_split_segments(
 	}
 }
 
-static int protobuf_to_path_segments(
+// The certificate chains that verified the AS entries of the segments of one lookup
+struct chain_cache {
+	struct scion_cert_chain **chains;
+	size_t num_chains;
+};
+
+static void chain_cache_free_members(struct chain_cache *cache)
+{
+	for (size_t i = 0; i < cache->num_chains; i++) {
+		scion_cert_chain_free_members(cache->chains[i]);
+		free(cache->chains[i]);
+	}
+	free(cache->chains);
+}
+
+// Returns the verified chain of an AS with a subject key ID, from the cache or else from the control service
+static int get_chain(const struct scion_network *net, struct chain_cache *cache,
+	const Proto__ControlPlane__V1__VerificationKeyID *key_id, time_t now, struct scion_cert_chain **chain)
+{
+	for (size_t i = 0; i < cache->num_chains; i++) {
+		const mbedtls_x509_buf *subject_key_id = &cache->chains[i]->certs.subject_key_id;
+		if (cache->chains[i]->ia == key_id->isd_as && subject_key_id->len == key_id->subject_key_id.len
+			&& memcmp(subject_key_id->p, key_id->subject_key_id.data, subject_key_id->len) == 0) {
+			*chain = cache->chains[i];
+			return 0;
+		}
+	}
+
+	struct scion_cert_chain **chains = realloc(cache->chains, (cache->num_chains + 1) * sizeof(*chains));
+	if (chains == NULL) {
+		return SCION_ERR_MEM_ALLOC_FAIL;
+	}
+	cache->chains = chains;
+
+	struct scion_cert_chain *new_chain = malloc(sizeof(*new_chain));
+	if (new_chain == NULL) {
+		return SCION_ERR_MEM_ALLOC_FAIL;
+	}
+
+	int ret = scion_network_fetch_chain(
+		net, key_id->isd_as, key_id->subject_key_id.data, key_id->subject_key_id.len, now, new_chain);
+	if (ret != 0) {
+		free(new_chain);
+		return ret;
+	}
+
+	cache->chains[cache->num_chains++] = new_chain;
+	*chain = new_chain;
+	return 0;
+}
+
+/*
+ * Verifies the signature of an AS entry over the parts of its signature input: its header and body, and the associated
+ * data in the remaining parts.
+ */
+static int verify_as_entry(const struct scion_network *net, struct chain_cache *cache,
+	const Proto__Crypto__V1__SignedMessage *signed_msg, const struct iovec *parts, size_t num_parts, time_t now)
+{
+	size_t associated_data_len = 0;
+	for (size_t i = 1; i < num_parts; i++) {
+		associated_data_len += parts[i].iov_len;
+	}
+
+	Proto__Crypto__V1__HeaderAndBodyInternal *header_and_body = proto__crypto__v1__header_and_body_internal__unpack(
+		NULL, signed_msg->header_and_body.len, signed_msg->header_and_body.data);
+	if (header_and_body == NULL) {
+		return SCION_ERR_SIGNATURE_INVALID;
+	}
+
+	int ret = SCION_ERR_SIGNATURE_INVALID;
+	Proto__Crypto__V1__Header *header = proto__crypto__v1__header__unpack(
+		NULL, header_and_body->header.len, header_and_body->header.data);
+	Proto__ControlPlane__V1__ASEntrySignedBody *body = proto__control_plane__v1__asentry_signed_body__unpack(
+		NULL, header_and_body->body.len, header_and_body->body.data);
+	Proto__ControlPlane__V1__VerificationKeyID *key_id = NULL;
+	if (header != NULL) {
+		key_id = proto__control_plane__v1__verification_key_id__unpack(
+			NULL, header->verification_key_id.len, header->verification_key_id.data);
+	}
+
+	// The AS that created the entry signed it, with the associated data that the header announces
+	if (header == NULL || body == NULL || key_id == NULL || key_id->isd_as != body->isd_as
+		|| header->associated_data_length < 0 || (size_t)header->associated_data_length != associated_data_len) {
+		goto cleanup;
+	}
+
+	struct scion_cert_chain *chain;
+	ret = get_chain(net, cache, key_id, now, &chain);
+	if (ret != 0) {
+		goto cleanup;
+	}
+
+	ret = scion_cert_chain_verify_signature(chain, (enum scion_signature_algorithm)header->signature_algorithm, parts,
+		num_parts, signed_msg->signature.data, signed_msg->signature.len);
+
+cleanup:
+	proto__control_plane__v1__verification_key_id__free_unpacked(key_id, NULL);
+	proto__control_plane__v1__asentry_signed_body__free_unpacked(body, NULL);
+	proto__crypto__v1__header__free_unpacked(header, NULL);
+	proto__crypto__v1__header_and_body_internal__free_unpacked(header_and_body, NULL);
+	return ret;
+}
+
+/*
+ * Verifies the signatures of the AS entries of a segment. The signature input of an AS entry is its header and body,
+ * followed by the segment information and the header, body and signature of each AS entry before it.
+ */
+static int verify_segment(const struct scion_network *net, struct chain_cache *cache,
+	const Proto__ControlPlane__V1__PathSegment *segment, time_t now)
+{
+	if (segment->n_as_entries == 0) {
+		return SCION_ERR_SIGNATURE_INVALID;
+	}
+
+	struct iovec *parts = malloc((2 + 2 * segment->n_as_entries) * sizeof(*parts));
+	if (parts == NULL) {
+		return SCION_ERR_MEM_ALLOC_FAIL;
+	}
+	parts[1] = (struct iovec){ .iov_base = segment->segment_info.data, .iov_len = segment->segment_info.len };
+
+	int ret = 0;
+	for (size_t i = 0; i < segment->n_as_entries && ret == 0; i++) {
+		const Proto__Crypto__V1__SignedMessage *signed_msg = segment->as_entries[i]->signed_;
+		if (signed_msg == NULL) {
+			ret = SCION_ERR_SIGNATURE_INVALID;
+			break;
+		}
+
+		parts[0] = (struct iovec){ .iov_base = signed_msg->header_and_body.data,
+			.iov_len = signed_msg->header_and_body.len };
+		ret = verify_as_entry(net, cache, signed_msg, parts, 2 + 2 * i, now);
+
+		parts[2 + 2 * i] = parts[0];
+		parts[3 + 2 * i] = (struct iovec){ .iov_base = signed_msg->signature.data,
+			.iov_len = signed_msg->signature.len };
+	}
+
+	free(parts);
+	return ret;
+}
+
+static int protobuf_to_path_segments(const struct scion_network *net,
 	Proto__ControlPlane__V1__SegmentsResponse *pb_seg_response, struct scion_path_segment_list *result_list)
 {
+	assert(net);
 	assert(pb_seg_response);
 	assert(pb_seg_response->segments);
 	assert(result_list);
-
-	// TODO signature verification
 
 	result_list->type = (enum scion_segment_type)pb_seg_response->segments[0]->key;
 	Proto__ControlPlane__V1__SegmentsResponse__Segments *pb_segs_list = pb_seg_response->segments[0]->value;
@@ -167,13 +312,37 @@ static int protobuf_to_path_segments(
 	assert(pb_segs_list);
 	assert(pb_segs_list->segments);
 
-	result_list->length = pb_segs_list->n_segments;
-	result_list->list = malloc(result_list->length * sizeof(*result_list->list));
-	for (size_t i = 0; i < result_list->length; i++) {
+	// Without TRCs, the segments cannot be verified, see scion_network_load_trcs()
+	bool verify = scion_network_has_trcs(net);
+	static atomic_flag warned = ATOMIC_FLAG_INIT;
+	if (!verify && !atomic_flag_test_and_set(&warned)) {
+		(void)fprintf(stderr, "WARNING: the path segments are not verified, as the network has no TRCs\n");
+	}
+
+	int ret = 0;
+	time_t now = time(NULL);
+	struct chain_cache cache = { 0 };
+
+	result_list->length = 0;
+	result_list->list = malloc(pb_segs_list->n_segments * sizeof(*result_list->list));
+	for (size_t i = 0; i < pb_segs_list->n_segments; i++) {
 		Proto__ControlPlane__V1__PathSegment *curr_pb_seg = pb_segs_list->segments[i];
 
+		if (verify) {
+			ret = verify_segment(net, &cache, curr_pb_seg, now);
+			if (ret == SCION_ERR_MEM_ALLOC_FAIL) {
+				break;
+			}
+			if (ret != 0) {
+				(void)fprintf(stderr, "Ignoring a path segment that cannot be verified (%s, code %d)\n",
+					scion_strerror(ret), ret);
+				ret = 0;
+				continue;
+			}
+		}
+
 		struct scion_path_segment *pathseg = malloc(sizeof(*pathseg));
-		result_list->list[i] = pathseg;
+		result_list->list[result_list->length++] = pathseg;
 
 		// SegmentInfo
 		Proto__ControlPlane__V1__SegmentInformation *info = proto__control_plane__v1__segment_information__unpack(
@@ -354,17 +523,18 @@ static int protobuf_to_path_segments(
 			proto__control_plane__v1__asentry_signed_body__free_unpacked(pb_as_entry, NULL);
 		}
 	}
-	return 0;
+
+	chain_cache_free_members(&cache);
+	return ret;
 }
 
 /*
  *  Looks up the path segments required to build a path between a given source AS and destination AS
- *  by making the required gRPC calls to a SCION control server.
+ *  by making the required gRPC calls to a SCION control server. If the network has TRCs, the segments that cannot be
+ *  verified against them are left out.
  *
  * Arguments:
- * 		- const char *hostname: Hostname of the control server.
- * 		- const char *ip: IP of the control server.
- * 		- int port: Port on which the control server is reachable.
+ * 		- const struct scion_network *net: The network, with the control server and the TRCs.
  * 		- ScionIA src: source AS.
  *      - ScionIA dst: destination AS.
  * 		- struct scion_path_segment_list *segments: Pointer to the scion_path_segment_list struct into which the result
@@ -374,11 +544,12 @@ static int protobuf_to_path_segments(
  *      - An integer status code, 0 for success or an error code as defined in error.h.
  */
 int scion_path_segments_lookup(
-	const struct scion_topology *topology, scion_ia src, scion_ia dst, struct scion_path_segment_list *segments)
+	const struct scion_network *net, scion_ia src, scion_ia dst, struct scion_path_segment_list *segments)
 {
-	assert(topology);
+	assert(net);
 	assert(segments);
 
+	const struct scion_topology *topology = net->topology;
 	int ret;
 
 	// Initialize segments
@@ -422,7 +593,7 @@ int scion_path_segments_lookup(
 	}
 
 	if (response->n_segments > 0) {
-		ret = protobuf_to_path_segments(response, segments);
+		ret = protobuf_to_path_segments(net, response, segments);
 	}
 	proto__control_plane__v1__segments_response__free_unpacked(response, NULL);
 

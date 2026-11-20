@@ -35,6 +35,11 @@ struct scion_trc_store {
 };
 
 /*
+ * Whether a network has a TRC to verify the control plane with.
+ */
+bool scion_network_has_trcs(const struct scion_network *net);
+
+/*
  * Verifies a certificate chain against the TRCs of its ISD that are active at a time: the latest TRC, and in its grace
  * period the TRC before it. Returns SCION_ERR_CERT_CHAIN_UNVERIFIED if the chain cannot be verified, also if the
  * network has no active TRC of the ISD.

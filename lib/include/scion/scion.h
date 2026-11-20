@@ -428,7 +428,8 @@ void scion_network_free(struct scion_network *net);
 /**
  * Loads the TRCs of a directory into a network: its files with the extension .trc, in PEM or DER encoding, as the SCION
  * daemon loads them from /etc/scion/certs. The TRCs are the roots of trust of the control plane, the certificate chains
- * of the ASes are verified against them.
+ * of the ASes are verified against them. A network with TRCs leaves out the path segments that cannot be verified, a
+ * network without TRCs uses the path segments unverified, with a warning.
  * @param[in] net The network.
  * @param[in] dir The directory.
  * @return 0 on success, SCION_ERR_FILE_NOT_FOUND if the directory or a file cannot be read, SCION_ERR_TRC_INVALID if a
