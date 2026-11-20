@@ -13,7 +13,9 @@
 // limitations under the License.
 
 #include <mbedtls/asn1.h>
+#include <mbedtls/build_info.h>
 #include <mbedtls/oid.h>
+#include <mbedtls/pk.h>
 #include <psa/crypto.h>
 #include <string.h>
 
@@ -305,4 +307,42 @@ enum scion_cert_type scion_cert_classify(const mbedtls_x509_crt *crt)
 int scion_cert_error(int ret, int invalid)
 {
 	return ret == MBEDTLS_ERR_X509_ALLOC_FAILED ? SCION_ERR_MEM_ALLOC_FAIL : invalid;
+}
+
+int scion_cert_verify_signature(const mbedtls_x509_crt *crt, psa_algorithm_t hash_alg, mbedtls_md_type_t md_type,
+	const struct iovec *parts, size_t num_parts, const uint8_t *signature, size_t signature_len)
+{
+	// mbedTLS takes the key as mutable, although verifying with it does not change it
+	mbedtls_pk_context *key = (mbedtls_pk_context *)&crt->pk;
+
+	// The signatures of the control plane are ECDSA signatures, the key must not be used for another algorithm
+#if MBEDTLS_VERSION_MAJOR >= 4
+	bool is_ecdsa_key = mbedtls_pk_can_do_psa(key, PSA_ALG_ECDSA(hash_alg), PSA_KEY_USAGE_VERIFY_HASH) != 0;
+#else
+	bool is_ecdsa_key = mbedtls_pk_can_do(key, MBEDTLS_PK_ECKEY) != 0;
+#endif
+	if (!is_ecdsa_key) {
+		return SCION_ERR_SIGNATURE_INVALID;
+	}
+
+	uint8_t hash[PSA_HASH_MAX_SIZE];
+	size_t hash_len;
+	psa_hash_operation_t operation = PSA_HASH_OPERATION_INIT;
+	psa_status_t status = psa_hash_setup(&operation, hash_alg);
+	for (size_t i = 0; i < num_parts && status == PSA_SUCCESS; i++) {
+		status = psa_hash_update(&operation, parts[i].iov_base, parts[i].iov_len);
+	}
+	if (status == PSA_SUCCESS) {
+		status = psa_hash_finish(&operation, hash, sizeof(hash), &hash_len);
+	}
+	if (status != PSA_SUCCESS) {
+		(void)psa_hash_abort(&operation);
+		return SCION_ERR_MEM_ALLOC_FAIL;
+	}
+
+	if (mbedtls_pk_verify(key, md_type, hash, hash_len, signature, signature_len) != 0) {
+		return SCION_ERR_SIGNATURE_INVALID;
+	}
+
+	return 0;
 }
