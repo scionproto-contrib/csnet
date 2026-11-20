@@ -41,6 +41,13 @@ int main(int argc, char *argv[])
 		goto cleanup_topology;
 	}
 
+	ret = scion_network_load_trcs(network, getenv("TRC_DIR"));
+	if (ret != 0) {
+		printf("ERROR: Loading the TRCs failed with error code: %d\n", ret);
+		ret = EXIT_FAILURE;
+		goto cleanup_network;
+	}
+
 	struct sockaddr_in src_addr;
 	src_addr.sin_addr.s_addr = inet_addr("127.0.0.100");
 	src_addr.sin_family = AF_INET;

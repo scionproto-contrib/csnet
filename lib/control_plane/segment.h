@@ -18,6 +18,7 @@
 
 #include "common/isd_as.h"
 #include "common/path_segment.h"
+#include "control_plane/network.h"
 #include "scion/scion.h"
 
 struct scion_split_segments {
@@ -90,12 +91,11 @@ int scion_split_segments(
 
 /*
  *  Looks up the path segments required to build a path between a given source AS and destination AS
- *  by making the required gRPC calls to a SCION control server.
+ *  by making the required gRPC calls to a SCION control server. If the network has TRCs, the segments that cannot be
+ *  verified against them are left out.
  *
  * Arguments:
- * 		- const char *hostname: Hostname of the control server.
- * 		- const char *ip: IP of the control server.
- * 		- int port: Port on which the control server is reachable.
+ * 		- const struct scion_network *net: The network, with the control server and the TRCs.
  * 		- ScionIA src: source AS.
  *      - ScionIA dst: destination AS.
  * 		- struct scion_path_segment_list *segments: Pointer to the scion_path_segment_list struct into which the result
@@ -105,7 +105,7 @@ int scion_split_segments(
  *      - An integer status code, 0 for success or an error code as defined in error.h.
  */
 int scion_path_segments_lookup(
-	const struct scion_topology *topology, scion_ia src, scion_ia dst, struct scion_path_segment_list *segments);
+	const struct scion_network *net, scion_ia src, scion_ia dst, struct scion_path_segment_list *segments);
 
 /*
  *  Frees the internal members provided scion_path_segment_list, including the scion_path_segment structs.

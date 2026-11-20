@@ -272,8 +272,10 @@ static void assert_requests_fail(const struct sockaddr_in *addr, int expected)
 	scion_ia src = parse_ia("1-ff00:0:111");
 	scion_ia dst = parse_ia("1-ff00:0:112");
 
+	struct scion_network net = { .topology = &topology };
+
 	struct scion_path_segment_list segments;
-	assert_int_equal(scion_path_segments_lookup(&topology, src, dst, &segments), expected);
+	assert_int_equal(scion_path_segments_lookup(&net, src, dst, &segments), expected);
 	assert_int_equal(scion_dst_core_check(&topology, src, dst), expected);
 }
 

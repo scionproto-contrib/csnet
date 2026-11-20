@@ -47,6 +47,13 @@ int main(int argc, char *argv[])
 		goto cleanup_topology;
 	}
 
+	ret = scion_network_load_trcs(network, getenv("TRC_DIR"));
+	if (ret != 0) {
+		printf("ERROR: Loading the TRCs failed with error code: %d\n", ret);
+		ret = EXIT_FAILURE;
+		goto cleanup_network;
+	}
+
 	struct sockaddr_in6 dst_addr;
 	dst_addr.sin6_family = AF_INET6;
 	dst_addr.sin6_port = htons(31000);
