@@ -18,8 +18,13 @@
 #pragma once
 
 #include <mbedtls/oid.h>
+#include <mbedtls/pk.h>
 #include <mbedtls/x509_crt.h>
+#include <psa/crypto.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <sys/uio.h>
 #include <time.h>
 
 #include "common/isd_as.h"
@@ -66,3 +71,10 @@ enum scion_cert_type scion_cert_classify(const mbedtls_x509_crt *crt);
  * the error for an invalid certificate.
  */
 int scion_cert_error(int ret, int invalid);
+
+/*
+ * Verifies an ECDSA signature over the concatenation of the parts with the key of a certificate. Returns
+ * SCION_ERR_SIGNATURE_INVALID if the key is not an ECDSA key or the signature does not match.
+ */
+int scion_cert_verify_signature(const mbedtls_x509_crt *crt, psa_algorithm_t hash_alg, mbedtls_md_type_t md_type,
+	const struct iovec *parts, size_t num_parts, const uint8_t *signature, size_t signature_len);
