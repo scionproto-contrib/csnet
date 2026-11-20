@@ -123,6 +123,39 @@ static void test_verify_chain_without_trcs(void **)
 	scion_cert_chain_free_members(&chain);
 }
 
+// A network that has the TRC that a signer refers to does not ask the control service for it
+static void test_update_trcs_up_to_date(void **)
+{
+	struct scion_network net = { 0 };
+	assert_int_equal(scion_network_load_trcs(&net, TRC_DIR), 0);
+
+	assert_int_equal(scion_network_update_trcs(&net, 1, 1, 1, VALID_TIME), 0);
+
+	assert_int_equal(net.trcs->num_trcs, 2);
+
+	scion_network_free_trcs(&net);
+}
+
+static void test_update_trcs_trust_reset(void **)
+{
+	struct scion_network net = { 0 };
+	assert_int_equal(scion_network_load_trcs(&net, TRC_DIR), 0);
+
+	assert_int_equal(scion_network_update_trcs(&net, 1, 2, 2, VALID_TIME), SCION_ERR_TRC_INVALID);
+	assert_int_equal(scion_network_update_trcs(&net, 3, 1, 2, VALID_TIME), SCION_ERR_TRC_INVALID);
+
+	assert_int_equal(net.trcs->num_trcs, 2);
+
+	scion_network_free_trcs(&net);
+}
+
+static void test_update_trcs_without_trcs(void **)
+{
+	struct scion_network net = { 0 };
+
+	assert_int_equal(scion_network_update_trcs(&net, 1, 1, 2, VALID_TIME), SCION_ERR_TRC_INVALID);
+}
+
 int run_trust_tests(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -132,6 +165,9 @@ int run_trust_tests(void)
 		cmocka_unit_test(test_load_trcs_invalid),
 		cmocka_unit_test(test_verify_chain),
 		cmocka_unit_test(test_verify_chain_without_trcs),
+		cmocka_unit_test(test_update_trcs_up_to_date),
+		cmocka_unit_test(test_update_trcs_trust_reset),
+		cmocka_unit_test(test_update_trcs_without_trcs),
 	};
 
 	return cmocka_run_group_tests(tests, load_fixtures, NULL);

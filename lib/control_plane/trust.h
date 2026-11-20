@@ -54,6 +54,15 @@ int scion_network_fetch_chain(const struct scion_network *net, scion_ia ia, cons
 	size_t subject_key_id_len, time_t now, struct scion_cert_chain *chain);
 
 /*
+ * Updates the TRCs of an ISD up to a TRC, as far as the network does not have it: fetches the TRCs after the latest TRC
+ * of the ISD from the control service, and adds each that is valid at a time and an update of the TRC before it.
+ * Returns SCION_ERR_TRC_INVALID if a TRC is not such an update, also if the network has no TRC of the ISD with the
+ * same base number.
+ */
+int scion_network_update_trcs(
+	const struct scion_network *net, scion_isd isd, uint64_t base, uint64_t serial, time_t now);
+
+/*
  * Frees the TRCs of a network, after which the network has no TRCs.
  */
 void scion_network_free_trcs(struct scion_network *net);
