@@ -42,6 +42,9 @@ struct scion_trc {
 	bool no_trust_reset;
 	uint8_t quorum;
 	mbedtls_x509_crt roots;
+	// The encoding of the TRC
+	uint8_t *der;
+	size_t der_len;
 };
 
 /*
@@ -51,6 +54,12 @@ struct scion_trc {
 int scion_trc_parse(const uint8_t *buf, size_t len, struct scion_trc *trc);
 
 void scion_trc_free_members(struct scion_trc *trc);
+
+/*
+ * Verifies that a TRC is an update of its predecessor: it follows the rules of a regular or a sensitive update, and the
+ * voters of the predecessor voted for it with their signatures. Returns SCION_ERR_TRC_INVALID if it is not.
+ */
+int scion_trc_verify_update(const struct scion_trc *trc, const struct scion_trc *predecessor);
 
 /*
  * The certificate chain of an AS, which the AS signs its messages of the control plane with.
