@@ -172,7 +172,8 @@ static void chain_cache_free_members(struct chain_cache *cache)
 	free(cache->chains);
 }
 
-// Returns the verified chain of an AS with a subject key ID, from the cache or else from the control service
+// Returns the verified chain of an AS with a subject key ID, from the cache or else from the control service, after
+// updating the TRCs of the network to the one that the key ID refers to
 static int get_chain(const struct scion_network *net, struct chain_cache *cache,
 	const Proto__ControlPlane__V1__VerificationKeyID *key_id, time_t now, struct scion_cert_chain **chain)
 {
@@ -191,12 +192,20 @@ static int get_chain(const struct scion_network *net, struct chain_cache *cache,
 	}
 	cache->chains = chains;
 
+	// The signer refers to the latest TRC that it had, which the network may not have yet. If the network cannot
+	// update its TRCs, the chain may still be verified against the TRCs that it has.
+	int ret = scion_network_update_trcs(
+		net, scion_ia_get_isd(key_id->isd_as), key_id->trc_base, key_id->trc_serial, now);
+	if (ret == SCION_ERR_MEM_ALLOC_FAIL) {
+		return ret;
+	}
+
 	struct scion_cert_chain *new_chain = malloc(sizeof(*new_chain));
 	if (new_chain == NULL) {
 		return SCION_ERR_MEM_ALLOC_FAIL;
 	}
 
-	int ret = scion_network_fetch_chain(
+	ret = scion_network_fetch_chain(
 		net, key_id->isd_as, key_id->subject_key_id.data, key_id->subject_key_id.len, now, new_chain);
 	if (ret != 0) {
 		free(new_chain);

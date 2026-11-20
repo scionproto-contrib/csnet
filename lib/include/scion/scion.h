@@ -436,7 +436,8 @@ void scion_network_free(struct scion_network *net);
  * file is not a valid TRC, or another negative error code on failure.
  *
  * @note The signatures of the TRCs are not verified, so the directory must come from a trusted source. TRCs that are
- * not valid yet are ignored.
+ * not valid yet are ignored. The network fetches the updates of the TRCs from the control service as it needs them,
+ * and verifies them against the TRCs that it has.
  */
 int scion_network_load_trcs(struct scion_network *net, const char *dir);
 
