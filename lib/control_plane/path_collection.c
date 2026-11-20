@@ -96,7 +96,7 @@ int scion_path_collection_fetch(
 	struct scion_path_segment_list downs_list;
 
 	if (split_requests.has_up) {
-		ret = scion_path_segments_lookup(topology, split_requests.up_src, split_requests.up_dst, &ups_list);
+		ret = scion_path_segments_lookup(network, split_requests.up_src, split_requests.up_dst, &ups_list);
 		if (ret != 0) {
 			goto cleanup_ups;
 		}
@@ -106,7 +106,7 @@ int scion_path_collection_fetch(
 	}
 
 	if (split_requests.has_core) {
-		ret = scion_path_segments_lookup(topology, split_requests.core_src, split_requests.core_dst, &cores_list);
+		ret = scion_path_segments_lookup(network, split_requests.core_src, split_requests.core_dst, &cores_list);
 		if (ret != 0) {
 			goto cleanup_cores;
 		}
@@ -116,7 +116,7 @@ int scion_path_collection_fetch(
 	}
 
 	if (split_requests.has_down) {
-		ret = scion_path_segments_lookup(topology, split_requests.down_src, split_requests.down_dst, &downs_list);
+		ret = scion_path_segments_lookup(network, split_requests.down_src, split_requests.down_dst, &downs_list);
 		if (ret != 0) {
 			goto cleanup_downs;
 		}

@@ -57,6 +57,7 @@ void *server_fn(void *arg)
 
 	assert(scion_network(&network, topology) == 0);
 	pthread_cleanup_push((void (*)(void *))scion_network_free, network);
+	assert(scion_network_load_trcs(network, getenv("TRC_DIR")) == 0);
 
 	struct scion_socket *scion_sock;
 
@@ -117,6 +118,7 @@ void *client_fn(void *arg)
 
 	assert(scion_network(&network, topology) == 0);
 	pthread_cleanup_push((void (*)(void *))scion_network_free, network);
+	assert(scion_network_load_trcs(network, getenv("TRC_DIR")) == 0);
 
 	struct scion_socket *scion_sock;
 
