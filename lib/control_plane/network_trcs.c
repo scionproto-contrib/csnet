@@ -25,6 +25,7 @@
 #include "util/http2_rpc.h"
 
 #define CHAINS_PATH "/proto.control_plane.v1.TrustMaterialService/Chains"
+#define TRC_PATH "/proto.control_plane.v1.TrustMaterialService/TRC"
 #define INITIAL_RPC_OUTPUT_BUFFER_SIZE 4096
 
 #define TRC_FILE_EXTENSION ".trc"
@@ -401,6 +402,130 @@ free_handle:
 
 free_request:
 	free(request_buf);
+
+	return ret;
+}
+
+// Fetches a TRC from the control service
+static int fetch_trc(
+	const struct scion_topology *topology, scion_isd isd, uint64_t base, uint64_t serial, struct scion_trc *trc)
+{
+	Proto__ControlPlane__V1__TRCRequest request = PROTO__CONTROL_PLANE__V1__TRCREQUEST__INIT;
+	request.isd = isd;
+	request.base_number = base;
+	request.serial = serial;
+
+	size_t request_len = proto__control_plane__v1__trcrequest__get_packed_size(&request);
+	uint8_t *request_buf = malloc(request_len);
+	if (request_buf == NULL) {
+		return SCION_ERR_MEM_ALLOC_FAIL;
+	}
+	(void)proto__control_plane__v1__trcrequest__pack(&request, request_buf);
+
+	http2_rpc_handle hd;
+	int ret = http2_rpc_handle_init(
+		&hd, (struct sockaddr *)&topology->cs_addr, topology->cs_addr_len, INITIAL_RPC_OUTPUT_BUFFER_SIZE);
+	if (ret != 0) {
+		goto free_request;
+	}
+
+	ret = http2_rpc_request(&hd, TRC_PATH, request_buf, request_len);
+	if (ret != 0) {
+		goto free_handle;
+	}
+
+	if (hd.grpc_status_code != 0) {
+		ret = http2_rpc_grpc_status_to_error(hd.grpc_status_code);
+		goto free_handle;
+	}
+
+	Proto__ControlPlane__V1__TRCResponse *response = proto__control_plane__v1__trcresponse__unpack(
+		NULL, hd.bytes_written, (const uint8_t *)hd.output_buffer);
+	if (response == NULL) {
+		ret = SCION_ERR_CONTROL_SERVICE_RESPONSE_INVALID;
+		goto free_handle;
+	}
+
+	// The control service answers with an empty TRC if it does not have the TRC
+	ret = response->trc.len == 0 ? SCION_ERR_TRC_INVALID : scion_trc_parse(response->trc.data, response->trc.len, trc);
+	if (ret == 0 && (trc->isd != isd || trc->base != base || trc->serial != serial)) {
+		scion_trc_free_members(trc);
+		ret = SCION_ERR_TRC_INVALID;
+	}
+	proto__control_plane__v1__trcresponse__free_unpacked(response, NULL);
+
+free_handle:
+	http2_rpc_handle_free(&hd);
+
+free_request:
+	free(request_buf);
+
+	return ret;
+}
+
+// Adds a TRC to a store if it is an update of a TRC of the store, and takes over its members if it does. Must be called
+// with the lock of the store held.
+static int add_trc_update(struct scion_trc_store *store, struct scion_trc *trc)
+{
+	// Another thread may have added the TRC in the meantime
+	if (find_trc(store, trc->isd, trc->base, trc->serial) != NULL) {
+		scion_trc_free_members(trc);
+		return 0;
+	}
+
+	struct scion_trc *predecessor = find_trc(store, trc->isd, trc->base, trc->serial - 1);
+	int ret = predecessor == NULL ? SCION_ERR_TRC_INVALID : scion_trc_verify_update(trc, predecessor);
+	if (ret == 0) {
+		ret = add_trc(store, trc);
+	}
+	if (ret != 0) {
+		scion_trc_free_members(trc);
+	}
+	return ret;
+}
+
+int scion_network_update_trcs(
+	const struct scion_network *net, scion_isd isd, uint64_t base, uint64_t serial, time_t now)
+{
+	assert(net);
+
+	struct scion_trc_store *store = net->trcs;
+	if (store == NULL) {
+		return SCION_ERR_TRC_INVALID;
+	}
+
+	(void)pthread_mutex_lock(&store->lock);
+	struct scion_trc *latest = find_latest_trc(store, isd);
+	bool has_latest = latest != NULL;
+	uint64_t latest_base = has_latest ? latest->base : 0;
+	uint64_t latest_serial = has_latest ? latest->serial : 0;
+	(void)pthread_mutex_unlock(&store->lock);
+
+	// A new base TRC resets the trust in an ISD, it is not an update of the TRCs that the network has
+	if (!has_latest || base != latest_base) {
+		return SCION_ERR_TRC_INVALID;
+	}
+
+	int ret = 0;
+	for (uint64_t next_serial = latest_serial + 1; next_serial <= serial && ret == 0; next_serial++) {
+		// The store is not locked while the TRC is fetched, the TRC is verified with the store locked
+		struct scion_trc trc;
+		ret = fetch_trc(net->topology, isd, base, next_serial, &trc);
+		if (ret != 0) {
+			break;
+		}
+
+		// A TRC that is not valid yet cannot have signed anything
+		if (now < trc.not_before) {
+			scion_trc_free_members(&trc);
+			ret = SCION_ERR_TRC_INVALID;
+			break;
+		}
+
+		(void)pthread_mutex_lock(&store->lock);
+		ret = add_trc_update(store, &trc);
+		(void)pthread_mutex_unlock(&store->lock);
+	}
 
 	return ret;
 }
