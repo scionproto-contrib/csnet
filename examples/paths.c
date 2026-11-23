@@ -40,6 +40,16 @@ int main(int argc, char *argv[])
 		goto cleanup_topology;
 	}
 
+	// With the TRCs of a directory, the network verifies the paths and leaves out those that cannot be verified
+	if (argc > 1) {
+		ret = scion_network_load_trcs(network, argv[1]);
+		if (ret != 0) {
+			printf("ERROR: Loading the TRCs failed with error code: %d\n", ret);
+			ret = EXIT_FAILURE;
+			goto cleanup_network;
+		}
+	}
+
 	// ### Showpaths  Example ###
 	scion_ia dst_ia = 0x2ff0000000222;
 
