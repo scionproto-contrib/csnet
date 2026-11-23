@@ -8,7 +8,8 @@ The following examples are available:
 
 - `udp.c`: Shows how to send and receive a UDP packet. Requires a running `scripts/run-testserver.sh`.
 
-- `paths.c`: Shows how to fetch the available paths to a specific destination in the network.
+- `paths.c`: Shows how to fetch the available paths to a specific destination in the network. Run it with a directory
+  of TRCs, e.g. `network/scion-testnet/topos/default/certs`, to verify the paths.
 
 - `choose_path.c`: Shows how to send a packet over a specific path in the network. Requires a running
   `scripts/run-testserver.sh`.
