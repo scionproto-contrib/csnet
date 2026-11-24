@@ -68,8 +68,10 @@ struct scion_quic_conn {
 	size_t tx_send_off; // offset of the next data to send in tx_send
 	struct tx_chunk *tx_tail; // last chunk, new data is added to it
 	bool fin_requested, fin_sent;
-	uint8_t *rx;
-	size_t rx_len, rx_cap;
+	uint8_t *rx; // the received stream data
+	size_t rx_off; // start of the data that the application did not read
+	size_t rx_len; // end of the received data
+	size_t rx_size;
 	bool peer_fin;
 
 	bool debug;
@@ -272,18 +274,24 @@ static int recv_stream_data_cb(ngtcp2_conn *conn, uint32_t flags, int64_t stream
 	if (datalen == 0) { // only the FIN
 		return 0;
 	}
-	if (c->rx_len + datalen > c->rx_cap) {
+	if (c->rx_len + datalen > c->rx_size && c->rx_off > 0) {
+		// The data that was read makes room
+		memmove(c->rx, c->rx + c->rx_off, c->rx_len - c->rx_off);
+		c->rx_len -= c->rx_off;
+		c->rx_off = 0;
+	}
+	if (c->rx_len + datalen > c->rx_size) {
 		// Bounded by the stream window: the window is only extended when the application reads.
-		size_t cap = c->rx_cap ? c->rx_cap : 4096;
-		while (cap < c->rx_len + datalen) {
-			cap *= 2;
+		size_t size = c->rx_size ? c->rx_size : 4096;
+		while (size < c->rx_len + datalen) {
+			size *= 2;
 		}
-		uint8_t *rx = realloc(c->rx, cap);
+		uint8_t *rx = realloc(c->rx, size);
 		if (!rx) {
 			return NGTCP2_ERR_CALLBACK_FAILURE;
 		}
 		c->rx = rx;
-		c->rx_cap = cap;
+		c->rx_size = size;
 	}
 	memcpy(c->rx + c->rx_len, data, datalen);
 	c->rx_len += datalen;
@@ -588,16 +596,18 @@ ssize_t scion_quic_read(struct scion_quic_conn *conn, void *buf, size_t len)
 {
 	struct scion_quic_conn *c = conn;
 
-	if (c->rx_len == 0) {
+	if (c->rx_off == c->rx_len) {
 		if (c->peer_fin) {
 			return 0;
 		}
 		return c->closed ? c->error : SCION_ERR_WOULD_BLOCK;
 	}
-	size_t n = len < c->rx_len ? len : c->rx_len;
-	memcpy(buf, c->rx, n);
-	memmove(c->rx, c->rx + n, c->rx_len - n);
-	c->rx_len -= n;
+	size_t n = len < c->rx_len - c->rx_off ? len : c->rx_len - c->rx_off;
+	memcpy(buf, c->rx + c->rx_off, n);
+	c->rx_off += n;
+	if (c->rx_off == c->rx_len) {
+		c->rx_off = c->rx_len = 0;
+	}
 	if (!c->closed) {
 		// The data left the buffer: let the server send more.
 		ngtcp2_conn_extend_max_stream_offset(c->conn, c->stream_id, n);
