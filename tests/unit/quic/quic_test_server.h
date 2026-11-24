@@ -48,6 +48,7 @@ struct quic_test_server {
 	enum quic_test_mode mode;
 	size_t bulk_len;
 	size_t stream_window; // flow control window of the stream the client sends on (default 256 KB)
+	size_t drop_every; // after the handshake, drops every drop_every-th packet of the client (0: none)
 
 	// state of the server thread
 	struct scion_socket *socket;
@@ -62,6 +63,7 @@ struct quic_test_server {
 	socklen_t local_len, remote_len;
 	scion_ia remote_ia;
 	int64_t stream_id;
+	size_t received_packets;
 	uint8_t *tx;
 	size_t tx_len, tx_off;
 	bool tx_fin, fin_sent, closed;
