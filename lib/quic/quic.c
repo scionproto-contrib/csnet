@@ -34,9 +34,21 @@
 #define MAX_UDP_PAYLOAD 1200
 #define SCID_LEN 8
 #define IDLE_TIMEOUT (300 * NGTCP2_SECONDS)
+// Size of a chunk of the stream data the client sends, unless one write needs more
+#define TX_CHUNK_SIZE 4096
+// Number of chunks of stream data handed to ngtcp2 at once
+#define TX_VECS 4
 // Flow control windows. Small, as embedded devices have little RAM; the receive buffer never exceeds STREAM_WINDOW.
 #define STREAM_WINDOW (64 * 1024)
 #define CONN_WINDOW (128 * 1024)
+
+// A chunk of the stream data the client sends. ngtcp2 keeps pointers to the data it sent until the server acknowledges
+// it, so the data is never moved: the chunks are freed once acknowledged.
+struct tx_chunk {
+	struct tx_chunk *next;
+	size_t len, size;
+	uint8_t data[];
+};
 
 struct scion_quic_conn {
 	struct scion_socket *socket;
@@ -50,8 +62,11 @@ struct scion_quic_conn {
 	ngtcp2_ccerr last_error;
 
 	int64_t stream_id; // -1 until the handshake is done
-	uint8_t *tx;
-	size_t tx_len, tx_off, tx_cap;
+	struct tx_chunk *tx_head; // first chunk with data that the server did not acknowledge
+	size_t tx_acked; // number of bytes of tx_head that the server acknowledged
+	struct tx_chunk *tx_send; // chunk with the next data to send
+	size_t tx_send_off; // offset of the next data to send in tx_send
+	struct tx_chunk *tx_tail; // last chunk, new data is added to it
 	bool fin_requested, fin_sent;
 	uint8_t *rx;
 	size_t rx_len, rx_cap;
@@ -131,6 +146,21 @@ static void fail(struct scion_quic_conn *c, int liberr)
 	mark_closed(c, SCION_ERR_QUIC_CLOSED);
 }
 
+// Moves the position of the data to send to the next chunk if the data of its chunk is sent
+static void tx_skip_sent_chunk(struct scion_quic_conn *c)
+{
+	if (c->tx_send != NULL && c->tx_send_off == c->tx_send->len && c->tx_send->next != NULL) {
+		c->tx_send = c->tx_send->next;
+		c->tx_send_off = 0;
+	}
+}
+
+// Returns true if ngtcp2 sent all the queued stream data
+static bool tx_all_sent(const struct scion_quic_conn *c)
+{
+	return c->tx_send == NULL || (c->tx_send->next == NULL && c->tx_send_off == c->tx_send->len);
+}
+
 // Hands the queued stream data (and the FIN) to ngtcp2 and sends the resulting packets.
 static void flush(struct scion_quic_conn *c)
 {
@@ -145,18 +175,22 @@ static void flush(struct scion_quic_conn *c)
 	ngtcp2_path_storage_zero(&ps);
 
 	for (;;) {
-		ngtcp2_vec datav = { 0 };
+		ngtcp2_vec datav[TX_VECS];
 		size_t datavcnt = 0;
 		int64_t stream_id = -1;
 		uint32_t flags = NGTCP2_WRITE_STREAM_FLAG_NONE;
 		ngtcp2_ssize wdatalen = -1;
 
 		if (!stream_blocked && c->stream_id >= 0) {
-			if (c->tx_len > c->tx_off) {
+			if (!tx_all_sent(c)) {
 				stream_id = c->stream_id;
-				datav.base = c->tx + c->tx_off;
-				datav.len = c->tx_len - c->tx_off;
-				datavcnt = 1;
+				size_t off = c->tx_send_off;
+				for (struct tx_chunk *chunk = c->tx_send; chunk != NULL && datavcnt < TX_VECS; chunk = chunk->next) {
+					datav[datavcnt].base = chunk->data + off;
+					datav[datavcnt].len = chunk->len - off;
+					datavcnt++;
+					off = 0;
+				}
 			}
 			if (c->fin_requested && !c->fin_sent) {
 				stream_id = c->stream_id;
@@ -165,7 +199,7 @@ static void flush(struct scion_quic_conn *c)
 		}
 
 		ngtcp2_ssize n = ngtcp2_conn_writev_stream(
-			c->conn, &ps.path, &pi, buf, sizeof(buf), &wdatalen, flags, stream_id, &datav, datavcnt, now_ns());
+			c->conn, &ps.path, &pi, buf, sizeof(buf), &wdatalen, flags, stream_id, datav, datavcnt, now_ns());
 		if (n < 0) {
 			if (n == NGTCP2_ERR_STREAM_DATA_BLOCKED || n == NGTCP2_ERR_STREAM_SHUT_WR) {
 				stream_blocked = true;
@@ -175,13 +209,16 @@ static void flush(struct scion_quic_conn *c)
 			return;
 		}
 		if (wdatalen >= 0) {
-			c->tx_off += (size_t)wdatalen;
-			if ((flags & NGTCP2_WRITE_STREAM_FLAG_FIN) && c->tx_off == c->tx_len) {
+			for (size_t sent = (size_t)wdatalen; sent > 0;) {
+				size_t len = c->tx_send->len - c->tx_send_off;
+				len = sent < len ? sent : len;
+				c->tx_send_off += len;
+				sent -= len;
+				tx_skip_sent_chunk(c);
+			}
+			if ((flags & NGTCP2_WRITE_STREAM_FLAG_FIN) && tx_all_sent(c)) {
 				c->fin_sent = true;
 			}
-		}
-		if (c->tx_off == c->tx_len) {
-			c->tx_off = c->tx_len = 0;
 		}
 		if (n == 0) {
 			return;
@@ -250,6 +287,41 @@ static int recv_stream_data_cb(ngtcp2_conn *conn, uint32_t flags, int64_t stream
 	}
 	memcpy(c->rx + c->rx_len, data, datalen);
 	c->rx_len += datalen;
+	return 0;
+}
+
+// Frees the chunks of stream data that the server acknowledged. ngtcp2 acknowledges the data in order.
+static int acked_stream_data_offset_cb(
+	ngtcp2_conn *conn, int64_t stream_id, uint64_t offset, uint64_t datalen, void *user_data, void *stream_user_data)
+{
+	struct scion_quic_conn *c = user_data;
+	(void)conn;
+	(void)offset;
+	(void)stream_user_data;
+
+	if (stream_id != c->stream_id) {
+		return 0;
+	}
+	while (datalen > 0) {
+		struct tx_chunk *head = c->tx_head;
+		size_t len = head->len - c->tx_acked;
+		len = datalen < len ? (size_t)datalen : len;
+		c->tx_acked += len;
+		datalen -= len;
+		if (c->tx_acked < head->len) {
+			break;
+		}
+		if (head->next != NULL) {
+			c->tx_head = head->next;
+			c->tx_acked = 0;
+			free(head);
+		} else {
+			// All data is acknowledged: the last chunk is used again from its start
+			head->len = 0;
+			c->tx_acked = 0;
+			c->tx_send_off = 0;
+		}
+	}
 	return 0;
 }
 
@@ -328,6 +400,7 @@ int scion_quic_connect(struct scion_quic_conn **conn, struct scion_network *netw
 		.get_new_connection_id = get_new_connection_id_cb,
 		.handshake_completed = handshake_completed_cb,
 		.recv_stream_data = recv_stream_data_cb,
+		.acked_stream_data_offset = acked_stream_data_offset_cb,
 	};
 	ngtcp2_settings settings;
 	ngtcp2_settings_default(&settings);
@@ -471,20 +544,32 @@ ssize_t scion_quic_write(struct scion_quic_conn *conn, const void *buf, size_t l
 	if (c->fin_requested) {
 		return SCION_ERR_GENERIC;
 	}
-	if (c->tx_len + len > c->tx_cap) {
-		size_t cap = c->tx_cap ? c->tx_cap : 1024;
-		while (cap < c->tx_len + len) {
-			cap *= 2;
-		}
-		uint8_t *tx = realloc(c->tx, cap);
-		if (!tx) {
+	// The free space of the last chunk takes the start of the data, a new chunk the rest
+	struct tx_chunk *tail = c->tx_tail;
+	size_t first = tail != NULL ? tail->size - tail->len : 0;
+	first = len < first ? len : first;
+	if (first < len) {
+		size_t size = len - first > TX_CHUNK_SIZE ? len - first : TX_CHUNK_SIZE;
+		struct tx_chunk *chunk = malloc(sizeof(*chunk) + size);
+		if (!chunk) {
 			return SCION_ERR_MEM_ALLOC_FAIL;
 		}
-		c->tx = tx;
-		c->tx_cap = cap;
+		chunk->next = NULL;
+		chunk->len = len - first;
+		chunk->size = size;
+		memcpy(chunk->data, (const uint8_t *)buf + first, len - first);
+		if (tail != NULL) {
+			tail->next = chunk;
+		} else {
+			c->tx_head = c->tx_send = chunk;
+		}
+		c->tx_tail = chunk;
 	}
-	memcpy(c->tx + c->tx_len, buf, len);
-	c->tx_len += len;
+	if (first > 0) {
+		memcpy(tail->data + tail->len, buf, first);
+		tail->len += first;
+	}
+	tx_skip_sent_chunk(c);
 	flush(c);
 	return c->closed ? c->error : (ssize_t)len;
 }
@@ -541,7 +626,11 @@ void scion_quic_close(struct scion_quic_conn *conn)
 	if (c->socket) {
 		scion_close(c->socket);
 	}
-	free(c->tx);
+	while (c->tx_head != NULL) {
+		struct tx_chunk *next = c->tx_head->next;
+		free(c->tx_head);
+		c->tx_head = next;
+	}
 	free(c->rx);
 	free(c);
 }

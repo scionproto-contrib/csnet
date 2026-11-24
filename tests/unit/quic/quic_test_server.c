@@ -286,7 +286,7 @@ static void *server_thread(void *arg)
 			if (n <= 0) {
 				break;
 			}
-			if (s->closed) {
+			if (s->closed || (s->handshake_done && s->drop_every > 0 && ++s->received_packets % s->drop_every == 0)) {
 				continue;
 			}
 			if (!s->conn) {

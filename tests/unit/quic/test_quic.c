@@ -249,6 +249,38 @@ static void test_quic_sends_beyond_server_window(void **state)
 	free(echo);
 }
 
+static void test_quic_retransmits_lost_data(void **state)
+{
+	struct socket_fixture *fixture = *state;
+	// The server loses packets, so the client retransmits data it sent before the following writes
+	struct quic_test_server server = { .mode = QUIC_TEST_ECHO, .drop_every = 5 };
+	quic_test_server_start(&server, fixture->network);
+
+	struct scion_quic_config config = { .alpn = QUIC_TEST_ALPN };
+	struct scion_quic_conn *conn = connect_to(fixture, &server, &config);
+	assert_int_equal(wait_established(conn), 0);
+	uint8_t data[100 * 1000];
+	for (size_t i = 0; i < sizeof(data); i++) {
+		data[i] = (uint8_t)(i * 13);
+	}
+	for (size_t off = 0; off < sizeof(data); off += 1000) {
+		assert_int_equal(scion_quic_write(conn, data + off, 1000), 1000);
+		assert_int_equal(scion_quic_wait(conn, 1), 0);
+	}
+	assert_int_equal(scion_quic_shutdown(conn), 0);
+
+	uint8_t echo[sizeof(data) + 7];
+	assert_int_equal(read_all(conn, echo, sizeof(echo), 4096), sizeof(data) + 6);
+	assert_memory_equal(echo, "echo: ", 6);
+	assert_memory_equal(echo + 6, data, sizeof(data));
+
+	scion_quic_close(conn);
+	quic_test_server_stop(&server);
+	assert_int_equal(server.received_len, sizeof(data));
+	assert_memory_equal(server.received, data, sizeof(data));
+	quic_test_server_free(&server);
+}
+
 static void test_quic_verifies_the_server(void **state)
 {
 	struct socket_fixture *fixture = *state;
@@ -384,6 +416,7 @@ int run_quic_tests(void)
 		cmocka_unit_test_setup_teardown(test_quic_empty_streams, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_quic_receives_beyond_window, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_quic_sends_beyond_server_window, setup_fixture, teardown_fixture),
+		cmocka_unit_test_setup_teardown(test_quic_retransmits_lost_data, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_quic_verifies_the_server, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_quic_rejects_a_wrong_server_name, setup_fixture, teardown_fixture),
 		cmocka_unit_test_setup_teardown(test_quic_rejects_an_untrusted_certificate, setup_fixture, teardown_fixture),
