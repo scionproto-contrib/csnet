@@ -43,14 +43,14 @@ ExternalProject_Add(
 )
 
 # Fetch mbedTLS 4.1 (the version of ESP-IDF 6.1) for the X.509 certificates and the signatures of the control plane.
-# The QUIC library uses the same build.
+# The QUIC library uses the same build. The release archive contains the generated sources, so unlike the git
+# repository, it builds without Python.
 ExternalProject_Add(
         mbedtls
-        GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
-        GIT_TAG mbedtls-4.1.0
-        GIT_SHALLOW TRUE
-        GIT_SUBMODULES_RECURSE TRUE
-        UPDATE_DISCONNECTED TRUE
+        URL https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-4.1.0/mbedtls-4.1.0.tar.bz2
+        URL_HASH SHA256=377a09cf8eb81b5fb2707045e5522d5489d3309fed5006c9874e60558fc81d10
+        DOWNLOAD_NO_PROGRESS TRUE
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR} -DCMAKE_BUILD_TYPE=Release -DENABLE_PROGRAMS=OFF
         -DENABLE_TESTING=OFF -DMBEDTLS_FATAL_WARNINGS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON
         ${DEPENDENCY_LAUNCHER_ARGS}
