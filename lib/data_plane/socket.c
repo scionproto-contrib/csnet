@@ -454,12 +454,8 @@ static ssize_t scion_sendmsg_path(
 	}
 
 	// Source
-	struct sockaddr_storage src_addr;
-	socklen_t src_addr_len = sizeof(src_addr);
-
-	ret = get_source_address(scion_sock, (struct sockaddr *)&src_addr, &src_addr_len);
-	if (ret != 0) {
-		return ret;
+	if (!is_source_address_set(scion_sock)) {
+		return SCION_ERR_SRC_ADDR_UNKNOWN;
 	}
 
 	if (scion_sock->src_addr.ss_family == AF_INET) {
