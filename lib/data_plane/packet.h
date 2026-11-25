@@ -91,6 +91,7 @@ struct scion_packet {
 
 	// path_hdr is the path header of the SCION header. It is empty if the path_type is empty. The packet does not own
 	// it, it points to the path that the packet is sent over or to the buffer that the packet was deserialized from.
+	// Serializing does not use it, the path is sent from where it is, like the payload.
 	const uint8_t *path_hdr;
 	uint16_t path_hdr_len;
 
@@ -130,13 +131,15 @@ uint16_t scion_packet_hdr_len(struct scion_packet *packet);
 size_t scion_packet_len(struct scion_packet *packet);
 
 /*
- * Serializes the SCION header of a scion packet into the provided buffer, without the payload. The payload can be sent
- * from where it is, for example with the vectors of sendmsg, so it does not need to be copied.
+ * Serializes the common and the address header of a scion packet into the provided buffer, without the path header and
+ * the payload that follow them. The path header and the payload can be sent from where they are, for example with the
+ * vectors of sendmsg, so they do not need to be copied. The header length in the common header includes the path.
  *
  * Arguments:
- *      - struct scion_packet *packet: Pointer to the SCION packet. Its payload_len is the length of the payload.
+ *      - struct scion_packet *packet: Pointer to the SCION packet. Its path_hdr_len is the length of the path header
+ *        and its payload_len the length of the payload.
  *      - uint8_t *buf: Pointer to the buffer in which the header will be saved, SCION_MAX_HDR_LEN bytes are enough.
- *      - size_t *buf_len: Length of the provided buffer. It is the length of the header on success.
+ *      - size_t *buf_len: Length of the provided buffer. It is the length of the serialized headers on success.
  *
  * Returns:
  *      - 0 on success, an error code as defined in error.h.

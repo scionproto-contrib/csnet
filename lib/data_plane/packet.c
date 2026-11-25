@@ -56,8 +56,8 @@ int scion_packet_serialize(struct scion_packet *packet, uint8_t *buf, size_t *bu
 	assert(packet);
 	assert(buf);
 
-	uint16_t path_length = scion_packet_path_hdr_len(packet);
 	uint16_t total_hdr_len = scion_packet_hdr_len(packet);
+	uint16_t cmn_addr_hdr_len = SCION_CMN_HDR_LEN + scion_packet_addr_hdr_len(packet);
 
 	if (total_hdr_len > SCION_MAX_HDR_LEN) {
 		return SCION_ERR_MAX_HDR_LEN_EXCEEDED;
@@ -66,12 +66,12 @@ int scion_packet_serialize(struct scion_packet *packet, uint8_t *buf, size_t *bu
 	// header must be a multiple of line length. (i.e. header has to be 4 bytes aligned)
 	assert(total_hdr_len % SCION_LINE_LEN == 0);
 
-	if (total_hdr_len > *buf_len) {
+	if (cmn_addr_hdr_len > *buf_len) {
 		// buffer is not big enough.
 		return SCION_ERR_BUF_TOO_SMALL;
 	}
 
-	*buf_len = total_hdr_len;
+	*buf_len = cmn_addr_hdr_len;
 
 	// Common Header
 	uint32_t first_line = ((uint32_t)packet->version) << 28 | ((uint32_t)packet->traffic_class) << 20
@@ -106,12 +106,6 @@ int scion_packet_serialize(struct scion_packet *packet, uint8_t *buf, size_t *bu
 	uint16_t src_addr_bytes = scion_packet_addr_type_len(packet->src_addr_type);
 	assert(src_addr_bytes == (uint16_t)packet->raw_src_addr_length);
 	(void)memcpy(buf + offset, packet->raw_src_addr, src_addr_bytes);
-	offset += src_addr_bytes; // COMMENT: this line varies from the go implementation, could be source of problem?
-
-	// Copy Path
-	if (path_length > 0) {
-		(void)memcpy(buf + offset, packet->path_hdr, path_length);
-	}
 
 	return 0;
 }

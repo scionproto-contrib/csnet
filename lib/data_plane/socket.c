@@ -489,12 +489,18 @@ static ssize_t scion_sendmsg_path(
 		return SCION_ERR_MSG_TOO_LARGE;
 	}
 
-	// The header of the packet is followed by the header of the UDP packet, if there is one, and by the data. They are
-	// sent together as the vectors of one message, so nothing is copied or allocated.
+	// The header of the packet is followed by the path, the header of the UDP packet, if there is one, and the data.
+	// They are sent together as the vectors of one message, so nothing is copied or allocated.
 	uint8_t packet_hdr[SCION_MAX_HDR_LEN];
 	uint8_t udp_hdr[SCION_UDP_HDR_LEN];
-	struct iovec iov[SCION_IOV_MAX + 2];
+	struct iovec iov[SCION_IOV_MAX + 3];
 	size_t iov_len = 1;
+
+	if (packet.path_hdr_len > 0) {
+		iov[iov_len].iov_base = (void *)packet.path_hdr;
+		iov[iov_len].iov_len = packet.path_hdr_len;
+		iov_len++;
+	}
 
 	if (scion_sock->protocol == SCION_PROTO_UDP) {
 		struct scion_udp udp_packet = { 0 };
@@ -542,7 +548,7 @@ static ssize_t scion_sendmsg_path(
 
 	iov[0].iov_base = packet_hdr;
 	iov[0].iov_len = hdr_len;
-	size_t packet_length = hdr_len + packet.payload_len;
+	size_t packet_length = scion_packet_len(&packet);
 
 	const struct sockaddr *next_hop_addr;
 	socklen_t next_hop_addr_length;
@@ -568,11 +574,8 @@ static ssize_t scion_sendmsg_path(
 		underlying_msg.msg_name = (void *)next_hop_addr;
 		underlying_msg.msg_namelen = next_hop_addr_length;
 
-		// The vectors are counted in the type of msg_iovlen, which is not a size_t on every platform
-		underlying_msg.msg_iovlen = msg->msg_iovlen + 1;
-		if (scion_sock->protocol == SCION_PROTO_UDP) {
-			underlying_msg.msg_iovlen++;
-		}
+		// msg_iovlen is an int on some platforms, iov_len is at most SCION_IOV_MAX + 3
+		underlying_msg.msg_iovlen = (__typeof__(underlying_msg.msg_iovlen))iov_len;
 		underlying_msg.msg_iov = iov;
 
 		underlying_msg.msg_flags = msg->msg_flags;
