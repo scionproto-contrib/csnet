@@ -110,10 +110,11 @@ static void test_serialize_scion_packet(void **)
 	};
 	// clang-format on
 
-	// The payload is not serialized, it follows the header
-	assert_uint_equal(header_length + packet.payload_len, sizeof(test_buf));
+	// The path and the payload are not serialized, they follow the headers
+	assert_uint_equal(header_length + packet.path_hdr_len + packet.payload_len, sizeof(test_buf));
 	assert_memory_equal(header_buf, test_buf, header_length);
-	assert_memory_equal(payload, test_buf + header_length, packet.payload_len);
+	assert_memory_equal(raw_path_buf, test_buf + header_length, packet.path_hdr_len);
+	assert_memory_equal(payload, test_buf + header_length + packet.path_hdr_len, packet.payload_len);
 }
 
 static void test_deserialize_scion_packet(void **)
