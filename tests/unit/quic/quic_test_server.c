@@ -32,24 +32,23 @@ static uint64_t now_ns(void)
 	return (uint64_t)tp.tv_sec * NGTCP2_SECONDS + (uint64_t)tp.tv_nsec;
 }
 
-char *quic_test_read_file(const char *name, size_t *len)
+size_t quic_test_read_file(const char *name, char *buf, size_t size)
 {
 	char path[512];
 	snprintf(path, sizeof(path), "%s/%s", QUIC_TEST_DATA_DIR, name);
 	FILE *f = fopen(path, "rb");
-	char *buf = NULL;
-	long size;
 
 	if (!f) {
-		return NULL;
+		return 0;
 	}
-	if (fseek(f, 0, SEEK_END) == 0 && (size = ftell(f)) >= 0 && fseek(f, 0, SEEK_SET) == 0
-		&& (buf = malloc((size_t)size + 1)) != NULL) {
-		*len = fread(buf, 1, (size_t)size, f);
-		buf[*len] = '\0';
-	}
+	size_t len = fread(buf, 1, size, f);
+	bool failed = ferror(f) != 0;
 	fclose(f);
-	return buf;
+	if (failed || len == size) {
+		return 0;
+	}
+	buf[len] = '\0';
+	return len;
 }
 
 static void send_packet(struct quic_test_server *s, const uint8_t *data, size_t len)

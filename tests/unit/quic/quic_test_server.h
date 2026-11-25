@@ -92,5 +92,5 @@ int quic_test_tls_session_attach(void *session, ngtcp2_conn *conn);
 void quic_test_tls_session_free(void *session);
 void quic_test_tls_random(uint8_t *buf, size_t len);
 
-// Reads a file of testdata, NUL terminated. Returns NULL on error.
-char *quic_test_read_file(const char *name, size_t *len);
+// Reads a testdata file into buf of size bytes, NUL terminated. Returns its length, 0 on error or if buf is too small.
+size_t quic_test_read_file(const char *name, char *buf, size_t size);

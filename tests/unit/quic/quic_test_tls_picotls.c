@@ -93,10 +93,10 @@ static int on_client_hello(ptls_on_client_hello_t *self, ptls_t *tls, ptls_on_cl
 struct quic_test_tls *quic_test_tls_new(void)
 {
 	struct quic_test_tls *tls = calloc(1, sizeof(*tls));
-	size_t key_len;
-	char *key = quic_test_read_file("server.key", &key_len);
+	char key[1024];
+	size_t key_len = quic_test_read_file("server.key", key, sizeof(key));
 
-	if (!tls || !key || psa_crypto_init() != PSA_SUCCESS) {
+	if (!tls || key_len == 0 || psa_crypto_init() != PSA_SUCCESS) {
 		goto fail;
 	}
 	mbedtls_pk_init(&tls->signer.key);
@@ -116,11 +116,9 @@ struct quic_test_tls *quic_test_tls_new(void)
 		|| ngtcp2_crypto_picotls_configure_server_context(&tls->ctx) != 0) {
 		goto fail;
 	}
-	free(key);
 	return tls;
 
 fail:
-	free(key);
 	quic_test_tls_free(tls);
 	return NULL;
 }

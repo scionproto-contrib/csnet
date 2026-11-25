@@ -82,13 +82,12 @@ static size_t read_all(struct scion_quic_conn *conn, uint8_t *buf, size_t cap, s
 	}
 }
 
-static struct scion_quic_config verifying_config(const char *ca_file, const char *server_name, char **ca)
+static struct scion_quic_config verifying_config(const char *ca_file, const char *server_name, char *ca, size_t size)
 {
-	size_t len = 0;
-	*ca = quic_test_read_file(ca_file, &len);
-	assert_non_null(*ca);
+	size_t len = quic_test_read_file(ca_file, ca, size);
+	assert_true(len > 0);
 	return (struct scion_quic_config){
-		.alpn = QUIC_TEST_ALPN, .server_name = server_name, .ca_pem = *ca, .ca_pem_len = len
+		.alpn = QUIC_TEST_ALPN, .server_name = server_name, .ca_pem = ca, .ca_pem_len = len
 	};
 }
 
@@ -191,8 +190,9 @@ static void test_quic_empty_streams(void **state)
 static void test_quic_receives_beyond_window(void **state)
 {
 	struct socket_fixture *fixture = *state;
-	// 512 KB: 8 times the stream window and 4 times the connection window of the client
-	const size_t bulk = 512 * 1024;
+	// 512 KB: 8 times the stream window and 4 times the connection window of the client, and a byte that is not sent
+	uint8_t buf[512 * 1024 + 1];
+	const size_t bulk = sizeof(buf) - 1;
 	struct quic_test_server server = { .mode = QUIC_TEST_BULK, .bulk_len = bulk };
 	quic_test_server_start(&server, fixture->network);
 
@@ -200,16 +200,13 @@ static void test_quic_receives_beyond_window(void **state)
 	struct scion_quic_conn *conn = connect_to(fixture, &server, &config);
 	assert_int_equal(scion_quic_shutdown(conn), 0);
 
-	uint8_t *buf = malloc(bulk + 1);
-	assert_non_null(buf);
-	size_t len = read_all(conn, buf, bulk + 1, 1000); // small reads: the window grows only as the client reads
+	size_t len = read_all(conn, buf, sizeof(buf), 1000); // small reads: the window grows only as the client reads
 	assert_int_equal(len, bulk);
 	for (size_t i = 0; i < bulk; i++) {
 		if (buf[i] != (uint8_t)(i % 251)) {
 			fail_msg("byte %zu is %u, expected %u", i, buf[i], (unsigned)(i % 251));
 		}
 	}
-	free(buf);
 
 	scion_quic_close(conn);
 	quic_test_server_stop(&server);
@@ -220,33 +217,28 @@ static void test_quic_sends_beyond_server_window(void **state)
 {
 	struct socket_fixture *fixture = *state;
 	// The server allows 16 KB at a time and extends the window as it receives: the client must resume.
-	const size_t total = 300 * 1000;
 	struct quic_test_server server = { .mode = QUIC_TEST_ECHO, .stream_window = 16 * 1024 };
 	quic_test_server_start(&server, fixture->network);
 
 	struct scion_quic_config config = { .alpn = QUIC_TEST_ALPN };
 	struct scion_quic_conn *conn = connect_to(fixture, &server, &config);
-	uint8_t *data = malloc(total);
-	assert_non_null(data);
-	for (size_t i = 0; i < total; i++) {
+	uint8_t data[300 * 1000];
+	for (size_t i = 0; i < sizeof(data); i++) {
 		data[i] = (uint8_t)(i * 7);
 	}
-	assert_int_equal(scion_quic_write(conn, data, total), (ssize_t)total);
+	assert_int_equal(scion_quic_write(conn, data, sizeof(data)), (ssize_t)sizeof(data));
 	assert_int_equal(scion_quic_shutdown(conn), 0);
 
-	uint8_t *echo = malloc(total + 7);
-	assert_non_null(echo);
-	assert_int_equal(read_all(conn, echo, total + 7, 4096), total + 6);
+	uint8_t echo[sizeof(data) + 7];
+	assert_int_equal(read_all(conn, echo, sizeof(echo), 4096), sizeof(data) + 6);
 	assert_memory_equal(echo, "echo: ", 6);
-	assert_memory_equal(echo + 6, data, total);
+	assert_memory_equal(echo + 6, data, sizeof(data));
 
 	scion_quic_close(conn);
 	quic_test_server_stop(&server);
-	assert_int_equal(server.received_len, total);
-	assert_memory_equal(server.received, data, total);
+	assert_int_equal(server.received_len, sizeof(data));
+	assert_memory_equal(server.received, data, sizeof(data));
 	quic_test_server_free(&server);
-	free(data);
-	free(echo);
 }
 
 static void test_quic_retransmits_lost_data(void **state)
@@ -287,8 +279,8 @@ static void test_quic_verifies_the_server(void **state)
 	struct quic_test_server server = { .mode = QUIC_TEST_ECHO };
 	quic_test_server_start(&server, fixture->network);
 
-	char *ca;
-	struct scion_quic_config config = verifying_config("ca.pem", QUIC_TEST_SERVER_NAME, &ca);
+	char ca[1024];
+	struct scion_quic_config config = verifying_config("ca.pem", QUIC_TEST_SERVER_NAME, ca, sizeof(ca));
 	struct scion_quic_conn *conn = connect_to(fixture, &server, &config);
 	assert_int_equal(scion_quic_write(conn, "verified", 8), 8);
 	assert_int_equal(scion_quic_shutdown(conn), 0);
@@ -298,7 +290,6 @@ static void test_quic_verifies_the_server(void **state)
 	assert_memory_equal(buf, "echo: verified", 14);
 
 	scion_quic_close(conn);
-	free(ca);
 	quic_test_server_stop(&server);
 	quic_test_server_free(&server);
 }
@@ -325,18 +316,16 @@ static void expect_handshake_failure(struct socket_fixture *fixture, const struc
 
 static void test_quic_rejects_a_wrong_server_name(void **state)
 {
-	char *ca;
-	struct scion_quic_config config = verifying_config("ca.pem", "other.test", &ca);
+	char ca[1024];
+	struct scion_quic_config config = verifying_config("ca.pem", "other.test", ca, sizeof(ca));
 	expect_handshake_failure(*state, &config);
-	free(ca);
 }
 
 static void test_quic_rejects_an_untrusted_certificate(void **state)
 {
-	char *ca;
-	struct scion_quic_config config = verifying_config("other_ca.pem", QUIC_TEST_SERVER_NAME, &ca);
+	char ca[1024];
+	struct scion_quic_config config = verifying_config("other_ca.pem", QUIC_TEST_SERVER_NAME, ca, sizeof(ca));
 	expect_handshake_failure(*state, &config);
-	free(ca);
 }
 
 static void test_quic_rejects_a_wrong_alpn(void **state)
