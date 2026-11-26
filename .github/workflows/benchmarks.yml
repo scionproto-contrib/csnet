@@ -1,0 +1,138 @@
+name: Benchmarks
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  benchmarks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Like in the development workflow, the build folder keeps the dependencies that were built. A change in the
+      # CMake files starts from the newest cache, and only pushes to main save one.
+      - name: Restore CMake build folder
+        id: cache-build
+        uses: actions/cache/restore@v4
+        with:
+          path: build
+          key: build-benchmarks-${{ hashFiles('**/CMakeLists.txt', 'cmake/*.cmake') }}
+          restore-keys: |
+            build-benchmarks-
+
+      - name: Set up ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: benchmarks
+          max-size: 500M
+
+      - name: Configure CMake
+        run: >
+          cmake
+          -DCMAKE_BUILD_TYPE=Release
+          -DBUILD_BENCHMARKS=ON
+          -DBUILD_CMD=OFF
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -B build
+          -G Ninja
+
+      - name: Build
+        run: cmake --build build --target benchmarks --parallel
+
+      - name: Save CMake build folder
+        if: github.ref == 'refs/heads/main' && steps.cache-build.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build
+          key: ${{ steps.cache-build.outputs.cache-primary-key }}
+
+      - name: Run benchmarks
+        run: build/benchmarks/benchmarks --benchmark_out=benchmarks.json --benchmark_out_format=json
+
+      # The results of the last push to main are kept in the cache. Like the build folder in the development
+      # workflow, only pushes to main save it.
+      - name: Restore the results of main
+        uses: actions/cache/restore@v4
+        with:
+          path: benchmark-data
+          key: benchmarks-${{ github.run_id }}
+          restore-keys: benchmarks-
+
+      # The first run has no results to compare with.
+      - name: Create the folder of the results
+        run: mkdir -p benchmark-data
+
+      # Shared runners vary by 10 to 20 percent between runs, so only a slowdown above 50 percent is reported, and it
+      # does not fail the job.
+      - name: Compare with main
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: googlecpp
+          output-file-path: benchmarks.json
+          external-data-json-path: benchmark-data/benchmark-data.json
+          alert-threshold: '150%'
+          fail-on-alert: false
+          summary-always: true
+
+      - name: Save the results of main
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: benchmark-data
+          key: benchmarks-${{ github.run_id }}
+
+      - name: Store the results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmarks
+          path: benchmarks.json
+
+  # The badge in the README shows how much slower sending and receiving 1400 bytes with csnet is than with plain UDP
+  # sockets. shields.io reads it from the branch badges, which only holds the file of the badge.
+  badge:
+    needs: benchmarks
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Retrieve the results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmarks
+          path: ${{ runner.temp }}
+
+      - name: Create the badge
+        run: |
+          python3 - <<'EOF'
+          import json
+          with open("${{ runner.temp }}/benchmarks.json") as f:
+              times = {b["name"]: b["real_time"] for b in json.load(f)["benchmarks"]}
+          overhead = times["scion_send_recv/1400"] / times["udp_send_recv/1400"] - 1
+          color = "brightgreen" if overhead < 0.3 else "yellow" if overhead < 0.5 else "red"
+          badge = {"schemaVersion": 1, "label": "csnet overhead", "message": f"{overhead:+.0%}", "color": color}
+          with open("${{ runner.temp }}/benchmark.json", "w") as f:
+              json.dump(badge, f)
+          EOF
+
+      # The branch has a single commit, which is replaced every time.
+      - name: Push the badge
+        run: |
+          git checkout --orphan badges
+          git rm -rq --cached .
+          git clean -fdxq
+          cp ${{ runner.temp }}/benchmark.json .
+          git add benchmark.json
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -qm "Update the benchmark badge"
+          git push -f origin badges
