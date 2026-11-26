@@ -62,6 +62,7 @@ The following options exist:
 - `BUILD_TESTS`: build the tests in `./tests`. May also build the command line tools in `./cmd` that are required by the
   tests even if `DBUILD_CMD` is `OFF`.
 - `BUILD_DOCS`: build the docs which are output to `./docs/api`.
+- `BUILD_BENCHMARKS`: build the benchmarks in `./benchmarks`, see [Running the Benchmarks](#running-the-benchmarks).
 
 Build everything with
 
@@ -168,6 +169,21 @@ sudo ctest --extra-verbose --output-on-failure -L e2e --test-dir build-debug
 
 > **Info**: The local SCION network will automatically start before the end-to-end tests run and shut down after they
 > complete.
+
+### Running the Benchmarks
+
+The benchmarks use [Google Benchmark](https://github.com/google/benchmark) and need a C++ compiler. Build them in
+Release mode, as the sanitizers of the Debug build change the results:
+
+```bash
+cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_BENCHMARKS=ON -B build-bench
+cmake --build build-bench --target benchmarks
+ctest --extra-verbose -L benchmark --test-dir build-bench
+```
+
+The benchmarks can also be run directly with `build-bench/benchmarks/benchmarks`, which takes the options of Google
+Benchmark. For example, `--benchmark_filter=<regex>` runs only some of them, and `--benchmark_format=json` prints the
+results as JSON. Two results can be compared with the `compare.py` script of Google Benchmark.
 
 ### Releasing a New Version
 
