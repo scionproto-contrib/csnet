@@ -14,6 +14,7 @@ option(BUILD_TESTS "build tests" OFF)
 option(BUILD_EXAMPLES "build examples" OFF)
 option(BUILD_QUIC "build the QUIC library scion_quic (see SCION_QUIC_TLS)" OFF)
 option(BUILD_DOCS "build docs" OFF)
+option(BUILD_BENCHMARKS "build the benchmarks (needs a C++ compiler)" OFF)
 
 # Copy topology file
 if (EXISTS "${CMAKE_SOURCE_DIR}/topology/topology.json")
@@ -31,7 +32,7 @@ set(BUILD_TESTING ${BUILD_TESTS})
 set(DEPENDENCY_LAUNCHER_ARGS -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
         -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER})
 
-if (BUILD_LIB OR BUILD_CMD OR BUILD_TESTS OR BUILD_EXAMPLES)
+if (BUILD_LIB OR BUILD_CMD OR BUILD_TESTS OR BUILD_EXAMPLES OR BUILD_BENCHMARKS)
     add_subdirectory(lib)
 endif ()
 
@@ -50,6 +51,10 @@ endif ()
 if (BUILD_TESTING)
     add_subdirectory(tests/unit)
     add_subdirectory(tests/e2e)
+endif ()
+
+if (BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
 endif ()
 
 if (BUILD_DOCS)
