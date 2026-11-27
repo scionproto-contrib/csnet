@@ -1,7 +1,6 @@
 # csnet
 
 [![Development Workflow](../../actions/workflows/development.yml/badge.svg)](../../actions/workflows/development.yml)
-[![Benchmarks](../../actions/workflows/benchmarks.yml/badge.svg)](../../actions/workflows/benchmarks.yml)
 [![csnet overhead](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/scionproto-contrib/csnet/badges/benchmark.json)](../../blob/badges/results.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://github.com/scionproto-contrib/csnet/blob/main/LICENSE)
 [![Version](https://img.shields.io/github/release/scionproto-contrib/csnet.svg?label=version)](https://github.com/scionproto-contrib/csnet/releases/latest)
@@ -193,7 +192,7 @@ of the job.
 The badge "csnet overhead" shows how much longer `scion_send_recv` takes than `udp_send_recv` with 1400 bytes on the
 last run on `main`. Both send a packet over loopback and receive it, so the difference is the time csnet spends on a
 packet on top of the UDP socket, for example to build and parse the SCION header. It is green below 30% and red above
-50%. Clicking it shows the results of all the sizes.
+50%, and shows "failing" when the benchmarks fail. Clicking it shows the results of all the sizes.
 
 ### Releasing a New Version
 

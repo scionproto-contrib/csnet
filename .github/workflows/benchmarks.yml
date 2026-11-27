@@ -97,7 +97,8 @@ jobs:
   # sockets. shields.io reads it from the branch badges, which only holds the file of the badge and the results.
   badge:
     needs: benchmarks
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Runs also when the benchmarks fail, so that the badge shows it.
+    if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
 
     permissions:
@@ -107,6 +108,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Retrieve the results
+        if: needs.benchmarks.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: benchmarks
@@ -114,36 +116,43 @@ jobs:
 
       # results.md shows all the results, the badge links to it.
       - name: Create the badge and the results
+        env:
+          RESULT: ${{ needs.benchmarks.result }}
         run: |
           python3 - <<'EOF'
           import json
           import os
-          with open("${{ runner.temp }}/benchmarks.json") as f:
-              times = {b["name"]: b["real_time"] for b in json.load(f)["benchmarks"]}
-          overhead = times["scion_send_recv/1400"] / times["udp_send_recv/1400"] - 1
-          color = "brightgreen" if overhead < 0.3 else "yellow" if overhead < 0.5 else "red"
-          badge = {"schemaVersion": 1, "label": "csnet overhead", "message": f"{overhead:+.0%}", "color": color}
-          with open("${{ runner.temp }}/benchmark.json", "w") as f:
-              json.dump(badge, f)
-
           sha = os.environ["GITHUB_SHA"]
           repo = f'{os.environ["GITHUB_SERVER_URL"]}/{os.environ["GITHUB_REPOSITORY"]}'
           run = f'{repo}/actions/runs/{os.environ["GITHUB_RUN_ID"]}'
-          lines = [
-              "# Benchmark results",
-              "",
-              f"Last run on main: commit [{sha[:7]}]({repo}/commit/{sha}), [workflow run]({run}).",
-              "",
-              "Each round sends a packet over loopback and receives it. The overhead is the time that csnet adds to a",
-              f"plain UDP socket, see [Running the Benchmarks]({repo}#running-the-benchmarks).",
-              "",
-              "| Size | csnet | UDP | Overhead |",
-              "|---:|---:|---:|---:|",
-          ]
-          for size in (64, 512, 1400):
-              scion = times[f"scion_send_recv/{size}"]
-              udp = times[f"udp_send_recv/{size}"]
-              lines.append(f"| {size} B | {scion:.0f} ns | {udp:.0f} ns | {scion / udp - 1:+.0%} |")
+          lines = ["# Benchmark results", ""]
+          if os.environ["RESULT"] == "success":
+              with open("${{ runner.temp }}/benchmarks.json") as f:
+                  times = {b["name"]: b["real_time"] for b in json.load(f)["benchmarks"]}
+              overhead = times["scion_send_recv/1400"] / times["udp_send_recv/1400"] - 1
+              message = f"{overhead:+.0%}"
+              color = "brightgreen" if overhead < 0.3 else "yellow" if overhead < 0.5 else "red"
+              lines += [
+                  f"Last run on main: commit [{sha[:7]}]({repo}/commit/{sha}), [workflow run]({run}).",
+                  "",
+                  "Each round sends a packet over loopback and receives it. The overhead is the time that csnet",
+                  f"adds to a plain UDP socket, see [Running the Benchmarks]({repo}#running-the-benchmarks).",
+                  "",
+                  "| Size | csnet | UDP | Overhead |",
+                  "|---:|---:|---:|---:|",
+              ]
+              for size in (64, 512, 1400):
+                  scion = times[f"scion_send_recv/{size}"]
+                  udp = times[f"udp_send_recv/{size}"]
+                  lines.append(f"| {size} B | {scion:.0f} ns | {udp:.0f} ns | {scion / udp - 1:+.0%} |")
+          else:
+              message = "failing"
+              color = "red"
+              commit = f"[{sha[:7]}]({repo}/commit/{sha})"
+              lines.append(f"The benchmarks failed on commit {commit}, see the [workflow run]({run}).")
+          badge = {"schemaVersion": 1, "label": "csnet overhead", "message": message, "color": color}
+          with open("${{ runner.temp }}/benchmark.json", "w") as f:
+              json.dump(badge, f)
           with open("${{ runner.temp }}/results.md", "w") as f:
               f.write("\n".join(lines) + "\n")
           EOF
